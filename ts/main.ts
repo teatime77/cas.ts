@@ -28,6 +28,22 @@ function* cancel(app: App, root : Term){
     }
 }
 
+function* subst(app: App, root : Term){
+    assert(app.args.length == 2, "SUBST");
+
+    const targets = getSubTerms(root, app.args[0]);
+    for(const t of targets){
+        const dst = app.args[1].clone();
+        t.replace(dst);
+        root.setParent(null);
+
+        const tex = root.tex();
+        msg(`tex:[${tex}]`);
+        render(mathDiv, tex);
+        yield;
+    }
+}
+
 function* gen(texts : string){
     let prev_root : Term | null = null;
 
@@ -42,11 +58,18 @@ function* gen(texts : string){
 
             assert(prev_root != null, "gen");
 
-            if(app.refVar.name == "@cancel"){
+            switch(app.refVar.name){
+            case "@cancel":
                 yield* cancel(app, prev_root);
-            }
-            else{
+                break;
+
+            case "@subst":
+                yield* subst(app, prev_root);
+                break;
+
+            default:
                 assert(false, "gen 2");
+                break;
             }
         }
         else{

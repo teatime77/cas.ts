@@ -2,7 +2,8 @@ namespace casts {
 // 
 
 const commands : string[] = [
-    "@cancel"
+    "@cancel",
+    "@subst"
 ]
 
 function texName(text : string){
@@ -32,6 +33,12 @@ export abstract class Term {
 
     abstract str() : string;
     abstract tex2() : string;
+    abstract clone() : Term;
+
+    copy(dst : Term){
+        dst.value  = this.value;
+        dst.cancel = this.cancel;
+    }
 
     setParent(parent : App | null){
         this.parent = parent;
@@ -80,6 +87,13 @@ export class RefVar extends Term{
         this.name = name;
     }
 
+    clone() : RefVar {
+        const ref = new RefVar(this.name);
+        this.copy(ref);
+
+        return ref;
+    }
+
     str() : string {
         return this.name;
     }
@@ -96,6 +110,13 @@ export class ConstNum extends Term{
     constructor(value: number){
         super();
         this.value = value;
+    }
+
+    clone() : ConstNum {
+        const cns = new ConstNum(this.value);
+        this.copy(cns);
+
+        return cns;
     }
 
     str() : string {
@@ -123,6 +144,15 @@ export class App extends Term{
         this.opr    = opr;
         this.refVar = refVar;
         this.args   = args.slice();
+    }
+
+    clone() : App {
+        const ref_var = (this.refVar == null ? null : this.refVar.clone());
+        const app = new App(this.opr, this.args.map(x => x.clone()), ref_var);
+
+        this.copy(app);
+
+        return app;
     }
 
     setParent(parent : App){
@@ -457,22 +487,7 @@ export class Parser {
     }
 
     Expression(){
-        let trm = this.RelationalExpression();
-        if(this.token.text != ","){
-
-            return trm;
-        }
-
-        let app = new App("[]", [trm]);
-        
-        while(this.token.text == ","){
-            this.next();
-
-            let trm2 = this.RelationalExpression();
-            app.args.push(trm2);
-        }
-
-        return app;
+        return this.RelationalExpression();
     }
     
 }
