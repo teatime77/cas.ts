@@ -109,7 +109,7 @@ var KeywordMap : Array<string> = new  Array<string> (
 var IdList : Array<string> = new  Array<string> (
 );
 
-function isLetter(s : string) : boolean {
+export function isLetter(s : string) : boolean {
     return s.length === 1 && ("a" <= s && s <= "z" || "A" <= s && s <= "Z");
 }
 

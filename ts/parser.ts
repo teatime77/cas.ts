@@ -1,9 +1,28 @@
 namespace casts {
 // 
 
-export class Term {
+function texName(text : string){
+    switch(text){
+    case "=="     : return "=";
+    case "!="     : return "\\ne";
+    case "<"      : return "\\gt";
+    case ">"      : return "\\lt";
+    case "<="     : return "\\ge";
+    case ">="     : return "\\le";
+    case "*"      : return "\\cdot";
+    case "hbar"   : return "\\hbar";
+    case "nabla"  : return "\\nabla";
+    case "nabla2" : return "\\nabla^2";
+    }
+
+    return text;
+}
+
+export abstract class Term {
     // 係数
     value : number = 1;
+
+    abstract tex() : string;
 }
 
 export class RefVar extends Term{
@@ -12,6 +31,10 @@ export class RefVar extends Term{
     constructor(name: string){
         super();
         this.name = name;
+    }
+
+    tex() : string {
+        return texName(this.name);
     }
 }
 
@@ -22,6 +45,10 @@ export class ConstNum extends Term{
     constructor(value: number){
         super();
         this.value = value;
+    }
+
+    tex() : string {
+        return this.value.toString();
     }
 }
 
@@ -41,6 +68,42 @@ export class App extends Term{
         this.opr    = opr;
         this.refVar = refVar;
         this.args   = args.slice();
+    }
+
+    tex() : string {
+        const args = this.args.map(x => x.tex());
+
+        if(isLetter(this.opr[0])){
+            const args_s = args.join(", ");
+            return `${texName(this.opr)}(${args_s})`;
+        }
+
+        switch(this.opr){
+        case "[]":{
+            const args_s = args.join(", ");
+            return `${this.opr}[${args_s}]`;            
+        }
+        case ".":
+            if(this.refVar == null){
+                throw new Error();
+            }
+            if(this.args.length != 1){
+                throw new Error();
+            }
+            return `${this.refVar.tex()}.${args[0]}`;            
+
+        case "/":
+            if(this.args.length != 2){
+                throw new Error();
+            }
+            return `\\frac{${args[0]}}{${args[1]}}`;
+
+        case "^":
+            return `${args[0]}^{${args[1]}}`;
+
+        default:
+            return args.join(` ${texName(this.opr)} `);
+        }
     }
 
 }

@@ -1,5 +1,6 @@
 namespace casts {
 // 
+let mathDiv : HTMLDivElement;
 
 export function parseMath(text: string) : Term {
     let parser = new Parser(text);
@@ -13,10 +14,15 @@ export function parseMath(text: string) : Term {
 }
 
 async function main() {
-    const text = await fetchText("../data/1");
+    mathDiv = document.getElementById("math-div") as HTMLDivElement;
+
+    const text = await fetchText("../data/1.txt");
     msg(text);
 
-    parseMath(text);
+    const root = parseMath(text);
+    const tex = root.tex();
+    msg(`tex:[${tex}]`);
+    render(mathDiv, tex);
 }
 
 export function bodyOnLoad(){
