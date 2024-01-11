@@ -1,6 +1,10 @@
 namespace casts {
 // 
 
+const commands : string[] = [
+    "@cancel"
+]
+
 function texName(text : string){
     switch(text){
     case "=="     : return "=";
@@ -19,10 +23,53 @@ function texName(text : string){
 }
 
 export abstract class Term {
+    parent : App | null = null;
+
     // 係数
     value : number = 1;
 
-    abstract tex() : string;
+    cancel : boolean = false;
+
+    abstract str() : string;
+    abstract tex2() : string;
+
+    setParent(parent : App | null){
+        this.parent = parent;
+    }
+
+    replace(target : Term){
+        const app : App = this.parent;
+        assert(app != null, "replace");
+
+        if(app.refVar == this as unknown){
+            app.refVar = target as RefVar;
+        }
+        else{
+            const idx = app.args.findIndex(x => x == this);
+            assert(idx != -1, "replace idx");
+            app.args[idx] = target;
+        }
+
+        target.parent = app;
+    }
+
+    tex() : string {
+        if(this.cancel){
+            return `\\cancel{${this.tex2()}}`
+        }
+        else{
+            return this.tex2();
+        }
+    }
+
+    isCommand() : boolean{
+        if(this instanceof App && this.refVar != null){
+
+            return commands.includes(this.refVar.name);
+        }
+
+        return false;
+    }
 }
 
 export class RefVar extends Term{
@@ -33,7 +80,11 @@ export class RefVar extends Term{
         this.name = name;
     }
 
-    tex() : string {
+    str() : string {
+        return this.name;
+    }
+
+    tex2() : string {
         return texName(this.name);
     }
 }
@@ -47,7 +98,11 @@ export class ConstNum extends Term{
         this.value = value;
     }
 
-    tex() : string {
+    str() : string {
+        return this.value.toString();        
+    }
+
+    tex2() : string {
         return this.value.toString();
     }
 }
@@ -70,10 +125,43 @@ export class App extends Term{
         this.args   = args.slice();
     }
 
-    tex() : string {
+    setParent(parent : App){
+        super.setParent(parent);
+
+        if(this.refVar != null){
+            this.refVar.setParent(this);
+        }
+
+        this.args.forEach(x => x.setParent(this));
+    }
+
+    str() : string {
+        const args = this.args.map(x => x.str());
+        
+        if(isLetterOrAt(this.opr)){
+            const args_s = args.join(", ");
+            return `${texName(this.opr)}(${args_s})`;
+        }
+
+        if(this.opr == "[]"){
+            const args_s = args.join(", ");
+            if(this.refVar == null){
+
+                return `[${args_s}`;
+            }
+            else{
+
+                return `${this.refVar.name}[${args_s}]`;            
+            }
+        }
+
+        return args.join(` ${this.opr} `);
+    }
+
+    tex2() : string {
         const args = this.args.map(x => x.tex());
 
-        if(isLetter(this.opr[0])){
+        if(isLetterOrAt(this.opr)){
             const args_s = args.join(", ");
             return `${texName(this.opr)}(${args_s})`;
         }
@@ -81,7 +169,14 @@ export class App extends Term{
         switch(this.opr){
         case "[]":{
             const args_s = args.join(", ");
-            return `${this.opr}[${args_s}]`;            
+            if(this.refVar == null){
+
+                return `[${args_s}`;
+            }
+            else{
+
+                return `${this.refVar.tex()}[${args_s}]`;            
+            }
         }
         case ".":
             if(this.refVar == null){
@@ -382,4 +477,33 @@ export class Parser {
     
 }
 
+export function getAllTerms(t : Term, terms: Term[]){
+    terms.push(t);
+
+    if(t instanceof App){
+        if(t.refVar != null){
+            getAllTerms(t.refVar, terms);
+        }
+
+        t.args.forEach(x => getAllTerms(x, terms));
+    }
+}
+
+export function makeTermMap(root : Term) : Map<string, Term>{
+    const terms : Term[] = [];
+    getAllTerms(root, terms);
+
+    const map = new Map<string, Term>();
+    terms.forEach(x => map.set(x.str(), x));
+
+    return map;
+}
+
+export function getSubTerms(root : Term, target : Term) : Term[]{
+    const terms : Term[] = [];
+    getAllTerms(root, terms);
+
+    const target_str = target.str();
+    return terms.filter(x => x.str() == target_str );
+}
 }

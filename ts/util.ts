@@ -3,8 +3,12 @@ var getUserMacros;
 
 namespace casts {
 
-    
-//
+export function assert(b : boolean, msg : string){
+    if(!b){
+        throw new Error(msg);
+    }
+}    
+
 export function msg(txt : string){
     console.log(txt);
 }
@@ -18,6 +22,8 @@ export async function fetchText(fileURL: string) {
 
 export function render(ele: HTMLElement, tex_text: string){
     try{
+        ele.innerHTML = "";
+        
         katex.render(tex_text, ele, {
             throwOnError: false,
             displayMode : true,

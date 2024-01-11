@@ -120,6 +120,10 @@ function isDigit(s : string) : boolean {
 function isLetterOrDigit(s : string) : boolean {
     return isLetter(s) || isDigit(s);
 }
+
+export function isLetterOrAt(s : string) : boolean {
+    return isLetter(s[0]) || 2 <= s.length && s[0] == "@" && isLetter(s[1]);
+}
     
 export enum TokenSubType {
     unknown,
@@ -157,7 +161,7 @@ export function lexicalAnalysis(text : string) : Token[] {
         if (text.length <= pos) {
             // テキストの終わりの場合
 
-            return;
+            break;
         }
 
         const start_pos = pos;
@@ -187,7 +191,7 @@ export function lexicalAnalysis(text : string) : Token[] {
             token_type = TokenType.newLine;
             pos++;
         }
-        else if (isLetter(ch1)) {
+        else if (isLetterOrAt(ch1 + ch2)){
             // 識別子の最初の文字の場合
 
             // 識別子の文字の最後を探します。識別子の文字はユニコードカテゴリーの文字か数字か'_'。
@@ -259,7 +263,7 @@ export function lexicalAnalysis(text : string) : Token[] {
 
         const token = new Token(token_type, sub_type, word, start_pos);
 
-        msg(`${token.charPos} [${token.text}] ${token.typeTkn} ${token.subType}`);
+        // msg(`${token.charPos} [${token.text}] ${token.typeTkn} ${token.subType}`);
 
         tokens.push(token);
     }
