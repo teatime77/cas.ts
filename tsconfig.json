@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "target": "ES6",
+        "module": "amd",
+        "sourceMap": true,
+        "outFile": "./web/js/main.js",
+        "lib": [
+            "dom",
+            "scripthost",
+            "ES2019"
+        ]
+    },
+    "include": [
+        "ts/*.ts"
+    ]
+}
