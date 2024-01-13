@@ -194,18 +194,6 @@ export class App extends Term{
             return `${texName(this.opr)}(${args_s})`;
         }
 
-        if(this.opr == "[]"){
-            const args_s = args.join(", ");
-            if(this.refVar == null){
-
-                return `[${args_s}`;
-            }
-            else{
-
-                return `${this.refVar.name}[${args_s}]`;            
-            }
-        }
-
         return args.join(` ${this.opr} `);
     }
 
@@ -239,18 +227,6 @@ export class App extends Term{
         else{
 
             switch(this.opr){
-            case "[]":{
-                const args_s = args.join(", ");
-                if(this.refVar == null){
-
-                    text = `[${args_s}`;
-                }
-                else{
-
-                    text = `${this.refVar.tex()}[${args_s}]`;            
-                }
-                break
-            }
             case ".":
                 if(this.refVar == null){
                     throw new Error();
@@ -349,31 +325,6 @@ export class Parser {
     }
 
 
-    BracketExpression(app: App){
-        let start = this.token.text;
-        let endMark = App.startEnd[start];
-        if(endMark == undefined){
-            throw new Error();
-        }
-
-        this.next();
-
-        let trm1 = this.AdditiveExpression();
-        app.args.push(trm1);
-
-        while(this.token.text == ","){
-            this.next();
-
-            let trm2 = this.AdditiveExpression();
-            app.args.push(trm2);
-        }
-
-        if(this.token.text != endMark){
-            throw new Error();
-        }
-        this.next();
-    }
-
     readArgs(app : App){
         this.nextToken("(");
 
@@ -399,14 +350,7 @@ export class Parser {
             let refVar = new RefVar(this.token.text);
             this.next();
 
-            if(this.token.text == '['){
-
-                let app = new App("[]", [], refVar);
-                this.BracketExpression(app);
-
-                return app;
-            }
-            else if(this.token.text == '('){
+            if(this.token.text == '('){
 
                 let app = new App(refVar.name, [], refVar);
                 this.readArgs(app);
@@ -434,13 +378,6 @@ export class Parser {
 
             trm = new ConstNum(n);
             this.next();
-        }
-        else if(this.token.text == '['){
-
-            let app = new App("[]", []);
-            this.BracketExpression(app);
-
-            return app;
         }
         else if(this.token.text == '('){
 
