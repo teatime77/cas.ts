@@ -195,7 +195,11 @@ export class App extends Term{
     str() : string {
         const args = this.args.map(x => x.str());
         
-        if(isLetterOrAt(this.fncName)){
+        if(this.fnc instanceof App){
+            const args_s = args.join(", ");
+            return `(${this.fnc.str()})(${args_s})`;
+        }
+        else if(isLetterOrAt(this.fncName)){
             const args_s = args.join(", ");
             return `${texName(this.fncName)}(${args_s})`;
         }
@@ -207,7 +211,12 @@ export class App extends Term{
         const args = this.args.map(x => x.tex());
 
         let text : string;
-        if(this.refVar != null && this.refVar.name == "pdiff"){
+        if(this.fnc instanceof App){
+
+            const args_s = args.join(", ");
+            text = `(${this.fnc.tex()})(${args_s})`;
+        }
+        else if(this.refVar != null && this.refVar.name == "pdiff"){
             const n = (this.args.length == 3 ? `^${args[2]}`:``);
 
             if(args[0].indexOf("\\frac") == -1){
@@ -377,6 +386,14 @@ export class Parser {
                 throw new Error();
             }
             this.next();
+
+            if(this.token.text == '('){
+
+                let app = new App(trm, []);
+                this.readArgs(app);
+
+                return app;
+            }
 
             return trm;
         }
