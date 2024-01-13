@@ -49,7 +49,6 @@ export enum TokenType{
 
 var SymbolTable : Array<string> = new  Array<string> (
     ",",
-    ".",
     ";",
     "(",
     ")",

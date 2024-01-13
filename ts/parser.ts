@@ -227,15 +227,6 @@ export class App extends Term{
         else{
 
             switch(this.opr){
-            case ".":
-                if(this.refVar == null){
-                    throw new Error();
-                }
-                if(this.args.length != 1){
-                    throw new Error();
-                }
-                text = `${this.refVar.tex()}.${args[0]}`;            
-                break
 
             case "/":
                 if(this.args.length != 2){
@@ -355,14 +346,6 @@ export class Parser {
                 let app = new App(refVar.name, [], refVar);
                 this.readArgs(app);
 
-                return app;
-            }
-            else if(this.token.text == '.'){
-                this.next();
-
-                let trm2 = this.PrimaryExpression();
-
-                let app = new App(".", [ trm2 ], refVar);
                 return app;
             }
             else{
