@@ -18,6 +18,13 @@ function texName(text : string){
     case "hbar"   : return "\\hbar";
     case "nabla"  : return "\\nabla";
     case "nabla2" : return "\\nabla^2";
+
+    case "sin"  :
+    case "cos"  :
+    case "theta":
+    case "phi"  :
+        return `\\${text}`
+    // case "" : return "\\";
     }
 
     return text;
@@ -48,8 +55,8 @@ export abstract class Term {
         const app : App = this.parent;
         assert(app != null, "replace");
 
-        if(app.refVar == this as unknown){
-            app.refVar = target as RefVar;
+        if(app.fnc == this){
+            app.fnc = target;
         }
         else{
             const idx = app.args.findIndex(x => x == this);
@@ -67,6 +74,10 @@ export abstract class Term {
         else{
             return this.tex2();
         }
+    }
+
+    isOperator() : boolean {
+        return this instanceof App && this.precedence() != -1;
     }
 
     isCommand() : boolean{
@@ -129,8 +140,8 @@ export class ConstNum extends Term{
 }
 
 export class App extends Term{
+    fnc : Term;
     opr : string;
-    refVar : RefVar | null = null;
     args: Term[];
 
     static startEnd : { [start : string] : string } = {
@@ -139,10 +150,20 @@ export class App extends Term{
         "{" : "}",
     }
 
-    constructor(opr: string, args: Term[], refVar: RefVar | null = null){
+    get refVar() : RefVar | null {
+        if(this.fnc != null && this.fnc instanceof RefVar){
+            return this.fnc;
+        }
+        else{
+            return null;
+        }
+    }
+
+
+    constructor(opr: string, args: Term[], fnc: Term | null = null){
         super();
         this.opr    = opr;
-        this.refVar = refVar;
+        this.fnc    = fnc;
         this.args   = args.slice();
     }
 
@@ -191,46 +212,104 @@ export class App extends Term{
     tex2() : string {
         const args = this.args.map(x => x.tex());
 
-        if(isLetterOrAt(this.opr)){
-            const args_s = args.join(", ");
-            return `${texName(this.opr)}(${args_s})`;
-        }
+        let text : string;
+        if(this.refVar != null && this.refVar.name == "pdiff"){
+            const n = (this.args.length == 3 ? `^${args[2]}`:``);
 
-        switch(this.opr){
-        case "[]":{
-            const args_s = args.join(", ");
-            if(this.refVar == null){
+            if(args[0].indexOf("\\frac") == -1){
 
-                return `[${args_s}`;
+                text = `\\frac{ \\partial${n} ${args[0]}}{ \\partial ${args[1]}${n}}`;
             }
             else{
 
-                return `${this.refVar.tex()}[${args_s}]`;            
+                text = `\\frac{ \\partial${n} }{ \\partial ${args[1]}${n}} (${args[0]})`;
             }
         }
-        case ".":
-            if(this.refVar == null){
-                throw new Error();
-            }
-            if(this.args.length != 1){
-                throw new Error();
-            }
-            return `${this.refVar.tex()}.${args[0]}`;            
+        else if(isLetterOrAt(this.opr)){
+            if(["sin", "cos"].includes(this.opr) && ! (this.args[0] instanceof App)){
 
-        case "/":
-            if(this.args.length != 2){
-                throw new Error();
+                text = `${texName(this.opr)} ${args[0]}`;
             }
-            return `\\frac{${args[0]}}{${args[1]}}`;
+            else{
 
-        case "^":
-            return `${args[0]}^{${args[1]}}`;
-
-        default:
-            return args.join(` ${texName(this.opr)} `);
+                const args_s = args.join(", ");
+                text = `${texName(this.opr)}(${args_s})`;
+            }
         }
+        else{
+
+            switch(this.opr){
+            case "[]":{
+                const args_s = args.join(", ");
+                if(this.refVar == null){
+
+                    text = `[${args_s}`;
+                }
+                else{
+
+                    text = `${this.refVar.tex()}[${args_s}]`;            
+                }
+                break
+            }
+            case ".":
+                if(this.refVar == null){
+                    throw new Error();
+                }
+                if(this.args.length != 1){
+                    throw new Error();
+                }
+                text = `${this.refVar.tex()}.${args[0]}`;            
+                break
+
+            case "/":
+                if(this.args.length != 2){
+                    throw new Error();
+                }
+                text = `\\frac{${args[0]}}{${args[1]}}`;
+                break
+
+            case "^":
+                if(this.args[0] instanceof App && ["sin","cos","tan"].includes(this.args[0].opr)){
+
+                    const app = this.args[0];
+                    text = `${texName(app.opr)}^{${args[1]}} ${app.args[0].tex()}`;
+                }
+                else{
+
+                    text = `${args[0]}^{${args[1]}}`;
+                }
+                break
+
+            default:
+                text = args.join(` ${texName(this.opr)} `);
+                break
+            }
+        }
+
+        if(this.isOperator() && this.parent != null && this.parent.isOperator()){
+            if(this.parent.precedence() <= this.precedence()){
+                return `(${text})`;
+            }            
+        }
+
+        return text;
     }
 
+    precedence() : number {
+        switch(this.opr){
+        case "^": 
+            return 0;
+
+        case "*": 
+            return 1;
+
+        case "+": 
+        case "-": 
+            return 2;
+        }
+
+        return -1;
+    }
 }
 
 export class Parser {
@@ -486,8 +565,13 @@ export class Parser {
         return trm1;
     }
 
-    Expression(){
+    Expression() : Term{
         return this.RelationalExpression();
+        // const trm1 = this.RelationalExpression();
+
+        // if(this.token.typeTkn != TokenType.eot){
+
+        // }
     }
     
 }

@@ -73,6 +73,8 @@ function* gen(texts : string){
             }
         }
         else{
+            mathDiv = document.createElement("div");
+            document.body.appendChild(mathDiv);
 
             const tex = root.tex();
             msg(`tex:[${tex}]`);
@@ -88,8 +90,6 @@ function* gen(texts : string){
 
 
 async function main() {
-    mathDiv = document.getElementById("math-div") as HTMLDivElement;
-
     const texts = await fetchText("../data/1.txt");
     msg(texts);
 
@@ -102,7 +102,7 @@ async function main() {
             clearInterval(timer_id);
             console.log("ジェネレータ 終了");
         }        
-    }, 1000);
+    }, 100);
 }
 
 export function bodyOnLoad(){
