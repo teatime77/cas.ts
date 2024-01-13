@@ -141,7 +141,6 @@ export class ConstNum extends Term{
 
 export class App extends Term{
     fnc : Term;
-    opr : string;
     args: Term[];
 
     static startEnd : { [start : string] : string } = {
@@ -159,17 +158,24 @@ export class App extends Term{
         }
     }
 
+    get fncName() : string {
+        if(this.fnc instanceof RefVar){
+            return this.fnc.name;
+        }
+        else{
+            return `no-fnc-name`;
+        }
+    }
 
-    constructor(opr: string, args: Term[], fnc: Term | null = null){
+
+    constructor(fnc: Term, args: Term[]){
         super();
-        this.opr    = opr;
         this.fnc    = fnc;
         this.args   = args.slice();
     }
 
     clone() : App {
-        const ref_var = (this.refVar == null ? null : this.refVar.clone());
-        const app = new App(this.opr, this.args.map(x => x.clone()), ref_var);
+        const app = new App(this.fnc.clone(), this.args.map(x => x.clone()));
 
         this.copy(app);
 
@@ -189,12 +195,12 @@ export class App extends Term{
     str() : string {
         const args = this.args.map(x => x.str());
         
-        if(isLetterOrAt(this.opr)){
+        if(isLetterOrAt(this.fncName)){
             const args_s = args.join(", ");
-            return `${texName(this.opr)}(${args_s})`;
+            return `${texName(this.fncName)}(${args_s})`;
         }
 
-        return args.join(` ${this.opr} `);
+        return args.join(` ${this.fncName} `);
     }
 
     tex2() : string {
@@ -213,20 +219,20 @@ export class App extends Term{
                 text = `\\frac{ \\partial${n} }{ \\partial ${args[1]}${n}} (${args[0]})`;
             }
         }
-        else if(isLetterOrAt(this.opr)){
-            if(["sin", "cos"].includes(this.opr) && ! (this.args[0] instanceof App)){
+        else if(isLetterOrAt(this.fncName)){
+            if(["sin", "cos"].includes(this.fncName) && ! (this.args[0] instanceof App)){
 
-                text = `${texName(this.opr)} ${args[0]}`;
+                text = `${texName(this.fncName)} ${args[0]}`;
             }
             else{
 
                 const args_s = args.join(", ");
-                text = `${texName(this.opr)}(${args_s})`;
+                text = `${texName(this.fncName)}(${args_s})`;
             }
         }
         else{
 
-            switch(this.opr){
+            switch(this.fncName){
 
             case "/":
                 if(this.args.length != 2){
@@ -236,10 +242,10 @@ export class App extends Term{
                 break
 
             case "^":
-                if(this.args[0] instanceof App && ["sin","cos","tan"].includes(this.args[0].opr)){
+                if(this.args[0] instanceof App && ["sin","cos","tan"].includes(this.args[0].fncName)){
 
                     const app = this.args[0];
-                    text = `${texName(app.opr)}^{${args[1]}} ${app.args[0].tex()}`;
+                    text = `${texName(app.fncName)}^{${args[1]}} ${app.args[0].tex()}`;
                 }
                 else{
 
@@ -248,7 +254,7 @@ export class App extends Term{
                 break
 
             default:
-                text = args.join(` ${texName(this.opr)} `);
+                text = args.join(` ${texName(this.fncName)} `);
                 break
             }
         }
@@ -263,7 +269,7 @@ export class App extends Term{
     }
 
     precedence() : number {
-        switch(this.opr){
+        switch(this.fncName){
         case "^": 
             return 0;
 
@@ -343,7 +349,7 @@ export class Parser {
 
             if(this.token.text == '('){
 
-                let app = new App(refVar.name, [], refVar);
+                let app = new App(refVar, []);
                 this.readArgs(app);
 
                 return app;
@@ -410,7 +416,7 @@ export class Parser {
 
             const trm2 = this.PowerExpression();
 
-            return new App("^", [trm1, trm2]);
+            return new App(operator("^"), [trm1, trm2]);
         }
 
         return trm1;
@@ -419,14 +425,14 @@ export class Parser {
     MultiplicativeExpression(){
         let trm1 = this.PowerExpression();
         while(this.token.text == "*" || this.token.text == "/"){
-            let app = new App(this.token.text, [trm1]);
+            let app = new App(operator(this.token.text), [trm1]);
             this.next();
 
             while(true){
                 let trm2 = this.PowerExpression();
                 app.args.push(trm2);
                 
-                if(this.token.text == app.opr){
+                if(this.token.text == app.fncName){
                     this.next();
                 }
                 else{
@@ -442,14 +448,14 @@ export class Parser {
     AdditiveExpression(){
         let trm1 = this.MultiplicativeExpression();
         while(this.token.text == "+" || this.token.text == "-"){
-            let app = new App(this.token.text, [trm1]);
+            let app = new App(operator(this.token.text), [trm1]);
             this.next();
 
             while(true){
                 let trm2 = this.MultiplicativeExpression();
                 app.args.push(trm2);
                 
-                if(this.token.text == app.opr){
+                if(this.token.text == app.fncName){
                     this.next();
                 }
                 else{
@@ -465,14 +471,14 @@ export class Parser {
     RelationalExpression(){
         let trm1 = this.AdditiveExpression();
         while([ "==", "!=", "<", "<=", ].includes(this.token.text)){
-            let app = new App(this.token.text, [trm1]);
+            let app = new App(operator(this.token.text), [trm1]);
             this.next();
 
             while(true){
                 let trm2 = this.AdditiveExpression();
                 app.args.push(trm2);
                 
-                if(this.token.text == app.opr){
+                if(this.token.text == app.fncName){
                     this.next();
                 }
                 else{
@@ -494,6 +500,10 @@ export class Parser {
         // }
     }
     
+}
+
+export function operator(opr : string) : RefVar {
+    return new RefVar(opr);
 }
 
 export function getAllTerms(t : Term, terms: Term[]){
