@@ -4,7 +4,7 @@ namespace casts {
 const commands : string[] = [
     "@cancel",
     "@subst",
-    "@muleq"
+    "@muleq",
 ]
 
 function texName(text : string){
@@ -83,6 +83,14 @@ export abstract class Term {
 
     isCommand() : boolean{
         return this instanceof App && commands.includes(this.fncName);
+    }
+
+    isMul() : boolean {
+        return this instanceof App && this.fncName == "*";
+    }
+
+    isDiv() : boolean {
+        return this instanceof App && this.fncName == "/";
     }
 }
 
@@ -523,9 +531,8 @@ export function getAllTerms(t : Term, terms: Term[]){
     terms.push(t);
 
     if(t instanceof App){
-        if(t.refVar != null){
-            getAllTerms(t.refVar, terms);
-        }
+        assert(t.fnc != null, "get all terms");
+        getAllTerms(t.fnc, terms);
 
         t.args.forEach(x => getAllTerms(x, terms));
     }
@@ -548,4 +555,12 @@ export function getSubTerms(root : Term, target : Term) : Term[]{
     const target_str = target.str();
     return terms.filter(x => x.str() == target_str );
 }
+
+export function allTerms(trm : Term) : Term[] {
+    const terms : Term[] = [];
+    getAllTerms(trm, terms);
+
+    return terms;
+}
+
 }

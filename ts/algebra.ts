@@ -90,4 +90,64 @@ export function* muleq(app: App, root : Term){
     showRoot(root2);
 }
 
+export function* cancelMul(root : Term){
+    const mul_terms = allTerms(root).filter(x => x.isMul()) as App[];
+
+    for(const mul of mul_terms){
+        if(mul.args.find(x => x.isDiv()) == undefined){
+            continue;
+        }
+
+        let multipliers : Term[] = [];
+        let dividers : Term[] = [];
+
+        for(const trm of mul.args){
+            if(trm.isDiv()){
+                const div = trm as App;
+                if(div.args[0].isMul()){
+
+                    multipliers.push(... (div.args[0] as App).args );
+                }
+                else{
+                    multipliers.push( div.args[0] );
+                }
+
+                if(div.args[1].isMul()){
+
+                    dividers.push(... (div.args[1] as App).args );
+                }
+                else{
+                    dividers.push( div.args[1] );
+                }
+                
+            }
+            else if(trm.isMul()){
+
+                multipliers.push(... (trm as App).args );
+            }
+            else{
+
+                multipliers.push( trm );
+            }
+        }
+
+        multipliers = multipliers.filter(x => ! x.cancel);
+        dividers = dividers.filter(x => ! x.cancel);
+
+        for(const m of multipliers){
+            const m_str = m.str();
+            const d = dividers.find(x => x.str() == m_str);
+            if(d == undefined){
+                continue;
+            }
+
+            m.cancel = true;
+            d.cancel = true;
+
+            showRoot(root);
+            yield;
+        }
+    }
+}
+
 }

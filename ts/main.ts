@@ -47,6 +47,9 @@ function* gen(texts : string){
                 break;
             }
         }
+        else if(root instanceof RefVar && root.name == "@cancelmul"){
+            yield* cancelMul(prev_root);
+        }
         else{
             mathDiv = document.createElement("div");
             document.body.appendChild(mathDiv);
