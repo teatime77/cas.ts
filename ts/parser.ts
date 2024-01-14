@@ -3,7 +3,8 @@ namespace casts {
 
 const commands : string[] = [
     "@cancel",
-    "@subst"
+    "@subst",
+    "@muleq"
 ]
 
 function texName(text : string){
@@ -81,12 +82,7 @@ export abstract class Term {
     }
 
     isCommand() : boolean{
-        if(this instanceof App && this.refVar != null){
-
-            return commands.includes(this.refVar.name);
-        }
-
-        return false;
+        return this instanceof App && commands.includes(this.fncName);
     }
 }
 

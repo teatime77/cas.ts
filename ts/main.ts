@@ -1,6 +1,6 @@
 namespace casts {
-// 
-let mathDiv : HTMLDivElement;
+
+export let mathDiv : HTMLDivElement;
 
 export function parseMath(text: string) : Term {
     let parser = new Parser(text);
@@ -13,35 +13,6 @@ export function parseMath(text: string) : Term {
     trm.setParent(null);
 
     return trm;
-}
-
-function* cancel(app: App, root : Term){
-    assert(app.args.length == 1, "cancel");
-
-    const targets = getSubTerms(root, app.args[0]);
-    for(const t of targets){
-        t.cancel = true;
-        const tex = root.tex();
-        msg(`tex:[${tex}]`);
-        render(mathDiv, tex);
-        yield;
-    }
-}
-
-function* subst(app: App, root : Term){
-    assert(app.args.length == 2, "SUBST");
-
-    const targets = getSubTerms(root, app.args[0]);
-    for(const t of targets){
-        const dst = app.args[1].clone();
-        t.replace(dst);
-        root.setParent(null);
-
-        const tex = root.tex();
-        msg(`tex:[${tex}]`);
-        render(mathDiv, tex);
-        yield;
-    }
 }
 
 function* gen(texts : string){
@@ -65,6 +36,10 @@ function* gen(texts : string){
 
             case "@subst":
                 yield* subst(app, prev_root);
+                break;
+
+            case "@muleq":
+                yield* muleq(app, prev_root);
                 break;
 
             default:
