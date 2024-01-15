@@ -211,4 +211,44 @@ export function* trimMul(root : Term){
     }
 }
 
+export function* moveAdd(cmd : App, root : Term){
+    assert(cmd.args.length == 2 && cmd.args[0] instanceof Path && cmd.args[1] instanceof Path, "move");
+    
+    const src = cmd.args[0] as Path;
+    const dst = cmd.args[1] as Path;
+
+    assert(root instanceof App, "move 2");
+    const trm = src.getTerm(root as App);
+
+    assert(trm.parent.isAdd(), "move add")
+
+    trm.cancel = true;
+    showRoot(root);
+    yield;
+
+    trm.remArg();
+
+    showRoot(root);
+    yield;
+
+    let parent = dst.getTerm(root as App, true);
+    let add : App;
+    if(parent.isAdd()){
+        add = parent as App;
+    }
+    else{
+
+        add = new App(operator("+"), []);
+        parent.replace(add);
+        add.addArg(parent);
+    }
+
+    trm.cancel = false;
+    trm.value *= -1;
+    const idx = last(dst.indexes);
+    add.insArg(trm, idx);
+
+    showRoot(root);
+}
+
 }

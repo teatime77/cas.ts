@@ -18,8 +18,8 @@ export enum TokenType{
     // 予約語
     reservedWord,
 
-    // $n
-    metaId,
+    // #n.m
+    path,
 
     // End Of Text
     eot,
@@ -236,6 +236,12 @@ export function lexicalAnalysis(text : string) : Token[] {
 
                 sub_type = TokenSubType.integer;
             }
+        }
+        else if(ch1 == "#" && isDigit(ch2)){
+
+            token_type = TokenType.path;
+
+            for (pos++; pos < text.length && (isDigit(text[pos]) || text[pos] == pathSep); pos++);
         }
         else if (SymbolTable.indexOf("" + ch1 + ch2) != -1) {
             // 2文字の記号の表にある場合

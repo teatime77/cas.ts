@@ -48,6 +48,10 @@ function* gen(texts : string){
                 yield* muleq(app, prev_root);
                 break;
 
+            case "@moveadd":
+                yield* moveAdd(app, prev_root);
+                break;
+
             default:
                 assert(false, "gen 2");
                 break;

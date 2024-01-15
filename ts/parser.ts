@@ -5,7 +5,10 @@ const commands : string[] = [
     "@cancel",
     "@subst",
     "@muleq",
-]
+    "@moveadd",
+];
+
+export const pathSep = ":";
 
 function texName(text : string){
     switch(text){
@@ -77,11 +80,45 @@ export abstract class Term {
 
 
     tex() : string {
-        if(this.cancel){
-            return `\\cancel{${this.tex2()}}`
+        let val : string;
+
+        if(this instanceof ConstNum){
+
+            val = this.value.toString();
         }
         else{
-            return this.tex2();
+            const tex2 = this.tex2();
+
+            if(this.value == 1){
+                val = tex2;
+            }
+            else if(this.value == -1){
+                val = "-" + tex2;
+            }
+            else{
+
+                val = `${this.value} ${tex2}`
+            }
+        }
+
+        if(this.parent != null && this.parent.isAdd()){
+            const idx = this.parent.args.indexOf(this);
+            assert(idx != -1, "tex");
+
+            if(idx != 0){
+
+                if(0 <= this.value){
+
+                    val = "+" + val;
+                }
+            }
+        }
+
+        if(this.cancel){
+            return `\\cancel{${val}}`
+        }
+        else{
+            return val;
         }
     }
 
@@ -91,6 +128,10 @@ export abstract class Term {
 
     isCommand() : boolean{
         return this instanceof App && commands.includes(this.fncName);
+    }
+
+    isAdd() : boolean {
+        return this instanceof App && this.fncName == "+";
     }
 
     isMul() : boolean {
@@ -104,6 +145,52 @@ export abstract class Term {
     isOne() : boolean {
         return this instanceof ConstNum && this.value == 1;
     }
+}
+
+export class Path extends Term {
+    indexes : number[] = [];
+
+    constructor(indexes : number[]){
+        super();
+        this.indexes = indexes.slice();
+    }
+
+    str() : string {
+        return `#${this.indexes.join(".")}`;
+    }
+
+    tex2() : string {
+        assert(false, "path:tex2");
+        return "";
+    }
+
+    clone() : Term {
+        const path = new Path(this.indexes);
+        this.copy(path);
+
+        return path;
+    }
+
+    getTerm(root : App, get_parent : boolean = false) : Term {
+        let app = root;
+        let trm : Term;
+    
+        const last_i = (get_parent ? this.indexes.length - 2 : this.indexes.length - 1);
+
+        for(const [i, idx] of this.indexes.entries()){
+            if(i == last_i){
+    
+                trm = app.args[idx];
+            }
+            else{
+                assert(app.args[idx] instanceof App, "pass:get term");
+                app = app.args[idx] as App;
+            }
+        }
+    
+        return trm;
+    }
+
 }
 
 export class RefVar extends Term{
@@ -256,6 +343,9 @@ export class App extends Term{
         else{
 
             switch(this.fncName){
+            case "+":
+                text = args.join(` `);
+                break
 
             case "/":
                 if(this.args.length != 2){
@@ -305,6 +395,16 @@ export class App extends Term{
         }
 
         return -1;
+    }
+
+    addArg(trm : Term){
+        this.args.push(trm);
+        trm.parent = this;
+    }
+
+    insArg(trm : Term, idx : number){
+        this.args.splice(idx, 0, trm);
+        trm.parent = this;
     }
 }
 
@@ -389,6 +489,13 @@ export class Parser {
             }
 
             trm = new ConstNum(n);
+            this.next();
+        }
+        else if(this.token.typeTkn == TokenType.path){
+            assert(this.token.text[0] == "#", "parse path");
+            const indexes = this.token.text.substring(1).split(pathSep).map(x => parseFloat(x));
+            trm = new Path(indexes);
+
             this.next();
         }
         else if(this.token.text == '('){
@@ -477,23 +584,24 @@ export class Parser {
     }
     
     AdditiveExpression(){
-        let trm1 = this.MultiplicativeExpression();
-        while(this.token.text == "+" || this.token.text == "-"){
-            let app = new App(operator(this.token.text), [trm1]);
-            this.next();
+        const trm1 = this.MultiplicativeExpression();
 
-            while(true){
-                let trm2 = this.MultiplicativeExpression();
-                app.args.push(trm2);
-                
-                if(this.token.text == app.fncName){
-                    this.next();
+        if(this.token.text == "+" || this.token.text == "-"){
+            let app = new App(operator("+"), [trm1]);
+
+            while(this.token.text == "+" || this.token.text == "-"){
+                const opr = this.token.text;
+                this.next();
+
+                const trm2 = this.MultiplicativeExpression();
+                if(opr == "-"){
+                    trm2.value *= -1;
                 }
-                else{
-                    trm1 = app;
-                    break;
-                }
+
+                app.addArg(trm2);
             }
+
+            return app;
         }
 
         return trm1;
