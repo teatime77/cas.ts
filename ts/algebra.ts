@@ -150,4 +150,65 @@ export function* cancelMul(root : Term){
     }
 }
 
+export function* trimMul(root : Term){
+    const canceled = allTerms(root).filter(x => x.cancel);
+
+    for(const can of canceled){
+        if(can.parent.isMul()){
+            can.remArg();
+        }
+        else if(can.parent.isDiv()){
+            if(can.parent.args[0] == can){
+                can.parent.args[0] = new ConstNum(1);
+            }
+            else if(can.parent.args[1] == can){
+                can.parent.args[1] = new ConstNum(1);
+            }
+            else{
+                assert(false, "trim mul 2");
+            }
+        }
+
+        showRoot(root);
+        yield;
+    }
+
+    root.setParent(null);
+    while(true){
+
+        const mul0 = allTerms(root).find(x => x.isMul() && (x as App).args.length == 0);
+        if(mul0 != undefined){
+
+            assert(mul0.parent != null, "trim-mul 3");
+            if(mul0.parent.isDiv()){
+                mul0.replace(new ConstNum(1));
+            }
+            else if(mul0.parent.isMul()){
+                mul0.remArg();
+            }
+            else{
+                assert(false, "trim-mul 5");
+            }
+        }
+
+        const div = allTerms(root).find(x => x.isDiv() && (x as App).args[1].isOne()) as App;
+        if(div != undefined){
+
+            div.replace(div.args[0]);
+        }
+
+        const one = allTerms(root).find(x => x.isOne() && x.parent.isMul());
+        if(one != undefined){
+            one.remArg();
+        }
+
+        if(mul0 == undefined && div == undefined && one == undefined){
+            break;
+        }
+
+        showRoot(root);
+        yield;
+    }
+}
+
 }

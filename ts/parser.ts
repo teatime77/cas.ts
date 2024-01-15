@@ -68,6 +68,14 @@ export abstract class Term {
         target.parent = app;
     }
 
+    remArg() {
+        assert(this.parent != null, "rem arg 1");
+        const idx = this.parent.args.indexOf(this);
+        assert(idx != -1, "rem arg 2");
+        this.parent.args.splice(idx, 1);
+    }
+
+
     tex() : string {
         if(this.cancel){
             return `\\cancel{${this.tex2()}}`
@@ -91,6 +99,10 @@ export abstract class Term {
 
     isDiv() : boolean {
         return this instanceof App && this.fncName == "/";
+    }
+
+    isOne() : boolean {
+        return this instanceof ConstNum && this.value == 1;
     }
 }
 
@@ -189,9 +201,7 @@ export class App extends Term{
     setParent(parent : App){
         super.setParent(parent);
 
-        if(this.refVar != null){
-            this.refVar.setParent(this);
-        }
+        this.fnc.setParent(this);
 
         this.args.forEach(x => x.setParent(this));
     }

@@ -25,6 +25,12 @@ function* gen(texts : string){
 
         const root = parseMath(text);
         if(root.isCommand()){
+            mathDiv = document.createElement("div");
+            document.body.appendChild(mathDiv);
+
+            prev_root = prev_root.clone();
+            prev_root.setParent(null);
+
             const app = root as App;
 
             assert(prev_root != null, "gen");
@@ -47,8 +53,26 @@ function* gen(texts : string){
                 break;
             }
         }
-        else if(root instanceof RefVar && root.name == "@cancelmul"){
-            yield* cancelMul(prev_root);
+        else if(root instanceof RefVar && root.name[0] == '@'){
+            mathDiv = document.createElement("div");
+            document.body.appendChild(mathDiv);
+
+            prev_root = prev_root.clone();
+            prev_root.setParent(null);
+
+            switch(root.name){
+            case "@cancelmul":
+                yield* cancelMul(prev_root);
+                break;
+
+            case "@trimmul":
+                yield* trimMul(prev_root);
+                break;
+    
+            default:
+                assert(false, "gen 3");
+                break;
+            }
         }
         else{
             mathDiv = document.createElement("div");
