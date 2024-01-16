@@ -16,7 +16,7 @@ export function parseMath(text: string) : Term {
 }
 
 function* gen(texts : string){
-    let prev_root : Term | null = null;
+    let prev_root : App | null = null;
 
     for(const text of texts.split("\n")){
         if(text.trim() == ""){
@@ -52,6 +52,10 @@ function* gen(texts : string){
                 yield* moveAdd(app, prev_root);
                 break;
 
+            case "@distfnc":
+                yield* distfnc(app, prev_root);
+                break;
+
             default:
                 assert(false, "gen 2");
                 break;
@@ -79,6 +83,7 @@ function* gen(texts : string){
             }
         }
         else{
+            assert(root instanceof App, "gen 4");
             mathDiv = document.createElement("div");
             document.body.appendChild(mathDiv);
 
@@ -86,7 +91,7 @@ function* gen(texts : string){
             msg(`tex:[${tex}]`);
             render(mathDiv, tex);
 
-            prev_root = root;
+            prev_root = root as App;
         }
 
         yield;

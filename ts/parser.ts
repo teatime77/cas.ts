@@ -6,6 +6,7 @@ const commands : string[] = [
     "@subst",
     "@muleq",
     "@moveadd",
+    "@distfnc",
 ];
 
 export const pathSep = ":";
@@ -275,6 +276,8 @@ export class App extends Term{
         super();
         this.fnc    = fnc;
         this.args   = args.slice();
+        
+        this.args.forEach(x => x.parent = this);
     }
 
     clone() : App {

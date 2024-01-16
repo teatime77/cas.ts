@@ -1,5 +1,25 @@
 namespace casts {
 
+export function multiply(multiplier : Term, multiplicand : Term) : App {
+    if(multiplier.isMul()){
+        (multiplier as App).addArg(multiplicand);
+
+        return multiplier as App;
+    }
+    else if(multiplicand.isMul()){
+        (multiplicand as App).insArg(multiplier, 0);
+
+        return multiplicand as App;
+    }
+    else{
+        const mul = new App(operator("*"), [multiplier]);
+        multiplicand.replace(mul);
+        mul.addArg(multiplicand);
+        
+        return mul;
+    }
+}
+
 export function* cancel(app: App, root : Term){
     assert(app.args.length == 1, "cancel");
 
@@ -175,6 +195,13 @@ export function* trimMul(root : Term){
 
     root.setParent(null);
     while(true){
+        const bin1 = allTerms(root).find(x => (x.isAdd() || x.isMul()) && (x as App).args.length == 1);
+        if(bin1 != undefined){
+            bin1.replace((bin1 as App).args[0]);
+
+            showRoot(root);
+            yield;
+        }
 
         const mul0 = allTerms(root).find(x => x.isMul() && (x as App).args.length == 0);
         if(mul0 != undefined){
@@ -189,25 +216,32 @@ export function* trimMul(root : Term){
             else{
                 assert(false, "trim-mul 5");
             }
+
+            showRoot(root);
+            yield;
         }
+
 
         const div = allTerms(root).find(x => x.isDiv() && (x as App).args[1].isOne()) as App;
         if(div != undefined){
 
             div.replace(div.args[0]);
+
+            showRoot(root);
+            yield;
         }
 
         const one = allTerms(root).find(x => x.isOne() && x.parent.isMul());
         if(one != undefined){
             one.remArg();
+
+            showRoot(root);
+            yield;
         }
 
-        if(mul0 == undefined && div == undefined && one == undefined){
+        if(bin1 == undefined && mul0 == undefined && div == undefined && one == undefined){
             break;
         }
-
-        showRoot(root);
-        yield;
     }
 }
 
@@ -249,6 +283,40 @@ export function* moveAdd(cmd : App, root : Term){
     add.insArg(trm, idx);
 
     showRoot(root);
+}
+
+export function* distfnc(cmd : App, root : App){
+    assert(cmd.args.length == 1 && cmd.args[0] instanceof Path, "dist fnc");
+
+    const src = cmd.args[0] as Path;
+    const fnc = src.getTerm(root) as App;
+
+    assert(fnc instanceof App, "dist-fnc");
+    if(fnc.isMul()){
+        const mul = fnc as App;
+
+        assert(2 <= mul.args.length, "dist fnc");
+        assert(mul.args[1].isAdd(), "dist fnc 2")
+
+        const multiplier = mul.args[0].clone();
+        mul.args[0].cancel = true;
+        showRoot(root);
+        yield;
+
+        const add = mul.args[1] as App;
+        for(const trm of add.args){
+            multiply(multiplier.clone(), trm);
+
+            showRoot(root);
+            yield;
+        }
+    }
+    else{
+        assert(false, "dist fnc");
+    }
+
+    yield* cancelMul(root);
+    yield* trimMul(root);
 }
 
 }
