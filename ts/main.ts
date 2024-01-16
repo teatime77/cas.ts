@@ -56,6 +56,10 @@ function* gen(texts : string){
                 yield* distfnc(app, prev_root);
                 break;
 
+            case "@gcf":
+                yield* greatestCommonFactor(app, prev_root);
+                break;
+
             default:
                 assert(false, "gen 2");
                 break;

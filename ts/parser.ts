@@ -7,6 +7,7 @@ const commands : string[] = [
     "@muleq",
     "@moveadd",
     "@distfnc",
+    "@gcf"
 ];
 
 export const pathSep = ":";
@@ -46,6 +47,10 @@ export abstract class Term {
     abstract str() : string;
     abstract tex2() : string;
     abstract clone() : Term;
+
+    eq(trm : Term) : boolean {
+        return this.str() == trm.str();
+    }
 
     copy(dst : Term){
         dst.value  = this.value;
@@ -276,7 +281,7 @@ export class App extends Term{
         super();
         this.fnc    = fnc;
         this.args   = args.slice();
-        
+
         this.args.forEach(x => x.parent = this);
     }
 
@@ -403,6 +408,11 @@ export class App extends Term{
     addArg(trm : Term){
         this.args.push(trm);
         trm.parent = this;
+    }
+
+    addArgs(trms : Term[]){
+        this.args.push(... trms);
+        trms.forEach(x => x.parent = this);
     }
 
     insArg(trm : Term, idx : number){

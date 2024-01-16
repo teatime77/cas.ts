@@ -319,4 +319,77 @@ export function* distfnc(cmd : App, root : App){
     yield* trimMul(root);
 }
 
+export function* greatestCommonFactor(cmd : App, root : App){
+    assert(cmd.args.length == 2 && cmd.args[0] instanceof Path && cmd.args[1] instanceof ConstNum, "greatest common factor");
+
+    const src = cmd.args[0] as Path;
+    const cnt = cmd.args[1].value;
+
+    const mul = src.getTerm(root) as App;
+    assert(mul.isMul(), "gcf 1");
+
+    const add = mul.parent;
+    assert(add.isAdd(), "gcf 2");
+
+    const start_pos = add.args.indexOf(mul);
+    assert(start_pos != -1, "gcf 3");
+
+    let left_cnt : number = 0;
+    const args = add.args.slice(start_pos + 1, start_pos + 1 +(cnt - 1)) as App[];
+    assert(args.length != 0 && args.every(x => x.isMul()), "gcf 4");
+
+    mul.remArg();
+    args.forEach(x => x.remArg());
+
+    const left_factors : Term[] = [];
+    while(mul.args.length != 0){
+        const factor = mul.args[0];
+        if(args.some(x => x.args.length == 0 || !factor.eq(x.args[0]))){
+            break;
+        }
+
+        left_factors.push(factor);
+
+        mul.args.shift();
+        args.forEach(x => x.args.shift());
+    }
+
+
+    const right_factors : Term[] = [];
+    while(mul.args.length != 0){
+        const factor = last(mul.args);
+        if(args.some(x => x.args.length == 0 || !factor.eq(last(x.args)))){
+            break;
+        }
+
+        right_factors.push(factor);
+
+        mul.args.pop();
+        args.forEach(x => x.args.pop());
+    }
+
+
+    const new_mul = new App(operator("*"), []);
+    if(left_factors.length != 0){
+        new_mul.addArgs(left_factors);
+    }
+
+    const new_add = new App(operator("+"), [mul]);
+    new_add.addArgs(args);
+
+
+    new_mul.addArg(new_add);
+
+    if(right_factors.length != 0){
+        new_mul.addArgs(right_factors);
+    }
+
+    add.insArg(new_mul, start_pos);
+
+    showRoot(root);
+}
+
+
+
+
 }
