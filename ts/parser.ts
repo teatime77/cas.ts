@@ -44,7 +44,6 @@ export abstract class Term {
 
     cancel : boolean = false;
 
-    abstract str() : string;
     abstract tex2() : string;
     abstract clone() : Term;
 
@@ -84,6 +83,25 @@ export abstract class Term {
         this.parent.args.splice(idx, 1);
     }
 
+    str2() : string {
+        assert(false, "str2");
+        return "";
+    }
+
+
+    str() : string {
+        const s = this.str2();
+
+        if(this.value == 1){
+            return s;
+        }
+        else if(this.value == -1){
+            return "-" + s;
+        }
+        else{
+            return this.value.toString() + s;
+        }
+    }
 
     tex() : string {
         let val : string;
@@ -99,7 +117,8 @@ export abstract class Term {
                 val = tex2;
             }
             else if(this.value == -1){
-                val = "-" + tex2;
+                // val = "-" + tex2;
+                val = `-[${tex2}]`;
             }
             else{
 
@@ -214,7 +233,7 @@ export class RefVar extends Term{
         return ref;
     }
 
-    str() : string {
+    str2() : string {
         return this.name;
     }
 
@@ -301,7 +320,7 @@ export class App extends Term{
         this.args.forEach(x => x.setParent(this));
     }
 
-    str() : string {
+    str2() : string {
         const args = this.args.map(x => x.str());
         
         if(this.fnc instanceof App){
@@ -538,29 +557,8 @@ export class Parser {
         return trm;
     }
 
-     UnaryExpression() {
-        if (this.token.text == "-") {
-            // 負号の場合
-
-            this.nextToken("-");
-
-            // 基本の式を読みます。
-            const t1 = this.PrimaryExpression();
-
-            // 符号を反転します。
-            t1.value *= -1;
-
-            return t1;
-        }
-        else {
-
-            // 基本の式を読みます。
-            return this.PrimaryExpression();
-        }
-    }
-
     PowerExpression(){
-        const trm1 = this.UnaryExpression();
+        const trm1 = this.PrimaryExpression();
         if(this.token.text == "^"){
 
             this.nextToken("^");
@@ -572,15 +570,36 @@ export class Parser {
 
         return trm1;
     }
+
+    UnaryExpression() {
+        if (this.token.text == "-") {
+            // 負号の場合
+
+            this.nextToken("-");
+
+            // 基本の式を読みます。
+            const t1 = this.PowerExpression();
+
+            // 符号を反転します。
+            t1.value *= -1;
+
+            return t1;
+        }
+        else {
+
+            // 基本の式を読みます。
+            return this.PowerExpression();
+        }
+    }
     
     MultiplicativeExpression(){
-        let trm1 = this.PowerExpression();
+        let trm1 = this.UnaryExpression();
         while(this.token.text == "*" || this.token.text == "/"){
             let app = new App(operator(this.token.text), [trm1]);
             this.next();
 
             while(true){
-                let trm2 = this.PowerExpression();
+                let trm2 = this.UnaryExpression();
                 app.args.push(trm2);
                 
                 if(this.token.text == app.fncName){

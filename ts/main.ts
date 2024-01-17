@@ -23,6 +23,10 @@ function* gen(texts : string){
             continue;
         }
 
+        const div = document.createElement("div");
+        div.innerText = text;
+        document.body.appendChild(div);
+
         const root = parseMath(text);
         if(root.isCommand()){
             mathDiv = document.createElement("div");
@@ -80,7 +84,12 @@ function* gen(texts : string){
             case "@trimmul":
                 yield* trimMul(prev_root);
                 break;
-    
+
+
+            case "@mulsign":
+                yield* mulSign(prev_root);
+                break;
+                    
             default:
                 assert(false, "gen 3");
                 break;

@@ -161,6 +161,9 @@ export function* cancelMul(root : Term){
                 continue;
             }
 
+
+            msg(`cancel m:[${m.str()}] d:[${d.str()}]`)
+
             m.cancel = true;
             d.cancel = true;
 
@@ -197,7 +200,9 @@ export function* trimMul(root : Term){
     while(true){
         const bin1 = allTerms(root).find(x => (x.isAdd() || x.isMul()) && (x as App).args.length == 1);
         if(bin1 != undefined){
-            bin1.replace((bin1 as App).args[0]);
+            const arg1 = (bin1 as App).args[0];
+            bin1.replace(arg1);
+            arg1.value *= bin1.value;
 
             showRoot(root);
             yield;
@@ -295,15 +300,19 @@ export function* distfnc(cmd : App, root : App){
     if(fnc.isMul()){
         const mul = fnc as App;
 
-        assert(2 <= mul.args.length, "dist fnc");
+        assert(mul.args.length == 2, "dist fnc");
         assert(mul.args[1].isAdd(), "dist fnc 2")
 
-        const multiplier = mul.args[0].clone();
-        mul.args[0].cancel = true;
+        const multiplier = mul.args[0];
+        multiplier.value *= mul.value;
+
+        const add = mul.args[1] as App;
+
+        mul.replace(add);
+        // mul.args[0].cancel = true;
         showRoot(root);
         yield;
 
-        const add = mul.args[1] as App;
         for(const trm of add.args){
             multiply(multiplier.clone(), trm);
 
@@ -315,6 +324,7 @@ export function* distfnc(cmd : App, root : App){
         assert(false, "dist fnc");
     }
 
+    yield* mulSign(root);
     yield* cancelMul(root);
     yield* trimMul(root);
 }
@@ -387,6 +397,25 @@ export function* greatestCommonFactor(cmd : App, root : App){
     add.insArg(new_mul, start_pos);
 
     showRoot(root);
+}
+
+export function* mulSign(root : App){
+    const muldivs = allTerms(root).filter(x => x.isMul() || x.isDiv()) as App[];
+
+    while(muldivs.length != 0){
+        const app = muldivs.pop();
+
+        if(app.args.some(x => Math.sign(x.value) == -1)){
+
+            const sgn = app.args.reduce((acc,cur)=> acc * Math.sign(cur.value), 1);
+            app.value *= sgn;
+            app.args.forEach(x => x.value = Math.abs(x.value));
+
+            showRoot(root);
+            yield;
+        }
+
+    }
 }
 
 
