@@ -6,7 +6,7 @@ const commands : string[] = [
     "@subst",
     "@mulroot",
     "@moveadd",
-    "@distfnc",
+    "@distribute",
     "@gcf"
 ];
 
@@ -375,6 +375,10 @@ export class App extends Term{
 
             switch(this.fncName){
             case "+":
+                switch(args.length){
+                case 0: return " +[] ";
+                case 1: return ` +[${args[0]}] `;
+                }
                 text = args.join(` `);
                 break
 
@@ -428,6 +432,11 @@ export class App extends Term{
         return -1;
     }
 
+    setArg(trm : Term, idx : number){
+        this.args[idx] = trm;
+        trm.parent = this;
+    }
+    
     addArg(trm : Term){
         this.args.push(trm);
         trm.parent = this;

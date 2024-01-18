@@ -16,9 +16,10 @@ export function parseMath(text: string) : Term {
 }
 
 function* gen(texts : string){
-    let prev_root : App | null = null;
+    const alg = new Algebra();
 
     for(const text of texts.split("\n")){
+
         if(text.trim() == ""){
             continue;
         }
@@ -27,41 +28,41 @@ function* gen(texts : string){
         div.innerText = text;
         document.body.appendChild(div);
 
-        const root = parseMath(text);
-        if(root.isCommand()){
+        const expr = parseMath(text);
+        if(expr.isCommand()){
             mathDiv = document.createElement("div");
             document.body.appendChild(mathDiv);
 
-            prev_root = prev_root.clone();
-            prev_root.setParent(null);
+            alg.root = alg.root.clone();
+            alg.root.setParent(null);
 
-            const app = root as App;
+            const app = expr as App;
 
-            assert(prev_root != null, "gen");
+            assert(alg.root != null, "gen");
 
             switch(app.refVar.name){
             case "@cancel":
-                yield* cancel(app, prev_root);
+                yield* cancel(app, alg.root);
                 break;
 
             case "@subst":
-                yield* subst(app, prev_root);
+                yield* subst(app, alg.root);
                 break;
 
             case "@mulroot":
-                yield* mulroot(app, prev_root);
+                yield* alg.mulRoot(app);
                 break;
 
             case "@moveadd":
-                yield* moveAdd(app, prev_root);
+                yield* moveAdd(app, alg.root);
                 break;
 
-            case "@distfnc":
-                yield* distfnc(app, prev_root);
+            case "@distribute":
+                yield* distribute(app, alg.root);
                 break;
 
             case "@gcf":
-                yield* greatestCommonFactor(app, prev_root);
+                yield* greatestCommonFactor(app, alg.root);
                 break;
 
             default:
@@ -69,25 +70,28 @@ function* gen(texts : string){
                 break;
             }
         }
-        else if(root instanceof RefVar && root.name[0] == '@'){
+        else if(expr instanceof RefVar && expr.name[0] == '@'){
             mathDiv = document.createElement("div");
             document.body.appendChild(mathDiv);
 
-            prev_root = prev_root.clone();
-            prev_root.setParent(null);
+            alg.root = alg.root.clone();
+            alg.root.setParent(null);
 
-            switch(root.name){
+            switch(expr.name){
             case "@cancelmul":
-                yield* cancelMul(prev_root);
+                yield* cancelMul(alg.root);
+                break;
+
+            case "@remcancel":
+                yield* remCancel(alg.root);
                 break;
 
             case "@trimmul":
-                yield* trimMul(prev_root);
+                yield* trimMul(alg.root);
                 break;
 
-
             case "@mulsign":
-                yield* mulSign(prev_root);
+                yield* mulSign(alg.root);
                 break;
                     
             default:
@@ -96,15 +100,15 @@ function* gen(texts : string){
             }
         }
         else{
-            assert(root instanceof App, "gen 4");
+            assert(expr instanceof App, "gen 4");
             mathDiv = document.createElement("div");
             document.body.appendChild(mathDiv);
 
-            const tex = root.tex();
+            const tex = expr.tex();
             msg(`tex:[${tex}]`);
             render(mathDiv, tex);
 
-            prev_root = root as App;
+            alg.root = expr as App;
         }
 
         yield;

@@ -6,34 +6,34 @@ namespace casts {
  * @param multiplicand 被乗数
  * @returns 
  * 
- * @description 
- *  乗数が乗算なら被乗数を乗算の末尾に追加する。
- *  被乗数が乗算なら乗数を乗算の先頭に挿入する。
- *  乗数も被乗数も乗算でなければ、
+ * @description 乗数と被乗数の乗算を返す。
  * 
  */
 export function multiply(multiplier : Term, multiplicand : Term) : App {
-    assert(multiplier.parent == null, "multiplier");
+    const mul = new App(operator("*"), []);
+    
+    // 乗算の係数 = 乗数の係数 * 被乗数の係数
+    mul.value = multiplier.value * multiplicand.value;
+    multiplier.value = 1;
+    multiplicand.value = 1;
 
-    if(multiplier.isMul()){
-        assert(false, "multiplier");
-        (multiplier as App).addArg(multiplicand);
+    for(const trm of [multiplier, multiplicand]){
+        // 乗数と乗算に対し
 
-        return multiplier as App;
+        if(trm instanceof App && trm.fncName == "*"){
+            // 乗算の場合
+
+            // 引数に追加する。
+            mul.addArgs(trm.args);
+        }
+        else{
+            // 乗算でない場合
+
+            mul.addArg(trm);
+        }
     }
-    else if(multiplicand.isMul()){
 
-        (multiplicand as App).insArg(multiplier, 0);
-
-        return multiplicand as App;
-    }
-    else{
-        const mul = new App(operator("*"), [multiplier]);
-        multiplicand.replace(mul);
-        mul.addArg(multiplicand);
-        
-        return mul;
-    }
+    return mul;
 }
 
 export function* cancel(app: App, root : Term){
@@ -72,32 +72,6 @@ export function* subst(app: App, root : Term){
 
 /**
  * 
- * @param multiplicand 被乗数
- * @param multiplier 乗数
- * @returns 乗数×被乗数
- * @description 被乗数に乗数をかける。
- */
-function muleq3(multiplicand : Term, multiplier : Term) : Term {
-    if(multiplicand instanceof App && multiplicand.fncName == "*"){
-        // 被乗数が乗算の場合
-
-        // 被乗数の引数の先頭に乗数を挿入する。
-        multiplicand.args.unshift(multiplier.clone());
-
-        return multiplicand;
-    }
-    else{
-        // 被乗数が乗算でない場合
-
-        // 乗数と被乗数の乗算を作る。
-        const app = new App(operator("*"), [multiplier.clone(), multiplicand]);
-
-        return app;
-    }
-}
-
-/**
- * 
  * @param root 
  * @param add 加算
  * @param multiplier 乗数
@@ -111,7 +85,7 @@ function* mulAdd(root : Term, add : App, multiplier : Term) : Generator<Term> {
         // 加算の中の各項に対し
 
         // 乗数をかける。
-        add.args[idx] = muleq3(arg, multiplier);
+        add.args[idx] = multiply(multiplier, arg);
 
         yield root;
     }
@@ -119,9 +93,9 @@ function* mulAdd(root : Term, add : App, multiplier : Term) : Generator<Term> {
 
 /**
  * 
- * @param root ルート
+ * @param root 等式
  * @param multiplier 乗数
- * @description ルートに乗数をかける。
+ * @description 等式内のすべての辺に乗数をかける。
  */
 export function* mulEq(root : App, multiplier : Term) : Generator<Term> {
     assert(root.isEq(), "mul eq");
@@ -139,45 +113,51 @@ export function* mulEq(root : App, multiplier : Term) : Generator<Term> {
             // 辺が加算でない場合
 
             // 辺に乗数をかける。
-            root.args[idx] = muleq3(trm, multiplier);
+            root.args[idx] = multiply(multiplier, trm);
 
             yield root;    
         }
     }
 }
 
-/**
- * 
- * @param app 乗数
- * @param root ルート
- * @description ルートに乗数をかける。
- */
-export function* mulroot(app: App, root : App){
-    assert(app.args.length == 1, "mul-eq");
 
-    // 乗数
-    const multiplier = app.args[0];
+export class Algebra {
+    root : App | null = null;    
 
-    if(root.isEq()){
-        // ルートが等式の場合
+    /**
+     * 
+     * @param app 乗数
+     * @param root ルート
+     * @description ルートに乗数をかける。
+     */
+    *mulRoot(app: App){
+        assert(app.args.length == 1, "mul-eq");
 
-        yield* mulEq(root, multiplier);
+        // 乗数
+        const multiplier = app.args[0];
+
+        if(this.root.isEq()){
+            // ルートが等式の場合
+
+            yield* mulEq(this.root, multiplier);
+        }
+        else if(this.root instanceof App && this.root.fncName == "+"){
+            // ルートが加算の場合
+
+            // 加算の中の各項に対し、乗数をかける。
+            yield* mulAdd(this.root, this.root, multiplier);
+        }
+        else{
+            // ルートが等式や加算でない場合
+
+            // 被乗数に乗数をかける。
+            this.root = multiply(multiplier, this.root);
+        }
+
+        showRoot(this.root);
     }
-    else if(root instanceof App && root.fncName == "+"){
-        // ルートが加算の場合
-
-        // 加算の中の各項に対し、乗数をかける。
-        yield* mulAdd(root, root, multiplier);
-    }
-    else{
-        // ルートが等式や加算でない場合
-
-        // 被乗数に乗数をかける。
-        yield muleq3(root, multiplier);
-    }
-
-    showRoot(root);
 }
+
 
 export function* cancelMul(root : Term){
     // すべての乗算のリスト
@@ -275,7 +255,12 @@ export function* cancelMul(root : Term){
     }
 }
 
-export function* trimMul(root : Term){
+/**
+ * 
+ * @param root ルート
+ * @description キャンセルされた項を取り除く。
+ */
+export function* remCancel(root : Term){
     // キャンセルされた項のリスト
     const canceled = allTerms(root).filter(x => x.cancel);
 
@@ -312,21 +297,36 @@ export function* trimMul(root : Term){
         yield;
     }
 
+}
+
+/**
+ * 
+ * @description 引数が1個だけの加算や乗算を、唯一の引数で置き換える。
+ */
+function oneArg(app : App) {
+    assert(app.args.length == 1, "one arg");
+
+    // 唯一の引数
+    const arg1 = app.args[0];
+
+    // 加算や乗算を唯一の引数で置き換える。
+    app.replace(arg1);
+
+    // 唯一の引数の係数に、加算や乗算の係数をかける。
+    arg1.value *= app.value;
+}
+
+export function* trimMul(root : Term){
+
     root.setParent(null);
     while(true){
         // 引数が１つしかない加算や乗算を探す。
         const bin1 = allTerms(root).find(x => (x.isAdd() || x.isMul()) && (x as App).args.length == 1);
         if(bin1 != undefined){
-        // 引数が１つしかない加算や乗算がある場合
+            // 引数が１つしかない加算や乗算がある場合
 
-            // 唯一の引数
-            const arg1 = (bin1 as App).args[0];
-
-            // 加算や乗算を唯一の引数で置き換える。
-            bin1.replace(arg1);
-
-            // 唯一の引数の係数に、加算や乗算の係数をかける。
-            arg1.value *= bin1.value;
+            // 引数が1個だけの加算や乗算を、唯一の引数で置き換える。
+            oneArg(bin1 as App);
 
             showRoot(root);
             yield;
@@ -393,81 +393,116 @@ export function* trimMul(root : Term){
 
 export function* moveAdd(cmd : App, root : Term){
     assert(cmd.args.length == 2 && cmd.args[0] instanceof Path && cmd.args[1] instanceof Path, "move");
-    
-    const src = cmd.args[0] as Path;
-    const dst = cmd.args[1] as Path;
-
     assert(root instanceof App, "move 2");
-    const trm = src.getTerm(root as App);
+    
+    // 移動元の位置
+    const src_path = cmd.args[0] as Path;
 
-    assert(trm.parent.isAdd(), "move add")
+    // 移動先の位置
+    const dst_path = cmd.args[1] as Path;
 
+    // 移動する項
+    const trm = src_path.getTerm(root as App);
+
+    // 移動元の項の親の加算
+    const trm_parent_add = trm.parent;
+    assert(trm_parent_add.isAdd(), "move add")
+
+    // 移動する項をキャンセルする。
     trm.cancel = true;
     showRoot(root);
     yield;
 
+    // 移動元の項の親の加算から、移動する項を取り除く。
     trm.remArg();
-
     showRoot(root);
     yield;
 
-    let parent = dst.getTerm(root as App, true);
+    if(trm_parent_add.args.length == 1){
+        // 移動元の項の親の加算の引数が1個の場合
+
+        // 引数が1個だけの加算や乗算を、唯一の引数で置き換える。
+        oneArg(trm_parent_add);
+    }
+
+    // 移動先の親
+    let parent = dst_path.getTerm(root as App, true);
     let add : App;
+
     if(parent.isAdd()){
+        // 移動先の親が加算の場合
+
         add = parent as App;
     }
     else{
+        // 移動先の親が加算でない場合
 
         add = new App(operator("+"), []);
         parent.replace(add);
         add.addArg(parent);
     }
 
+    // 移動する項のキャンセルをはずす。
     trm.cancel = false;
+
+    // 移項したので符号を反転する。
     trm.value *= -1;
-    const idx = last(dst.indexes);
+
+    // 移動先のインデックス
+    const idx = last(dst_path.indexes);
+
+    // 加算の中の指定した位置に挿入する。
     add.insArg(trm, idx);
 
     showRoot(root);
 }
 
-export function* distfnc(cmd : App, root : App){
+/**
+ * 
+ * @param cmd 
+ * @param root
+ * @description 分配法則を適用する。 
+ */
+export function* distribute(cmd : App, root : App){
     assert(cmd.args.length == 1 && cmd.args[0] instanceof Path, "dist fnc");
 
+    // 分配法則を適用する位置
     const src = cmd.args[0] as Path;
-    const fnc = src.getTerm(root) as App;
 
-    assert(fnc instanceof App, "dist-fnc");
-    if(fnc.isMul()){
-        const mul = fnc as App;
+    // 分配法則を適用する乗算
+    const mul = src.getTerm(root) as App;
 
-        assert(mul.args.length == 2, "dist fnc");
-        assert(mul.args[1].isAdd(), "dist fnc 2")
+    assert(mul.isMul(), "dist-fnc");
 
-        const multiplier = mul.args[0];
-        multiplier.value *= mul.value;
 
-        const add = mul.args[1] as App;
+    assert(mul.args.length == 2, "dist fnc");
+    assert(mul.args[1].isAdd(), "dist fnc 2")
 
-        mul.replace(add);
-        // mul.args[0].cancel = true;
+    // 乗数
+    const multiplier = mul.args[0];
+
+    // 乗数の係数に乗算の係数をかける。
+    multiplier.value *= mul.value;
+
+    // 乗数をかけられる加算
+    const add = mul.args[1] as App;
+
+    // 乗算を加算に置き換える。
+    mul.replace(add);
+
+    // mul.args[0].cancel = true;
+    showRoot(root);
+    yield;
+
+    for(const [i, trm] of add.args.entries()){
+        // 加算の中のすべての引数に対し
+
+        // 乗数をかける。
+        add.setArg( multiply(multiplier.clone(), trm), i );
+
         showRoot(root);
         yield;
-
-        for(const trm of add.args){
-            multiply(multiplier.clone(), trm);
-
-            showRoot(root);
-            yield;
-        }
     }
-    else{
-        assert(false, "dist fnc");
-    }
-
-    yield* mulSign(root);
-    yield* cancelMul(root);
-    yield* trimMul(root);
 }
 
 export function* greatestCommonFactor(cmd : App, root : App){
@@ -479,14 +514,14 @@ export function* greatestCommonFactor(cmd : App, root : App){
     const mul = src.getTerm(root) as App;
     assert(mul.isMul(), "gcf 1");
 
-    const add = mul.parent;
-    assert(add.isAdd(), "gcf 2");
+    const mul_parent_add = mul.parent;
+    assert(mul_parent_add.isAdd(), "gcf 2");
 
-    const start_pos = add.args.indexOf(mul);
+    const start_pos = mul_parent_add.args.indexOf(mul);
     assert(start_pos != -1, "gcf 3");
 
     let left_cnt : number = 0;
-    const args = add.args.slice(start_pos + 1, start_pos + 1 +(cnt - 1)) as App[];
+    const args = mul_parent_add.args.slice(start_pos + 1, start_pos + 1 +(cnt - 1)) as App[];
     assert(args.length != 0 && args.every(x => x.isMul()), "gcf 4");
 
     mul.remArg();
@@ -541,7 +576,13 @@ export function* greatestCommonFactor(cmd : App, root : App){
         new_mul.addArgs(right_factors);
     }
 
-    add.insArg(new_mul, start_pos);
+    mul_parent_add.insArg(new_mul, start_pos);
+
+    if(mul_parent_add.args.length == 1){
+
+        // 引数が1個だけの加算や乗算を、唯一の引数で置き換える。
+        oneArg(mul_parent_add);
+    }
 
     showRoot(root);
 }
