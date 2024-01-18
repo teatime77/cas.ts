@@ -1,12 +1,28 @@
 namespace casts {
 
+/**
+ * 
+ * @param multiplier 乗数
+ * @param multiplicand 被乗数
+ * @returns 
+ * 
+ * @description 
+ *  乗数が乗算なら被乗数を乗算の末尾に追加する。
+ *  被乗数が乗算なら乗数を乗算の先頭に挿入する。
+ *  乗数も被乗数も乗算でなければ、
+ * 
+ */
 export function multiply(multiplier : Term, multiplicand : Term) : App {
+    assert(multiplier.parent == null, "multiplier");
+
     if(multiplier.isMul()){
+        assert(false, "multiplier");
         (multiplier as App).addArg(multiplicand);
 
         return multiplier as App;
     }
     else if(multiplicand.isMul()){
+
         (multiplicand as App).insArg(multiplier, 0);
 
         return multiplicand as App;
@@ -54,116 +70,202 @@ export function* subst(app: App, root : Term){
     }
 }
 
-function muleq3(trm : Term, multiplier : Term) : Term {
-    if(trm instanceof App && trm.fncName == "*"){
-        trm.args.unshift(multiplier.clone());
+/**
+ * 
+ * @param multiplicand 被乗数
+ * @param multiplier 乗数
+ * @returns 乗数×被乗数
+ * @description 被乗数に乗数をかける。
+ */
+function muleq3(multiplicand : Term, multiplier : Term) : Term {
+    if(multiplicand instanceof App && multiplicand.fncName == "*"){
+        // 被乗数が乗算の場合
 
-        return trm;
+        // 被乗数の引数の先頭に乗数を挿入する。
+        multiplicand.args.unshift(multiplier.clone());
+
+        return multiplicand;
     }
     else{
-        const app = new App(operator("*"), [multiplier.clone(), trm]);
+        // 被乗数が乗算でない場合
+
+        // 乗数と被乗数の乗算を作る。
+        const app = new App(operator("*"), [multiplier.clone(), multiplicand]);
 
         return app;
     }
 }
 
-function* muleq_add(root : Term, app : App, multiplier : Term) : Generator<Term> {
-    for(const [idx, arg] of app.args.entries()){
-        app.args[idx] = muleq3(arg, multiplier);
+/**
+ * 
+ * @param root 
+ * @param add 加算
+ * @param multiplier 乗数
+ * 
+ * @description 加算の中の各項に対し、乗数をかける。
+ */
+function* mulAdd(root : Term, add : App, multiplier : Term) : Generator<Term> {
+    assert(add.isAdd(), "muleq add");
+
+    for(const [idx, arg] of add.args.entries()){
+        // 加算の中の各項に対し
+
+        // 乗数をかける。
+        add.args[idx] = muleq3(arg, multiplier);
 
         yield root;
     }
 }
 
-export function* muleq2(root : Term, multiplier : Term) : Generator<Term> {
-    if(root instanceof App && root.fncName == "=="){
-        for(const [idx, trm] of root.args.entries()){
-            if(trm instanceof App && trm.fncName == "+"){
-                yield* muleq_add(root, trm, multiplier);
-            }
-            else{
-                root.args[idx] = muleq3(trm, multiplier);
+/**
+ * 
+ * @param root ルート
+ * @param multiplier 乗数
+ * @description ルートに乗数をかける。
+ */
+export function* mulEq(root : App, multiplier : Term) : Generator<Term> {
+    assert(root.isEq(), "mul eq");
 
-                yield root;    
-            }
+    for(const [idx, trm] of root.args.entries()){
+        // 等式内のすべての辺に対し
+
+        if(trm.isAdd()){
+            // 辺が加算の場合
+
+            // 加算の中の各項に対し、乗数をかける。
+            yield* mulAdd(root, trm as App, multiplier);
         }
-    }
-    else if(root instanceof App && root.fncName == "+"){
-        yield* muleq_add(root, root, multiplier);
-    }
-    else{
-        yield muleq3(root, multiplier);
+        else{
+            // 辺が加算でない場合
+
+            // 辺に乗数をかける。
+            root.args[idx] = muleq3(trm, multiplier);
+
+            yield root;    
+        }
     }
 }
 
-export function* muleq(app: App, root : Term){
+/**
+ * 
+ * @param app 乗数
+ * @param root ルート
+ * @description ルートに乗数をかける。
+ */
+export function* mulroot(app: App, root : App){
     assert(app.args.length == 1, "mul-eq");
 
+    // 乗数
     const multiplier = app.args[0];
-    let root2 : Term = root;
-    for(const t of muleq2(root, multiplier)){
-        root2 = t;
-        showRoot(root2);
-        yield;
+
+    if(root.isEq()){
+        // ルートが等式の場合
+
+        yield* mulEq(root, multiplier);
+    }
+    else if(root instanceof App && root.fncName == "+"){
+        // ルートが加算の場合
+
+        // 加算の中の各項に対し、乗数をかける。
+        yield* mulAdd(root, root, multiplier);
+    }
+    else{
+        // ルートが等式や加算でない場合
+
+        // 被乗数に乗数をかける。
+        yield muleq3(root, multiplier);
     }
 
-    showRoot(root2);
+    showRoot(root);
 }
 
 export function* cancelMul(root : Term){
+    // すべての乗算のリスト
     const mul_terms = allTerms(root).filter(x => x.isMul()) as App[];
 
     for(const mul of mul_terms){
+        // すべての乗算に対し
+
         if(mul.args.find(x => x.isDiv()) == undefined){
+            // 乗算の引数に除算が含まれない場合
             continue;
         }
 
+        // 乗数のリスト
         let multipliers : Term[] = [];
-        let dividers : Term[] = [];
+
+        // 除数のリスト
+        let divisors : Term[] = [];
 
         for(const trm of mul.args){
+            // 乗算の引数に対し
+
             if(trm.isDiv()){
+                // 除算の場合
+
                 const div = trm as App;
                 if(div.args[0].isMul()){
+                    // 分子が乗算の場合
 
+                    // 分子の乗算のすべての引数を乗数のリストに追加する。
                     multipliers.push(... (div.args[0] as App).args );
                 }
                 else{
+                    // 分子が乗算でない場合
+
+                    // 分子を乗数のリストに追加する。
                     multipliers.push( div.args[0] );
                 }
 
                 if(div.args[1].isMul()){
+                    // 分母が乗算の場合
 
-                    dividers.push(... (div.args[1] as App).args );
+                    // 分母の乗算のすべての引数を除数のリストに追加する。
+                    divisors.push(... (div.args[1] as App).args );
                 }
                 else{
-                    dividers.push( div.args[1] );
+                    // 分母が乗算でない場合
+
+                    // 分母を除数のリストに追加する。
+                    divisors.push( div.args[1] );
                 }
                 
             }
             else if(trm.isMul()){
+                // 乗算の場合
 
+                // 乗算のすべての引数を乗数のリストに追加する。
                 multipliers.push(... (trm as App).args );
             }
             else{
+                // 除算や乗算でない場合
 
+                // 乗数のリストに追加する。
                 multipliers.push( trm );
             }
         }
 
+        // 乗数や除数のリストからキャンセルされた項を取り除く。
         multipliers = multipliers.filter(x => ! x.cancel);
-        dividers = dividers.filter(x => ! x.cancel);
+        divisors = divisors.filter(x => ! x.cancel);
 
         for(const m of multipliers){
+            // すべての乗数に対し
+
             const m_str = m.str();
-            const d = dividers.find(x => x.str() == m_str);
+
+            // 値が同じ除数を探す。
+            const d = divisors.find(x => x.str() == m_str);
             if(d == undefined){
+                // 値が同じ除数がない場合
+
                 continue;
             }
 
 
             msg(`cancel m:[${m.str()}] d:[${d.str()}]`)
 
+            // 対応する乗数と除数をキャンセルする。
             m.cancel = true;
             d.cancel = true;
 
@@ -174,17 +276,31 @@ export function* cancelMul(root : Term){
 }
 
 export function* trimMul(root : Term){
+    // キャンセルされた項のリスト
     const canceled = allTerms(root).filter(x => x.cancel);
 
     for(const can of canceled){
+        // すべてのキャンセルされた項に対し
+
         if(can.parent.isMul()){
+            // 親が乗算の場合
+
+            // 乗算の引数から取り除く。
             can.remArg();
         }
         else if(can.parent.isDiv()){
+            // 親が除算の場合
+
             if(can.parent.args[0] == can){
+                // 分子の場合
+
+                // 分子を1にする。
                 can.parent.args[0] = new ConstNum(1);
             }
             else if(can.parent.args[1] == can){
+                // 分母の場合
+
+                // 分母を1にする。
                 can.parent.args[1] = new ConstNum(1);
             }
             else{
@@ -198,24 +314,40 @@ export function* trimMul(root : Term){
 
     root.setParent(null);
     while(true){
+        // 引数が１つしかない加算や乗算を探す。
         const bin1 = allTerms(root).find(x => (x.isAdd() || x.isMul()) && (x as App).args.length == 1);
         if(bin1 != undefined){
+        // 引数が１つしかない加算や乗算がある場合
+
+            // 唯一の引数
             const arg1 = (bin1 as App).args[0];
+
+            // 加算や乗算を唯一の引数で置き換える。
             bin1.replace(arg1);
+
+            // 唯一の引数の係数に、加算や乗算の係数をかける。
             arg1.value *= bin1.value;
 
             showRoot(root);
             yield;
         }
 
+        // 引数がない乗算を探す。
         const mul0 = allTerms(root).find(x => x.isMul() && (x as App).args.length == 0);
         if(mul0 != undefined){
+            // 引数がない乗算がある場合
 
             assert(mul0.parent != null, "trim-mul 3");
             if(mul0.parent.isDiv()){
+                // 引数がない乗算が、除算の分子か分母の場合
+
+                // その除算の分子か分母を1で置き換える。
                 mul0.replace(new ConstNum(1));
             }
             else if(mul0.parent.isMul()){
+                // 引数のない乗算が、乗算の引数の場合
+
+                // その乗算の引数を取り除く。
                 mul0.remArg();
             }
             else{
@@ -226,18 +358,27 @@ export function* trimMul(root : Term){
             yield;
         }
 
-
+        // 分母が1の除算を探す。
         const div = allTerms(root).find(x => x.isDiv() && (x as App).args[1].isOne()) as App;
         if(div != undefined){
+            // 分母が1の除算がある場合
 
+            // その除算を分子で置き換える。
             div.replace(div.args[0]);
+
+            // 分子の係数に、除算の係数をかける。
+            div.args[0].value *= div.value;
 
             showRoot(root);
             yield;
         }
 
+        // 乗算の引数で定数1を探す。
         const one = allTerms(root).find(x => x.isOne() && x.parent.isMul());
         if(one != undefined){
+            // 乗算の引数で定数1がある場合
+
+            // 乗算の引数から取り除く。
             one.remArg();
 
             showRoot(root);
@@ -351,6 +492,7 @@ export function* greatestCommonFactor(cmd : App, root : App){
     mul.remArg();
     args.forEach(x => x.remArg());
 
+    // 乗算の左側から共通因子をくくり出す。
     const left_factors : Term[] = [];
     while(mul.args.length != 0){
         const factor = mul.args[0];
@@ -364,7 +506,7 @@ export function* greatestCommonFactor(cmd : App, root : App){
         args.forEach(x => x.args.shift());
     }
 
-
+    // 乗算の右側から共通因子をくくり出す。
     const right_factors : Term[] = [];
     while(mul.args.length != 0){
         const factor = last(mul.args);
@@ -378,9 +520,12 @@ export function* greatestCommonFactor(cmd : App, root : App){
         args.forEach(x => x.args.pop());
     }
 
-
+    // 新たに引数が空の乗算を作る。
     const new_mul = new App(operator("*"), []);
+
     if(left_factors.length != 0){
+        // 左側に共通因子がある場合
+
         new_mul.addArgs(left_factors);
     }
 
@@ -391,6 +536,8 @@ export function* greatestCommonFactor(cmd : App, root : App){
     new_mul.addArg(new_add);
 
     if(right_factors.length != 0){
+        // 右側に共通因子がある場合
+
         new_mul.addArgs(right_factors);
     }
 
@@ -399,6 +546,11 @@ export function* greatestCommonFactor(cmd : App, root : App){
     showRoot(root);
 }
 
+/**
+ * 
+ * @param root 
+ * @description 乗算や除算の引数の符号をまとめる。
+ */
 export function* mulSign(root : App){
     const muldivs = allTerms(root).filter(x => x.isMul() || x.isDiv()) as App[];
 
@@ -414,7 +566,6 @@ export function* mulSign(root : App){
             showRoot(root);
             yield;
         }
-
     }
 }
 

@@ -4,7 +4,7 @@ namespace casts {
 const commands : string[] = [
     "@cancel",
     "@subst",
-    "@muleq",
+    "@mulroot",
     "@moveadd",
     "@distfnc",
     "@gcf"
@@ -153,6 +153,10 @@ export abstract class Term {
 
     isCommand() : boolean{
         return this instanceof App && commands.includes(this.fncName);
+    }
+
+    isEq() : boolean {
+        return this instanceof App && this.fncName == "==";
     }
 
     isAdd() : boolean {

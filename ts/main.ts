@@ -48,8 +48,8 @@ function* gen(texts : string){
                 yield* subst(app, prev_root);
                 break;
 
-            case "@muleq":
-                yield* muleq(app, prev_root);
+            case "@mulroot":
+                yield* mulroot(app, prev_root);
                 break;
 
             case "@moveadd":
