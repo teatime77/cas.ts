@@ -93,6 +93,10 @@ function* gen(texts : string){
             case "@mulsign":
                 yield* mulSign(alg.root);
                 break;
+
+            case "@putoutdiff":
+                yield* pulloutDiff(alg.root);
+                break;
                     
             default:
                 assert(false, "gen 3");

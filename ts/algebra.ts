@@ -49,7 +49,7 @@ export function* cancel(app: App, root : Term){
     }
 }
 
-function showRoot(root : Term){
+export function showRoot(root : Term){
     root.setParent(null);
 
     const tex = root.tex();
