@@ -32,12 +32,8 @@ export function* pulloutDiff(root : App){
         mul.args = depends;
 
         if(diff.parent.isMul()){
-            const idx = diff.parent.args.indexOf(diff);
 
-            while(no_depends.length != 0){
-                const trm = no_depends.pop();
-                diff.parent.insArg(trm, idx);
-            }
+            diff.parent.insArgs(no_depends, diff.index());
         }
         else{
 

@@ -43,7 +43,6 @@ export function* cancel(app: App, root : Term){
     for(const t of targets){
         t.cancel = true;
         const tex = root.tex();
-        msg(`tex:[${tex}]`);
         render(mathDiv, tex);
         yield;
     }
@@ -53,7 +52,6 @@ export function showRoot(root : Term){
     root.setParent(null);
 
     const tex = root.tex();
-    msg(`tex:[${tex}]`);
     render(mathDiv, tex);
 }
 
@@ -63,7 +61,16 @@ export function* subst(app: App, root : Term){
     const targets = getSubTerms(root, app.args[0]);
     for(const t of targets){
         const dst = app.args[1].clone();
-        t.replace(dst);
+        if(dst.isMul() && t.parent.isMul()){
+            t.parent.insArgs((dst as App).args, t.index());
+
+            t.remArg();
+            t.parent.value *= t.value;
+        }
+        else{
+
+            t.replace(dst);
+        }
 
         showRoot(root);
         yield;

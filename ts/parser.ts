@@ -76,6 +76,14 @@ export abstract class Term {
         target.parent = app;
     }
 
+    index() : number {
+        assert(this.parent != null, "index 1");
+        const idx = this.parent.args.indexOf(this);
+        assert(idx != -1, "index 2");
+
+        return idx;
+    }
+
     remArg() {
         assert(this.parent != null, "rem arg 1");
         const idx = this.parent.args.indexOf(this);
@@ -450,6 +458,16 @@ export class App extends Term{
     insArg(trm : Term, idx : number){
         this.args.splice(idx, 0, trm);
         trm.parent = this;
+    }
+
+    insArgs(args : Term[], idx : number){
+        assert(this.isMul() && idx != -1, "ins parent mul 1");
+
+        const args_cp = args.slice();
+        while(args_cp.length != 0){
+            const trm = args_cp.pop();
+            this.insArg(trm, idx);
+        }
     }
 }
 

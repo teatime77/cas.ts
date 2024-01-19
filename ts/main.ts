@@ -109,7 +109,6 @@ function* gen(texts : string){
             document.body.appendChild(mathDiv);
 
             const tex = expr.tex();
-            msg(`tex:[${tex}]`);
             render(mathDiv, tex);
 
             alg.root = expr as App;
@@ -117,6 +116,8 @@ function* gen(texts : string){
 
         yield;
     }
+
+    msg(`gen root:${alg.root.str()}`);
 }
 
 
@@ -134,7 +135,7 @@ async function main() {
             clearInterval(timer_id);
             console.log("ジェネレータ 終了");
         }        
-    }, 100);
+    }, 1);
 }
 
 export function bodyOnLoad(){
