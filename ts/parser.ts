@@ -27,6 +27,7 @@ function texName(text : string){
 
     case "sin"  :
     case "cos"  :
+    case "lambda":
     case "theta":
     case "phi"  :
         return `\\${text}`
@@ -36,13 +37,20 @@ function texName(text : string){
     return text;
 }
 
+let termId : number = 0;
+
 export abstract class Term {
+    id : number;
     parent : App | null = null;
 
     // 係数
     value : number = 1;
 
     cancel : boolean = false;
+
+    constructor(){
+        this.id = termId++;
+    }
 
     abstract tex2() : string;
     abstract clone() : Term;
@@ -91,50 +99,29 @@ export abstract class Term {
         this.parent.args.splice(idx, 1);
     }
 
-    str2() : string {
-        assert(false, "str2");
-        return "";
-    }
-
-
-    str() : string {
-        const s = this.str2();
-
-        if(this.value == 1){
-            return s;
-        }
-        else if(this.value == -1){
-            return "-" + s;
-        }
-        else{
-            return this.value.toString() + s;
-        }
-    }
-
-    tex() : string {
+    putValue(text : string) : string {
         let val : string;
 
         if(this instanceof ConstNum){
 
-            val = this.value.toString();
+            val = text;
         }
         else{
-            const tex2 = this.tex2();
 
             if(this.value == 1){
-                val = tex2;
+                val = text;
             }
             else if(this.value == -1){
                 // val = "-" + tex2;
-                val = `-[${tex2}]`;
+                val = `-[${text}]`;
             }
             else{
 
-                val = `${this.value} ${tex2}`
+                val = `${this.value} ${text}`
             }
         }
 
-        if(this.parent != null && this.parent.isAdd()){
+        if(this.parent != null && this != this.parent.fnc && this.parent.isAdd()){
             const idx = this.parent.args.indexOf(this);
             assert(idx != -1, "tex");
 
@@ -153,6 +140,22 @@ export abstract class Term {
         else{
             return val;
         }
+    }
+
+    str2() : string {
+        assert(false, "str2");
+        return "";
+    }
+
+
+    str() : string {
+        const text = this.str2();
+        return this.putValue(text);
+    }
+
+    tex() : string {
+        const text = this.tex2();
+        return this.putValue(text);
     }
 
     isOperator() : boolean {
@@ -177,6 +180,10 @@ export abstract class Term {
 
     isDiv() : boolean {
         return this instanceof App && this.fncName == "/";
+    }
+
+    isZero() : boolean {
+        return this.value == 0;
     }
 
     isOne() : boolean {
@@ -210,22 +217,20 @@ export class Path extends Term {
 
     getTerm(root : App, get_parent : boolean = false) : Term {
         let app = root;
-        let trm : Term;
     
         const last_i = (get_parent ? this.indexes.length - 2 : this.indexes.length - 1);
 
         for(const [i, idx] of this.indexes.entries()){
             if(i == last_i){
     
-                trm = app.args[idx];
+                return app.args[idx];
             }
             else{
                 assert(app.args[idx] instanceof App, "pass:get term");
                 app = app.args[idx] as App;
             }
         }
-    
-        return trm;
+        assert(false, "get term");
     }
 
 }
@@ -341,10 +346,17 @@ export class App extends Term{
         }
         else if(isLetterOrAt(this.fncName)){
             const args_s = args.join(", ");
-            return `${texName(this.fncName)}(${args_s})`;
+            return `${this.fncName}(${args_s})`;
         }
 
-        return args.join(` ${this.fncName} `);
+        if(this.fncName == "+"){
+
+            return args.join(` `);
+        }
+        else{
+
+            return args.join(` ${this.fncName} `);
+        }
     }
 
     tex2() : string {
@@ -415,7 +427,7 @@ export class App extends Term{
             }
         }
 
-        if(this.isOperator() && this.parent != null && this.parent.isOperator()){
+        if(this.isOperator() && this.parent != null && this.parent.isOperator() && !this.parent.isDiv()){
             if(this.parent.precedence() <= this.precedence()){
                 return `(${text})`;
             }            
@@ -429,12 +441,15 @@ export class App extends Term{
         case "^": 
             return 0;
 
-        case "*": 
+        case "/": 
             return 1;
+
+        case "*": 
+            return 2;
 
         case "+": 
         case "-": 
-            return 2;
+            return 3;
         }
 
         return -1;
@@ -622,15 +637,40 @@ export class Parser {
             return this.PowerExpression();
         }
     }
+
     
-    MultiplicativeExpression(){
+    DivExpression(){
         let trm1 = this.UnaryExpression();
-        while(this.token.text == "*" || this.token.text == "/"){
+        while(this.token.text == "/"){
             let app = new App(operator(this.token.text), [trm1]);
             this.next();
 
             while(true){
                 let trm2 = this.UnaryExpression();
+                app.args.push(trm2);
+                
+                if(this.token.text == app.fncName){
+                    this.next();
+                }
+                else{
+                    trm1 = app;
+                    break;
+                }
+            }
+        }
+    
+        return trm1;
+    }
+
+    
+    MultiplicativeExpression(){
+        let trm1 = this.DivExpression();
+        while(this.token.text == "*"){
+            let app = new App(operator(this.token.text), [trm1]);
+            this.next();
+
+            while(true){
+                let trm2 = this.DivExpression();
                 app.args.push(trm2);
                 
                 if(this.token.text == app.fncName){

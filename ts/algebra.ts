@@ -9,7 +9,11 @@ namespace casts {
  * @description 乗数と被乗数の乗算を返す。
  * 
  */
-export function multiply(multiplier : Term, multiplicand : Term) : App {
+export function multiply(multiplier : Term, multiplicand : Term) : Term {
+    if(multiplier.isZero() || multiplicand.isZero()){
+        return new ConstNum(0);
+    }
+
     const mul = new App(operator("*"), []);
     
     // 乗算の係数 = 乗数の係数 * 被乗数の係数
@@ -58,6 +62,7 @@ export function showRoot(root : Term){
 export function* subst(app: App, root : Term){
     assert(app.args.length == 2, "SUBST");
 
+    root.setParent(null);
     const targets = getSubTerms(root, app.args[0]);
     for(const t of targets){
         const dst = app.args[1].clone();
@@ -158,7 +163,8 @@ export class Algebra {
             // ルートが等式や加算でない場合
 
             // 被乗数に乗数をかける。
-            this.root = multiply(multiplier, this.root);
+            this.root = multiply(multiplier, this.root) as App;
+            assert(this.root instanceof App, "mul root");
         }
 
         showRoot(this.root);
@@ -411,26 +417,40 @@ export function* moveAdd(cmd : App, root : Term){
     // 移動する項
     const trm = src_path.getTerm(root as App);
 
-    // 移動元の項の親の加算
-    const trm_parent_add = trm.parent;
-    assert(trm_parent_add.isAdd(), "move add")
-
     // 移動する項をキャンセルする。
     trm.cancel = true;
     showRoot(root);
     yield;
 
-    // 移動元の項の親の加算から、移動する項を取り除く。
-    trm.remArg();
+    // 移動元の項の親
+    const trm_parent_add = trm.parent;
+
+    if(trm_parent_add.isAdd()){
+        // 移動元の項の親が加算の場合
+
+        // 移動元の項の親の加算から、移動する項を取り除く。
+        trm.remArg();
+
+        if(trm_parent_add.args.length == 1){
+            // 移動元の項の親の加算の引数が1個の場合
+    
+            // 引数が1個だけの加算や乗算を、唯一の引数で置き換える。
+            oneArg(trm_parent_add);
+        }
+    }
+    else if(trm_parent_add.isEq()){
+        // 移動元の項の親が等式の場合(移動元が辺の場合)
+
+        // 辺の0を入れる。
+        trm.replace(new ConstNum(0));
+    }
+    else{
+
+        assert(false, "move add")
+    }
+
     showRoot(root);
     yield;
-
-    if(trm_parent_add.args.length == 1){
-        // 移動元の項の親の加算の引数が1個の場合
-
-        // 引数が1個だけの加算や乗算を、唯一の引数で置き換える。
-        oneArg(trm_parent_add);
-    }
 
     // 移動先の親
     let parent = dst_path.getTerm(root as App, true);

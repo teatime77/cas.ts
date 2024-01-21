@@ -20,7 +20,7 @@ function* gen(texts : string){
 
     for(const text of texts.split("\n")){
 
-        if(text.trim() == ""){
+        if(text.trim() == "" || text.trim().startsWith("//")){
             continue;
         }
 
@@ -123,7 +123,11 @@ function* gen(texts : string){
 
 
 async function main() {
-    const texts = await fetchText("../data/1.txt");
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+    const id = params.get("id");
+
+    const texts = await fetchText(`../data/${id}.txt`);
     msg(texts);
 
     const iterator = gen(texts);
