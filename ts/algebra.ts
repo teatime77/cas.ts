@@ -2,8 +2,8 @@ namespace casts {
 
 /**
  * 
- * @param multiplier 乗数
- * @param multiplicand 被乗数
+ * @param multiplier_cp 乗数
+ * @param multiplicand_cp 被乗数
  * @returns 
  * 
  * @description 乗数と被乗数の乗算を返す。
@@ -15,14 +15,17 @@ export function multiply(multiplier : Term, multiplicand : Term) : Term {
     }
 
     const mul = new App(operator("*"), []);
+
+    const multiplier_cp = multiplier.clone();
+    const multiplicand_cp = multiplicand.clone();
     
     // 乗算の係数 = 乗数の係数 * 被乗数の係数
-    mul.value = multiplier.value * multiplicand.value;
-    multiplier.value = 1;
-    multiplicand.value = 1;
+    mul.value = multiplier_cp.value * multiplicand_cp.value;
+    multiplier_cp.value = 1;
+    multiplicand_cp.value = 1;
 
-    for(const trm of [multiplier, multiplicand]){
-        // 乗数と乗算に対し
+    for(const trm of [multiplier_cp, multiplicand_cp]){
+        // 乗数と被乗数に対し
 
         if(trm instanceof App && trm.fncName == "*"){
             // 乗算の場合
@@ -121,7 +124,7 @@ function* mulAdd(root : Term, add : App, multiplier : Term) : Generator<Term> {
  * @param multiplier 乗数
  * @description 等式内のすべての辺に乗数をかける。
  */
-export function* mulEq(root : App, multiplier : Term) : Generator<Term> {
+export function* mulEq(multiplier : Term, root : App) : Generator<Term> {
     assert(root.isEq(), "mul eq");
 
     for(const [idx, trm] of root.args.entries()){
@@ -163,7 +166,7 @@ export class Algebra {
         if(this.root.isEq()){
             // ルートが等式の場合
 
-            yield* mulEq(this.root, multiplier);
+            yield* mulEq(multiplier, this.root);
         }
         else if(this.root instanceof App && this.root.fncName == "+"){
             // ルートが加算の場合
@@ -402,22 +405,30 @@ export function* trimMul(root : Term){
             yield;
         }
 
-        // 乗算の引数で定数1を探す。
-        const one = allTerms(root).find(x => x.isOne() && x.parent.isMul());
-        if(one != undefined){
-            // 乗算の引数で定数1がある場合
+        // 引数に定数を含む乗算のリスト
+        const const_muls = allTerms(root).filter(x => x.isMul() && (x as App).args.some(y => y instanceof ConstNum)) as App[];
+        for(const mul of const_muls){
+            // 引数に定数を含む乗算に対し
 
-            // 乗算の引数から取り除く。
-            one.remArg();
+            // 引数内の定数のリスト
+            const nums = mul.args.filter(x => x instanceof ConstNum);
+
+            // 乗算の係数に、引数内の定数の積をかける。
+            mul.value *= nums.reduce((acc,cur) => acc * cur.value, 1);
+
+            // 引数内の定数を取り除く。
+            nums.forEach(x => x.remArg());
 
             showRoot(root);
             yield;
         }
 
-        if(bin1 == undefined && mul0 == undefined && div == undefined && one == undefined){
+        if(bin1 == undefined && mul0 == undefined && div == undefined && const_muls.length == 0){
             break;
         }
     }
+
+    showRoot(root);
 }
 
 export function* moveAdd(cmd : App, root : Term){
