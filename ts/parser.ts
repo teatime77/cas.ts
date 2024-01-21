@@ -1,14 +1,4 @@
 namespace casts {
-// 
-
-const commands : string[] = [
-    "@cancel",
-    "@subst",
-    "@mulroot",
-    "@moveadd",
-    "@distribute",
-    "@gcf"
-];
 
 export const pathSep = ":";
 
@@ -42,6 +32,7 @@ let termId : number = 0;
 export abstract class Term {
     id : number;
     parent : App | null = null;
+    strval : string;
 
     // 係数
     value : number = 1;
@@ -59,6 +50,10 @@ export abstract class Term {
         return this.str() == trm.str();
     }
 
+    eq2(trm : Term) : boolean {
+        return this.strval == trm.strval;
+    }
+
     copy(dst : Term){
         dst.value  = this.value;
         dst.cancel = this.cancel;
@@ -66,6 +61,10 @@ export abstract class Term {
 
     setParent(parent : App | null){
         this.parent = parent;
+    }
+
+    setStrVal(){
+        this.strval = this.str();
     }
 
     replace(target : Term){
@@ -162,10 +161,6 @@ export abstract class Term {
         return this instanceof App && this.precedence() != -1;
     }
 
-    isCommand() : boolean{
-        return this instanceof App && commands.includes(this.fncName);
-    }
-
     isEq() : boolean {
         return this instanceof App && this.fncName == "==";
     }
@@ -211,6 +206,7 @@ export class Path extends Term {
     clone() : Term {
         const path = new Path(this.indexes);
         this.copy(path);
+        path.setStrVal();
 
         return path;
     }
@@ -246,6 +242,7 @@ export class RefVar extends Term{
     clone() : RefVar {
         const ref = new RefVar(this.name);
         this.copy(ref);
+        ref.setStrVal();
 
         return ref;
     }
@@ -271,6 +268,7 @@ export class ConstNum extends Term{
     clone() : ConstNum {
         const cns = new ConstNum(this.value);
         this.copy(cns);
+        cns.setStrVal();
 
         return cns;
     }
@@ -325,6 +323,7 @@ export class App extends Term{
         const app = new App(this.fnc.clone(), this.args.map(x => x.clone()));
 
         this.copy(app);
+        app.setStrVal();
 
         return app;
     }
@@ -335,6 +334,12 @@ export class App extends Term{
         this.fnc.setParent(this);
 
         this.args.forEach(x => x.setParent(this));
+    }
+
+    setStrVal(){
+        this.strval = this.str();
+        this.fnc.setStrVal();
+        this.args.forEach(x => x.setStrVal());
     }
 
     str2() : string {

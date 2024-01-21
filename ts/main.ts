@@ -29,7 +29,7 @@ function* gen(texts : string){
         document.body.appendChild(div);
 
         const expr = parseMath(text);
-        if(expr.isCommand()){
+        if(expr instanceof App && expr.fncName[0] == "@"){
             mathDiv = document.createElement("div");
             document.body.appendChild(mathDiv);
 
@@ -63,6 +63,10 @@ function* gen(texts : string){
 
             case "@gcf":
                 yield* greatestCommonFactor(app, alg.root);
+                break;
+
+            case "@gcf2":
+                yield* greatestCommonFactor2(app, alg.root);
                 break;
 
             default:

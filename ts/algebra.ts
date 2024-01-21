@@ -40,6 +40,18 @@ export function multiply(multiplier : Term, multiplicand : Term) : Term {
     return mul;
 }
 
+function multiplyArgs(args: Term[]) : Term {
+    if(args.length == 0){
+        return new ConstNum(1);
+    }
+    else if(args.length == 1){
+        return args[0];
+    }
+    else{
+        return new App(operator("*"), args);
+    }
+}
+
 export function* cancel(app: App, root : Term){
     assert(app.args.length == 1, "cancel");
 
@@ -171,6 +183,62 @@ export class Algebra {
     }
 }
 
+function getMultipliersDivisors(mul : App) : [Term[], Term[]]{
+    // 乗数のリスト
+    let multipliers : Term[] = [];
+
+    // 除数のリスト
+    let divisors : Term[] = [];
+
+    for(const trm of mul.args){
+        // 乗算の引数に対し
+
+        if(trm.isDiv()){
+            // 除算の場合
+
+            const div = trm as App;
+            if(div.args[0].isMul()){
+                // 分子が乗算の場合
+
+                // 分子の乗算のすべての引数を乗数のリストに追加する。
+                multipliers.push(... (div.args[0] as App).args );
+            }
+            else{
+                // 分子が乗算でない場合
+
+                // 分子を乗数のリストに追加する。
+                multipliers.push( div.args[0] );
+            }
+
+            if(div.args[1].isMul()){
+                // 分母が乗算の場合
+
+                // 分母の乗算のすべての引数を除数のリストに追加する。
+                divisors.push(... (div.args[1] as App).args );
+            }
+            else{
+                // 分母が乗算でない場合
+
+                // 分母を除数のリストに追加する。
+                divisors.push( div.args[1] );
+            }
+        }
+        else if(trm.isMul()){
+            // 乗算の場合
+
+            // 乗算のすべての引数を乗数のリストに追加する。
+            multipliers.push(... (trm as App).args );
+        }
+        else{
+            // 除算や乗算でない場合
+
+            // 乗数のリストに追加する。
+            multipliers.push( trm );
+        }
+    }
+
+    return [multipliers, divisors];
+}
 
 export function* cancelMul(root : Term){
     // すべての乗算のリスト
@@ -184,59 +252,7 @@ export function* cancelMul(root : Term){
             continue;
         }
 
-        // 乗数のリスト
-        let multipliers : Term[] = [];
-
-        // 除数のリスト
-        let divisors : Term[] = [];
-
-        for(const trm of mul.args){
-            // 乗算の引数に対し
-
-            if(trm.isDiv()){
-                // 除算の場合
-
-                const div = trm as App;
-                if(div.args[0].isMul()){
-                    // 分子が乗算の場合
-
-                    // 分子の乗算のすべての引数を乗数のリストに追加する。
-                    multipliers.push(... (div.args[0] as App).args );
-                }
-                else{
-                    // 分子が乗算でない場合
-
-                    // 分子を乗数のリストに追加する。
-                    multipliers.push( div.args[0] );
-                }
-
-                if(div.args[1].isMul()){
-                    // 分母が乗算の場合
-
-                    // 分母の乗算のすべての引数を除数のリストに追加する。
-                    divisors.push(... (div.args[1] as App).args );
-                }
-                else{
-                    // 分母が乗算でない場合
-
-                    // 分母を除数のリストに追加する。
-                    divisors.push( div.args[1] );
-                }
-                
-            }
-            else if(trm.isMul()){
-                // 乗算の場合
-
-                // 乗算のすべての引数を乗数のリストに追加する。
-                multipliers.push(... (trm as App).args );
-            }
-            else{
-                // 除算や乗算でない場合
-
-                // 乗数のリストに追加する。
-                multipliers.push( trm );
-            }
-        }
+        let [multipliers, divisors] = getMultipliersDivisors(mul);
 
         // 乗数や除数のリストからキャンセルされた項を取り除く。
         multipliers = multipliers.filter(x => ! x.cancel);
@@ -547,7 +563,6 @@ export function* greatestCommonFactor(cmd : App, root : App){
     const start_pos = mul_parent_add.args.indexOf(mul);
     assert(start_pos != -1, "gcf 3");
 
-    let left_cnt : number = 0;
     const args = mul_parent_add.args.slice(start_pos + 1, start_pos + 1 +(cnt - 1)) as App[];
     assert(args.length != 0 && args.every(x => x.isMul()), "gcf 4");
 
@@ -613,6 +628,129 @@ export function* greatestCommonFactor(cmd : App, root : App){
 
     showRoot(root);
 }
+
+/**
+ * 
+ * @param cmd 共通化する項の指定
+ * @param root ルート
+ * @description 最大の共通因数でくくり出す。
+ */
+export function* greatestCommonFactor2(cmd : App, root : App){
+    assert(cmd.args.length == 2 && cmd.args[0] instanceof Path && cmd.args[1] instanceof ConstNum, "greatest common factor");
+
+    const src = cmd.args[0] as Path;
+    const cnt = cmd.args[1].value;
+
+    // 共通化する最初の項は乗算
+    const mul = src.getTerm(root) as App;
+    assert(mul.isMul(), "gcf 1");
+
+    // 共通化する項の親は加算
+    const mul_parent_add = mul.parent;
+    assert(mul_parent_add.isAdd(), "gcf 2");
+
+    // 共通化する最初の項の位置
+    const start_pos = mul_parent_add.args.indexOf(mul);
+    assert(start_pos != -1, "gcf 3");
+
+    // 共通化する項のリスト
+    const args = mul_parent_add.args.slice(start_pos, start_pos + cnt) as App[];
+    assert(args.length != 0 && args.every(x => x.isMul()), "gcf 4");
+
+    // 共通化する項の中のすべての乗数
+    const all_multipliers : Term[] = [];
+
+    // 共通化する項の中のすべての除数
+    const all_divisors : Term[] = [];
+
+    // 共通の乗数のリスト
+    let common_multipliers : Term[];
+
+    // 共通の除数のリスト
+    let common_divisors: Term[];
+
+    // 比較できるようにstrvalをセットする。
+    args.forEach(x => x.setStrVal());
+
+    for(const [idx, arg] of args.entries()){
+        // 共通化するすべての項に対し
+
+        // 乗数と除数のリスト
+        let [multipliers, divisors] = getMultipliersDivisors(arg);
+
+        if(idx == 0){
+            // 共通化する最初の項の場合
+
+            // 共通の乗数と除数のリストを、最初の項の乗数と除数のリストで初期化する。
+            common_multipliers = multipliers.map(x => x.clone());
+            common_divisors    = divisors.map(x => x.clone());
+        }
+        else{
+            // 最初の項でない場合
+
+            // 共通の乗数は、この項の乗数の中に現れるものに限定する。
+            common_multipliers = common_multipliers.filter(x => multipliers.some(y => x.eq2(y)));
+
+            // 共通の除数は、この項の除数の中に現れるものに限定する。
+            common_divisors    = common_divisors.filter(x => divisors.some(y => x.eq2(y)));
+        }
+        assert(common_multipliers.length != 0 || common_divisors.length != 0, "gcf 5");
+
+        // 共通化する項のすべての乗数と除数をリストに追加する。
+        all_multipliers.push(... multipliers);
+        all_divisors.push(... divisors);
+    }
+
+    // 共通因子
+    let common_factor : Term
+    if(common_divisors.length != 0){
+        // 共通の除数がある場合
+
+        // 分子
+        const numerator   = multiplyArgs(common_multipliers);
+
+        // 分母
+        const denominator = multiplyArgs(common_divisors);
+
+        // 除算で共通因子を作る。
+        common_factor = new App(operator("/"), [ numerator, denominator ]);
+    }
+    else{
+        // 共通の除数がない場合
+
+        // 乗算で共通因子を作る。
+        common_factor = multiplyArgs(common_multipliers);
+    }
+
+    // 共通乗数に含まれる乗数はキャンセルする。
+    all_multipliers.filter(x => common_multipliers.some(y => x.eq2(y))).forEach(x => x.cancel = true);
+
+    // 共通除数に含まれる除数はキャンセルする。
+    all_divisors.filter(x => common_divisors.some(y => x.eq2(y))).forEach(x => x.cancel = true);
+
+    // 共通化するすべての項を、加算から取り除く。
+    args.forEach(x => x.remArg());
+
+    // 共通化するすべての項のみで、新たに加算を作る。
+    const add_args = new App(operator("+"), args);
+
+    // 共通因子 × 新しい加算
+    const common_factor_add_args = multiply(common_factor, add_args);
+
+    // 共通因子 × 新しい加算を、共通化する項の親の加算に挿入する。
+    mul_parent_add.insArg(common_factor_add_args, start_pos);
+
+    if(mul_parent_add.args.length == 1){
+        // 共通化する項の親の加算の引数が1個だけの場合
+
+        // 引数が1個だけの加算や乗算を、唯一の引数で置き換える。
+        oneArg(mul_parent_add);
+    }
+
+    showRoot(root);
+}
+
+
 
 /**
  * 
