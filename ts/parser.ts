@@ -2,6 +2,25 @@ namespace casts {
 
 export const pathSep = ":";
 
+function isGreek(text : string) : boolean {
+    const greeks = [
+        "alpha", "beta", "gamma", "delta", "epsilon", "varepsilon", "zeta", "eta", "theta", 
+        "vartheta", "iota", "kappa", "lambda", "mu", "nu", "xi", "pi", "varpi", "rho", "varrho", 
+        "sigma", "varsigma", "tau", "upsilon", "phi", "varphi", "chi", "psi", "omega"
+    ];
+
+    if(greeks.includes(text)){
+        return true;
+    }
+
+    const lower_case = text[0].toLowerCase() + text.substring(1);    
+    if(greeks.includes(lower_case)){
+        return true;
+    }
+
+    return false;
+}
+
 function texName(text : string){
     switch(text){
     case "=="     : return "=";
@@ -14,14 +33,13 @@ function texName(text : string){
     case "hbar"   : return "\\hbar";
     case "nabla"  : return "\\nabla";
     case "nabla2" : return "\\nabla^2";
-
     case "sin"  :
     case "cos"  :
-    case "lambda":
-    case "theta":
-    case "phi"  :
-        return `\\${text}`
-    // case "" : return "\\";
+        return `\\${text}`;
+    }
+
+    if(isGreek(text)){
+        return `\\${text}`;
     }
 
     return text;

@@ -68,6 +68,7 @@ export function* cancel(app: App, root : Term){
 }
 
 export function showRoot(root : Term){
+    assert(root != null, "show root");
     root.setParent(null);
 
     const tex = root.tex();
@@ -181,8 +182,27 @@ export class Algebra {
             this.root = multiply(multiplier, this.root) as App;
             assert(this.root instanceof App, "mul root");
         }
+    }
 
-        showRoot(this.root);
+    /**
+     * 
+     * @param trm 辺の値
+     * @description 辺を追加する。
+     */
+    *addSide(app : App){
+        assert(app.args.length == 1, "add side");
+        const side = app.args[0];
+
+        let eq : App;
+        if(this.root.isEq()){
+            eq = this.root;
+        }
+        else{
+            eq = new App(operator("=="), [this.root]);
+            this.root = eq;
+        }
+
+        eq.addArg(side);
     }
 }
 
@@ -362,6 +382,7 @@ export function* trimMul(root : Term){
 
             showRoot(root);
             yield;
+            continue;
         }
 
         // 引数がない乗算を探す。
@@ -388,6 +409,7 @@ export function* trimMul(root : Term){
 
             showRoot(root);
             yield;
+            continue;
         }
 
         // 分母が1の除算を探す。
@@ -403,32 +425,53 @@ export function* trimMul(root : Term){
 
             showRoot(root);
             yield;
+            continue;
         }
 
         // 引数に定数を含む乗算のリスト
         const const_muls = allTerms(root).filter(x => x.isMul() && (x as App).args.some(y => y instanceof ConstNum)) as App[];
-        for(const mul of const_muls){
-            // 引数に定数を含む乗算に対し
+        if(const_muls.length != 0){
 
-            // 引数内の定数のリスト
-            const nums = mul.args.filter(x => x instanceof ConstNum);
+            for(const mul of const_muls){
+                // 引数に定数を含む乗算に対し
 
-            // 乗算の係数に、引数内の定数の積をかける。
-            mul.value *= nums.reduce((acc,cur) => acc * cur.value, 1);
+                // 引数内の定数のリスト
+                const nums = mul.args.filter(x => x instanceof ConstNum);
 
-            // 引数内の定数を取り除く。
-            nums.forEach(x => x.remArg());
+                // 乗算の係数に、引数内の定数の積をかける。
+                mul.value *= nums.reduce((acc,cur) => acc * cur.value, 1);
 
-            showRoot(root);
-            yield;
+                // 引数内の定数を取り除く。
+                nums.forEach(x => x.remArg());
+
+                showRoot(root);
+                yield;
+            }
+
+            continue;
         }
 
-        if(bin1 == undefined && mul0 == undefined && div == undefined && const_muls.length == 0){
-            break;
+        // 引数に0を含む加算のリスト
+        const zero_adds = allTerms(root).filter(x => x.isAdd() && (x as App).args.some(y => y.isZero())) as App[];
+        if(zero_adds.length != 0){
+            for(const add of zero_adds){
+                // 引数に0を含む加算に対し
+
+                // 引数内の0のリスト
+                const zeros = add.args.filter(x => x.isZero());
+
+                // 引数内の0を取り除く。
+                zeros.forEach(x => x.remArg());
+
+                showRoot(root);
+                yield;
+            }
+
+            continue;
         }
+
+        break;
     }
-
-    showRoot(root);
 }
 
 export function* moveAdd(cmd : App, root : Term){
@@ -507,8 +550,6 @@ export function* moveAdd(cmd : App, root : Term){
 
     // 加算の中の指定した位置に挿入する。
     add.insArg(trm, idx);
-
-    showRoot(root);
 }
 
 /**
@@ -636,8 +677,6 @@ export function* greatestCommonFactor(cmd : App, root : App){
         // 引数が1個だけの加算や乗算を、唯一の引数で置き換える。
         oneArg(mul_parent_add);
     }
-
-    showRoot(root);
 }
 
 /**
@@ -757,8 +796,6 @@ export function* greatestCommonFactor2(cmd : App, root : App){
         // 引数が1個だけの加算や乗算を、唯一の引数で置き換える。
         oneArg(mul_parent_add);
     }
-
-    showRoot(root);
 }
 
 

@@ -57,6 +57,10 @@ function* gen(texts : string){
                 yield* moveAdd(app, alg.root);
                 break;
 
+            case "@addside":
+                yield* alg.addSide(app);
+                break;
+
             case "@distribute":
                 yield* distribute(app, alg.root);
                 break;
@@ -73,6 +77,8 @@ function* gen(texts : string){
                 assert(false, "gen 2");
                 break;
             }
+
+            showRoot(alg.root);
         }
         else if(expr instanceof RefVar && expr.name[0] == '@'){
             mathDiv = document.createElement("div");
@@ -106,6 +112,8 @@ function* gen(texts : string){
                 assert(false, "gen 3");
                 break;
             }
+            
+            showRoot(alg.root);
         }
         else{
             assert(expr instanceof App, "gen 4");
