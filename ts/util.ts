@@ -3,7 +3,7 @@ var getUserMacros;
 
 namespace casts {
 
-export function assert(b : boolean, msg : string){
+export function assert(b : boolean, msg : string = ""){
     if(!b){
         throw new Error(msg);
     }

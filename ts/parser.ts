@@ -42,6 +42,8 @@ function texName(text : string){
         return `\\${text}`;
     }
 
+    const fnc_names = [ "sin", "cos", "sqrt" ]
+
     return text;
 }
 
@@ -195,12 +197,29 @@ export abstract class Term {
         return this instanceof App && this.fncName == "/";
     }
 
+    isSqrt() : boolean {
+        return this instanceof App && this.fncName == "sqrt";
+    }
+
     isZero() : boolean {
         return this.value == 0;
     }
 
     isOne() : boolean {
         return this instanceof ConstNum && this.value == 1;
+    }
+
+    isE() : boolean {
+        return this instanceof RefVar && this.name == "e";
+    }
+
+    isI() : boolean {
+        return this instanceof RefVar && this.name == "i";
+    }
+
+
+    depend(dvar : RefVar) : boolean {
+        return allTerms(this).some(x => dvar.eq(x));
     }
 }
 
@@ -408,6 +427,10 @@ export class App extends Term{
 
                 text = `${texName(this.fncName)} ${args[0]}`;
             }
+            else if(this.fncName == "sqrt"){
+                assert(args.length == 1, "tex2");
+                text = `\\sqrt{${args[0]}}`;
+            }
             else{
 
                 const args_s = args.join(", ");
@@ -450,7 +473,7 @@ export class App extends Term{
             }
         }
 
-        if(this.isOperator() && this.parent != null && this.parent.isOperator() && !this.parent.isDiv()){
+        if(this.isOperator() && this.parent != null && this.parent.isOperator() && this.parent.fncName != "^" && !this.parent.isDiv()){
             if(this.parent.precedence() <= this.precedence()){
                 return `(${text})`;
             }            

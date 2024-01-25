@@ -1,6 +1,8 @@
 namespace casts {
 
 export let mathDiv : HTMLDivElement;
+let translation : { [text : string] : string};
+const theLang : string = "ja";
 
 export function parseMath(text: string) : Term {
     let parser = new Parser(text);
@@ -73,6 +75,18 @@ function* gen(texts : string){
                 yield* greatestCommonFactor2(app, alg.root);
                 break;
 
+            case "@lowerdiff":
+                yield* lowerdiff(app, alg.root);
+                break;
+
+            case "@diff":
+                yield* calc_diff(app, alg.root);
+                break;
+
+            case "@square":
+                yield* trim_square(app, alg.root);
+                break;
+
             default:
                 assert(false, "gen 2");
                 break;
@@ -132,14 +146,8 @@ function* gen(texts : string){
     msg(`gen root:${alg.root.str()}`);
 }
 
-
-
-async function main() {
-    const url = new URL(window.location.href);
-    const params = url.searchParams;
-    const id = params.get("id");
-
-    const texts = await fetchText(`../data/${id}.txt`);
+async function readDoc(path: string){
+    const texts = await fetchText(`../data/${path}`);
     msg(texts);
 
     const iterator = gen(texts);
@@ -152,6 +160,151 @@ async function main() {
             console.log("ジェネレータ 終了");
         }        
     }, 1);
+
+}
+
+function translate(text : string, lang : string = theLang) : string {
+    const item = translation[text.replace('-', ' ')];
+    if(item != undefined){
+        const dst_text = item[lang];
+        if(dst_text != undefined){
+            return dst_text;
+        }
+    }
+
+    return text;
+}
+
+function makeIndex(parent_ul : HTMLUListElement | HTMLDivElement, parent_dir : any){
+    assert(parent_dir != undefined);
+    const ul = document.createElement("ul");
+
+    const title_li = document.createElement("li");
+    title_li.innerText = translate(parent_dir["title"]);
+    ul.appendChild(title_li);
+
+    if(parent_dir["dirs"] != undefined){
+        for(const dir of parent_dir["dirs"]){
+            makeIndex(ul, dir);
+        }    
+    }
+
+    if(parent_dir["files"] != undefined && parent_dir["files"].length != 0){
+
+        const files_ul = document.createElement("ul");
+
+        for(const file of parent_dir["files"]){
+            const file_li = document.createElement("li");
+
+            const anc = document.createElement("a");
+            anc.innerText = translate(file['title']);
+            const url = file["url"];
+            if(url != undefined){
+
+                anc.href = url;
+                anc.target = "_blank";
+            }
+            else{
+
+                anc.setAttribute("data-path", file['path']);
+                anc.addEventListener("click", ()=>{
+                    const path = anc.getAttribute("data-path");
+                    const new_url = `${window.location.href}?path=${path}`;
+                    msg(`url:${new_url}`);
+
+                    window.open(new_url, "_blank");
+                });
+            }
+
+            file_li.appendChild(anc);
+            files_ul.appendChild(file_li);
+        }
+
+        ul.appendChild(files_ul);
+    }
+
+    parent_ul.appendChild(ul);
+}
+
+function makeYoutubeJson(){
+    let doc = (document.getElementById("map-iframe") as HTMLIFrameElement).contentWindow.document;
+
+    const gs = doc.getElementsByTagName("g");
+    
+    let s = "";
+    for(const g of Array.from(gs)){
+        if(g.id.startsWith("be/")){
+            const texts = Array.from(g.getElementsByTagName("text"));
+            const text : SVGTextElement = texts[0];
+            
+            s += `{\n`;
+            s += `   "title": "${texts[0].textContent}",\n`;
+            s += `   "url"  : "https://youtu.${g.id}"\n`;
+            s += `},\n`;
+        }
+    }
+    msg(s);
+}
+
+function mergeJson(js1 : any, js2 : any){
+    assert(js1["title"] == js2["title"]);
+
+    if(js2["dirs"] != undefined){
+        if(js1["dirs"] == undefined){
+
+            js1["dirs"] = js2["dirs"];
+        }
+        else{
+
+            for(const dir2 of js2["dirs"]){
+                const dir1 = js1["dirs"].find(x => x["title"] == dir2["title"]);
+                if(dir1 == undefined){
+                    js1["dirs"].push(dir2);
+                }
+                else{
+                    mergeJson(dir1, dir2);
+                }
+            }
+        }
+    }
+
+    if(js2["files"] != undefined){
+
+        if(js1["files"] == undefined){
+            js1["files"] = js2["files"];
+        }
+        else{
+
+            js1["files"].push(... js2["files"]);
+        }
+    }
+}
+
+async function main() {
+    // makeYoutubeJson();
+
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+    const path= params.get("path");
+    if(path != undefined){
+        await readDoc(path);
+        return;
+    }
+
+    const translation_text = await fetchText(`../data/translation.json`);
+    translation = JSON.parse(translation_text);
+
+    const index_text = await fetchText(`../data/index.json`);
+    const index = JSON.parse(index_text);
+
+    const youtube_text = await fetchText(`../data/youtube.json`);
+    const youtube = JSON.parse(youtube_text);
+
+    mergeJson(index, youtube);
+
+    const div = document.createElement("div");
+    makeIndex(div, index)
+    document.body.appendChild(div);
 }
 
 export function bodyOnLoad(){
