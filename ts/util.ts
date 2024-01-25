@@ -1,5 +1,6 @@
 var katex : any;
 var getUserMacros;
+var renderMathInElement : any;
 
 namespace casts {
 
@@ -39,6 +40,17 @@ export function render(ele: HTMLElement, tex_text: string){
     }
 }
 
+export function addHtml(html : string){
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    document.body.appendChild(div);
+
+    if(html.indexOf("$") != -1){
+        renderMathInElement(div, {delimiters: [
+            {left: "$", right: "$", display: false}
+        ]});
+    }
+}
 
 
 }

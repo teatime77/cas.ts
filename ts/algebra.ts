@@ -55,8 +55,26 @@ function multiplyArgs(args: Term[]) : Term {
     }
 }
 
-export function* cancel(app: App, root : Term){
-    assert(app.args.length == 1, "cancel");
+/**
+ * 
+ * @param app コマンド
+ * @param root_arg ルート
+ * @description 指定した項をキャンセルする。
+ */
+export function* cancel(app: App, root_arg : App){
+    let root : Term;
+
+    if(app.args.length == 2){
+        const root_path = app.args[1] as Path;
+        assert(root_path instanceof Path);
+
+        root = root_path.getTerm(root_arg);
+    }
+    else{
+        assert(app.args.length == 1, "cancel");
+
+        root = root_arg;
+    }
 
     const targets = getSubTerms(root, app.args[0]);
     for(const t of targets){
@@ -75,6 +93,12 @@ export function showRoot(root : Term){
     render(mathDiv, tex);
 }
 
+/**
+ * 
+ * @param app コマンド
+ * @param root ルート
+ * @description 置換する。
+ */
 export function* subst(app: App, root : Term){
     assert(app.args.length == 2, "SUBST");
 
@@ -206,6 +230,34 @@ export class Algebra {
     }
 }
 
+function getMultipliersDivisorsInDiv(div : App, multipliers : Term[], divisors : Term[]){
+    if(div.args[0].isMul()){
+        // 分子が乗算の場合
+
+        // 分子の乗算のすべての引数を乗数のリストに追加する。
+        multipliers.push(... (div.args[0] as App).args );
+    }
+    else{
+        // 分子が乗算でない場合
+
+        // 分子を乗数のリストに追加する。
+        multipliers.push( div.args[0] );
+    }
+
+    if(div.args[1].isMul()){
+        // 分母が乗算の場合
+
+        // 分母の乗算のすべての引数を除数のリストに追加する。
+        divisors.push(... (div.args[1] as App).args );
+    }
+    else{
+        // 分母が乗算でない場合
+
+        // 分母を除数のリストに追加する。
+        divisors.push( div.args[1] );
+    }
+}
+
 function getMultipliersDivisors(mul : App) : [Term[], Term[]]{
     // 乗数のリスト
     let multipliers : Term[] = [];
@@ -219,32 +271,7 @@ function getMultipliersDivisors(mul : App) : [Term[], Term[]]{
         if(trm.isDiv()){
             // 除算の場合
 
-            const div = trm as App;
-            if(div.args[0].isMul()){
-                // 分子が乗算の場合
-
-                // 分子の乗算のすべての引数を乗数のリストに追加する。
-                multipliers.push(... (div.args[0] as App).args );
-            }
-            else{
-                // 分子が乗算でない場合
-
-                // 分子を乗数のリストに追加する。
-                multipliers.push( div.args[0] );
-            }
-
-            if(div.args[1].isMul()){
-                // 分母が乗算の場合
-
-                // 分母の乗算のすべての引数を除数のリストに追加する。
-                divisors.push(... (div.args[1] as App).args );
-            }
-            else{
-                // 分母が乗算でない場合
-
-                // 分母を除数のリストに追加する。
-                divisors.push( div.args[1] );
-            }
+            getMultipliersDivisorsInDiv(trm as App, multipliers, divisors);
         }
         else if(trm.isMul()){
             // 乗算の場合
@@ -263,6 +290,40 @@ function getMultipliersDivisors(mul : App) : [Term[], Term[]]{
     return [multipliers, divisors];
 }
 
+function* cancelOut(root : Term, app : App, multipliers : Term[], divisors : Term[]){
+
+    // 乗数や除数のリストからキャンセルされた項を取り除く。
+    multipliers = multipliers.filter(x => ! x.cancel);
+    divisors = divisors.filter(x => ! x.cancel);
+
+    for(const m of multipliers){
+        // すべての乗数に対し
+
+        const m_str2 = m.str2();
+
+        // 値が同じ除数を探す。
+        const d = divisors.find(x => x.str2() == m_str2);
+        if(d == undefined){
+            // 係数を除いて値が同じ除数がない場合
+
+            continue;
+        }
+
+        msg(`cancel m:[${m.str2()}] d:[${d.str2()}]`)
+
+        // 対応する乗数と除数をキャンセルする。
+        m.cancel = true;
+        d.cancel = true;
+
+        assert(Math.abs(d.value) == 1 || Math.abs(m.value) == Math.abs(d.value));
+        app.value *= m.value;
+        app.value /= d.value;
+
+        showRoot(root);
+        yield;
+    }
+}
+
 export function* cancelMul(root : Term){
     // すべての乗算のリスト
     const mul_terms = allTerms(root).filter(x => x.isMul()) as App[];
@@ -277,35 +338,66 @@ export function* cancelMul(root : Term){
 
         let [multipliers, divisors] = getMultipliersDivisors(mul);
 
-        // 乗数や除数のリストからキャンセルされた項を取り除く。
-        multipliers = multipliers.filter(x => ! x.cancel);
-        divisors = divisors.filter(x => ! x.cancel);
+        yield* cancelOut(root, mul, multipliers, divisors);
+    }
+}
 
-        for(const m of multipliers){
-            // すべての乗数に対し
 
-            const m_str = m.str();
+export function* cancelDiv(root : Term){
+    // すべての除算のリスト
+    const div_terms = allTerms(root).filter(x => x.isDiv()) as App[];
 
-            // 値が同じ除数を探す。
-            const d = divisors.find(x => x.str() == m_str);
-            if(d == undefined){
-                // 値が同じ除数がない場合
+    for(const div of div_terms){
+        // すべての除算に対し
 
+        // 乗数のリスト
+        let multipliers : Term[] = [];
+
+        // 除数のリスト
+        let divisors : Term[] = [];
+
+        getMultipliersDivisorsInDiv(div, multipliers, divisors);
+
+        yield* cancelOut(root, div, multipliers, divisors);
+    }
+}
+
+
+/**
+ * 
+ * @param root ルート
+ * @description 加算内の相殺する項をキャンセルする。
+ */
+export function* cancelAdd(root : Term){
+    // すべての加算のリスト
+    const add_terms = allTerms(root).filter(x => x.isAdd()) as App[];
+
+    for(const add of add_terms){
+        // すべての加算に対し
+
+        add.setStrVal();
+
+        for(const [idx, trm] of add.args.entries()){
+            // 加算の引数に対し
+
+            if(trm.cancel){
                 continue;
             }
 
+            // 係数以外が一致し、キャンセル済みでなく、係数の正負が逆の項を探す。
+            const trm2 = add.args.slice(idx + 1).find(x => x.str2() == trm.str2() && ! x.cancel && x.value == - trm.value);
+            if(trm2 != undefined){
+                trm.cancel = true;
+                trm2.cancel = true;
 
-            msg(`cancel m:[${m.str()}] d:[${d.str()}]`)
-
-            // 対応する乗数と除数をキャンセルする。
-            m.cancel = true;
-            d.cancel = true;
-
-            showRoot(root);
-            yield;
+                showRoot(root);
+                yield;
+            }
         }
     }
 }
+
+
 
 /**
  * 
@@ -319,7 +411,7 @@ export function* remCancel(root : Term){
     for(const can of canceled){
         // すべてのキャンセルされた項に対し
 
-        if(can.parent.isMul()){
+        if(can.parent.isMul() || can.parent.isAdd()){
             // 親が乗算の場合
 
             // 乗算の引数から取り除く。
@@ -344,6 +436,12 @@ export function* remCancel(root : Term){
                 assert(false, "trim mul 2");
             }
         }
+        // else if(can.parent.isAdd()){
+
+        // }
+        else{
+            assert(false, "rem cancel");
+        }
 
         showRoot(root);
         yield;
@@ -367,6 +465,44 @@ function oneArg(app : App) {
     // 唯一の引数の係数に、加算や乗算の係数をかける。
     arg1.value *= app.value;
 }
+
+export function* trimAdd(root : Term){
+    // すべての加算のリスト
+    const add_terms = allTerms(root).filter(x => x.isAdd()) as App[];
+
+    while(add_terms.length != 0){
+        // 未処理の加算がある場合
+
+        const add = add_terms.pop();
+
+        while(true){
+            // 加算の引数の中の加算を探す。
+            const add2 = add.args.find(x => x.isAdd()) as App;
+            if(add2 == undefined){
+                // ない場合
+
+                break;
+            }
+
+            // 引数の中の加算の位置
+            const idx = add.args.indexOf(add2);
+
+            // 引数の中の加算を削除する。
+            add2.remArg();
+
+            // 引数の中の加算の引数に係数をかける。
+            add2.args.forEach(x => x.value *= add2.value);
+
+            // 引数の中の加算の引数を元の加算の引数に入れる。
+            add.insArgs(add2.args, idx);
+
+            showRoot(root);
+            yield;
+        }
+    }
+}
+
+
 
 export function* trimMul(root : Term){
 
@@ -474,7 +610,13 @@ export function* trimMul(root : Term){
     }
 }
 
-export function* moveAdd(cmd : App, root : Term){
+/**
+ * 
+ * @param cmd コマンド
+ * @param root ルート
+ * @description 移項する。
+ */
+export function* transpose(cmd : App, root : Term){
     assert(cmd.args.length == 2 && cmd.args[0] instanceof Path && cmd.args[1] instanceof Path, "move");
     assert(root instanceof App, "move 2");
     

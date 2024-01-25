@@ -1,7 +1,7 @@
 namespace casts {
 //
 export function* pulloutDiff(root : App){
-    const diffs = allTerms(root).filter(x => x instanceof App && x.fncName == "pdiff") as App[];
+    const diffs = allTerms(root).filter(x => x.isDiff()) as App[];
 
     while(diffs.length != 0){
         const diff = diffs.pop();
@@ -53,7 +53,7 @@ export function* lowerdiff(cmd : App, root : App){
 
     const path = cmd.args[0] as Path;
     const hi_diff = path.getTerm(root) as App;
-    assert(hi_diff instanceof App && hi_diff.fncName == "pdiff");
+    assert(hi_diff.isDiff());
 
     const lo_diff = hi_diff.clone();
     
@@ -146,7 +146,7 @@ export function* calc_diff(cmd : App, root : App){
 
     const path = cmd.args[0] as Path;
     const diff_app = path.getTerm(root) as App;
-    assert(diff_app instanceof App && diff_app.fncName == "pdiff" && diff_app.args.length == 2);
+    assert(diff_app.isDiff() && diff_app.args.length == 2);
 
     const trm = diff_app.args[0];
 

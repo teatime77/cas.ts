@@ -217,6 +217,9 @@ export abstract class Term {
         return this instanceof RefVar && this.name == "i";
     }
 
+    isDiff() : boolean {
+        return this instanceof App && (this.fncName == "diff" || this.fncName == "pdiff");
+    }
 
     depend(dvar : RefVar) : boolean {
         return allTerms(this).some(x => dvar.eq(x));
@@ -308,6 +311,10 @@ export class ConstNum extends Term{
         cns.setStrVal();
 
         return cns;
+    }
+
+    str2() : string {
+        return this.value.toString();        
     }
 
     str() : string {
@@ -410,16 +417,21 @@ export class App extends Term{
             const args_s = args.join(", ");
             text = `(${this.fnc.tex()})(${args_s})`;
         }
-        else if(this.refVar != null && this.refVar.name == "pdiff"){
+        else if(this.fncName == "lim"){
+            text = `\\lim_{${args[1]} \\to ${args[2]}} ${args[0]}`;
+        }
+        else if(this.isDiff()){
             const n = (this.args.length == 3 ? `^${args[2]}`:``);
+
+            const d = (this.fncName == "diff" ? "d" : "\\partial");
 
             if(args[0].indexOf("\\frac") == -1){
 
-                text = `\\frac{ \\partial${n} ${args[0]}}{ \\partial ${args[1]}${n}}`;
+                text = `\\frac{ ${d} ${n} ${args[0]}}{ ${d}  ${args[1]}${n}}`;
             }
             else{
 
-                text = `\\frac{ \\partial${n} }{ \\partial ${args[1]}${n}} (${args[0]})`;
+                text = `\\frac{ ${d} ${n} }{ ${d}  ${args[1]}${n}} (${args[0]})`;
             }
         }
         else if(isLetterOrAt(this.fncName)){
@@ -473,7 +485,11 @@ export class App extends Term{
             }
         }
 
-        if(this.isOperator() && this.parent != null && this.parent.isOperator() && this.parent.fncName != "^" && !this.parent.isDiv()){
+        if(this.isOperator() && this.parent != null && this.parent.isOperator() && !this.parent.isDiv()){
+            if(this.parent.fncName == "^" && this.parent.args[1] == this){
+                return text;
+            }
+
             if(this.parent.precedence() <= this.precedence()){
                 return `(${text})`;
             }            
@@ -819,8 +835,8 @@ export function getSubTerms(root : Term, target : Term) : Term[]{
     const terms : Term[] = [];
     getAllTerms(root, terms);
 
-    const target_str = target.str();
-    return terms.filter(x => x.str() == target_str );
+    const target_str = target.str2();
+    return terms.filter(x => x.str2() == target_str );
 }
 
 export function allTerms(trm : Term) : Term[] {

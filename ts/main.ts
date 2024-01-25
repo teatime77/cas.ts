@@ -17,6 +17,15 @@ export function parseMath(text: string) : Term {
     return trm;
 }
 
+function heading(text : string){
+    const words = text.match(/#+/);
+    const n = words[0].length;
+    const h = document.createElement(`h${n}`) as HTMLHeadingElement;
+    h.innerText = text.substring(n);
+
+    document.body.appendChild(h);
+}
+
 function* gen(texts : string){
     const alg = new Algebra();
 
@@ -26,118 +35,138 @@ function* gen(texts : string){
             continue;
         }
 
-        const div = document.createElement("div");
-        div.innerText = text;
-        document.body.appendChild(div);
-
-        const expr = parseMath(text);
-        if(expr instanceof App && expr.fncName[0] == "@"){
-            mathDiv = document.createElement("div");
-            document.body.appendChild(mathDiv);
-
-            alg.root = alg.root.clone();
-            alg.root.setParent(null);
-
-            const app = expr as App;
-
-            assert(alg.root != null, "gen");
-
-            switch(app.refVar.name){
-            case "@cancel":
-                yield* cancel(app, alg.root);
-                break;
-
-            case "@subst":
-                yield* subst(app, alg.root);
-                break;
-
-            case "@mulroot":
-                yield* alg.mulRoot(app);
-                break;
-
-            case "@moveadd":
-                yield* moveAdd(app, alg.root);
-                break;
-
-            case "@addside":
-                yield* alg.addSide(app);
-                break;
-
-            case "@distribute":
-                yield* distribute(app, alg.root);
-                break;
-
-            case "@gcf":
-                yield* greatestCommonFactor(app, alg.root);
-                break;
-
-            case "@gcf2":
-                yield* greatestCommonFactor2(app, alg.root);
-                break;
-
-            case "@lowerdiff":
-                yield* lowerdiff(app, alg.root);
-                break;
-
-            case "@diff":
-                yield* calc_diff(app, alg.root);
-                break;
-
-            case "@square":
-                yield* trim_square(app, alg.root);
-                break;
-
-            default:
-                assert(false, "gen 2");
-                break;
-            }
-
-            showRoot(alg.root);
-        }
-        else if(expr instanceof RefVar && expr.name[0] == '@'){
-            mathDiv = document.createElement("div");
-            document.body.appendChild(mathDiv);
-
-            alg.root = alg.root.clone();
-            alg.root.setParent(null);
-
-            switch(expr.name){
-            case "@cancelmul":
-                yield* cancelMul(alg.root);
-                break;
-
-            case "@remcancel":
-                yield* remCancel(alg.root);
-                break;
-
-            case "@trimmul":
-                yield* trimMul(alg.root);
-                break;
-
-            case "@mulsign":
-                yield* mulSign(alg.root);
-                break;
-
-            case "@putoutdiff":
-                yield* pulloutDiff(alg.root);
-                break;
-                    
-            default:
-                assert(false, "gen 3");
-                break;
-            }
-            
-            showRoot(alg.root);
+        if(text.startsWith("#")){
+            heading(text);
         }
         else{
-            assert(expr instanceof App, "gen 4");
-            mathDiv = document.createElement("div");
-            document.body.appendChild(mathDiv);
 
-            const tex = expr.tex();
-            render(mathDiv, tex);
+            const div = document.createElement("div");
+            div.innerText = text;
+            document.body.appendChild(div);
 
-            alg.root = expr as App;
+            // addHtml(" $\\sin$ を $\\cos$ で置換する。");
+    
+            const expr = parseMath(text);
+            if(expr instanceof App && expr.fncName[0] == "@"){
+                mathDiv = document.createElement("div");
+                document.body.appendChild(mathDiv);
+
+                alg.root = alg.root.clone();
+                alg.root.setParent(null);
+
+                const app = expr as App;
+
+                assert(alg.root != null, "gen");
+
+                switch(app.refVar.name){
+                case "@cancel":
+                    yield* cancel(app, alg.root);
+                    break;
+
+                case "@subst":
+                    yield* subst(app, alg.root);
+                    break;
+
+                case "@mulroot":
+                    yield* alg.mulRoot(app);
+                    break;
+
+                case "@moveadd":
+                    yield* transpose(app, alg.root);
+                    break;
+
+                case "@addside":
+                    yield* alg.addSide(app);
+                    break;
+
+                case "@distribute":
+                    yield* distribute(app, alg.root);
+                    break;
+
+                case "@gcf":
+                    yield* greatestCommonFactor(app, alg.root);
+                    break;
+
+                case "@gcf2":
+                    yield* greatestCommonFactor2(app, alg.root);
+                    break;
+
+                case "@lowerdiff":
+                    yield* lowerdiff(app, alg.root);
+                    break;
+
+                case "@diff":
+                    yield* calc_diff(app, alg.root);
+                    break;
+
+                case "@square":
+                    yield* trim_square(app, alg.root);
+                    break;
+
+                default:
+                    assert(false, "gen 2");
+                    break;
+                }
+
+                showRoot(alg.root);
+            }
+            else if(expr instanceof RefVar && expr.name[0] == '@'){
+                mathDiv = document.createElement("div");
+                document.body.appendChild(mathDiv);
+
+                alg.root = alg.root.clone();
+                alg.root.setParent(null);
+
+                switch(expr.name){
+                case "@canceladd":
+                    yield* cancelAdd(alg.root);
+                    break;
+
+                case "@cancelmul":
+                    yield* cancelMul(alg.root);
+                    break;
+
+                case "@canceldiv":
+                    yield* cancelDiv(alg.root);
+                    break;
+
+                case "@remcancel":
+                    yield* remCancel(alg.root);
+                    break;
+
+                case "@trimadd":
+                    yield* trimAdd(alg.root);
+                    break;
+
+                case "@trimmul":
+                    yield* trimMul(alg.root);
+                    break;
+
+                case "@mulsign":
+                    yield* mulSign(alg.root);
+                    break;
+
+                case "@putoutdiff":
+                    yield* pulloutDiff(alg.root);
+                    break;
+                        
+                default:
+                    assert(false, "gen 3");
+                    break;
+                }
+                
+                showRoot(alg.root);
+            }
+            else{
+                assert(expr instanceof App, "gen 4");
+                mathDiv = document.createElement("div");
+                document.body.appendChild(mathDiv);
+
+                const tex = expr.tex();
+                render(mathDiv, tex);
+
+                alg.root = expr as App;
+            }
         }
 
         yield;
