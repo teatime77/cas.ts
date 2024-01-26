@@ -1,5 +1,13 @@
 namespace casts {
 
+export function show(app : App, root : App){
+    assert(app.args.length == 1 && app.args[0] instanceof Path);
+    const path = app.args[0] as Path;
+    const trm  = path.getTerm(root);
+    msg(`show:[${trm.str()}]`);
+    addHtml(`$ ${trm.tex()} $`)
+}
+
 /**
  * 
  * @param multiplier_cp 乗数
@@ -628,6 +636,39 @@ export function* movearg(cmd : App, root : App){
     trm.parent.insArg(trm, idx);
 }
 
+/**
+ * 
+ * @param cmd コマンド
+ * @param root ルート
+ * @description 指定した位置に正負が逆の項を挿入する。
+ */
+export function* addpm(cmd : App, root : App){
+    assert(cmd.args.length == 2 && cmd.args[0] instanceof Path, "add pm");
+
+    // 挿入先の加算の位置
+    const path = cmd.args[0] as Path;
+
+    // 加算内の引数の位置
+    const idx  = last(path.indexes);
+
+    // 挿入先の加算
+    const add = path.getTerm(root, true) as App;
+    assert(add.isAdd() && idx < add.args.length);
+
+    // 挿入する項
+    const trm = cmd.args[1];
+
+    // 挿入する項に-1をかけた値
+    const trm2 = trm.clone();
+    trm2.value *= -1;
+
+    // 項を指定位置に挿入する。
+    add.insArg(trm, idx);
+
+    // -1をかけた値を指定位置の後ろに挿入する。
+    add.insArg(trm2, idx + 1);
+}
+
 
 export function* splitdiv(cmd : App, root : App){
     assert(cmd.args.length == 2 && cmd.args[0] instanceof Path&& cmd.args[1] instanceof ConstNum, "move arg");
@@ -669,44 +710,59 @@ export function* splitdiv(cmd : App, root : App){
     add3.addArg(div2);
 }
 
-export function* splitlim(cmd : App, root : App){
-    assert(cmd.args.length == 2 && cmd.args[0] instanceof Path&& cmd.args[1] instanceof ConstNum, "move arg");
+export function* factor_out_div(cmd : App, root : App){
+    assert(cmd.args.length == 2 && cmd.args[0] instanceof Path&& cmd.args[1] instanceof ConstNum, "factor out div");
+    const path = cmd.args[0] as Path;
+    const trm = path.getTerm(root);
 
-    // 分割する極限
-    const lim = (cmd.args[0] as Path).getTerm(root) as App;
-    assert(lim instanceof App && lim.fncName == "lim");
+    // くくり出す項の親は乗算
+    const mul = trm.parent as App;
+    assert(mul.isMul());
 
-    // 分割位置
-    const idx = (cmd.args[1] as ConstNum).value;
+    // 乗算は除算の分子
+    const div = mul.parent as App;
+    assert(div.isDiv() && div.args[0] == mul);
 
-    // 加算
-    const add = lim.args[0] as App;
-    assert(add.isAdd());
+    // くくり出す項の数
+    const cnt = (cmd.args[1] as ConstNum).value;
 
-    // 新しい除算の分子になる加算
-    const add2 = new App(operator("+"), []);
+    // くくり出す項の乗算内の位置
+    const idx = last(path.indexes);
 
-    // 元の加算から新しい加算に項を移動する。
-    while(idx < add.args.length){
-        const trm = add.args[idx];
-        trm.remArg();
+    // 括り出す項のリスト
+    const trms = mul.args.slice(idx, idx + cnt);
 
-        add2.addArg(trm);
+    // 括り出す項を乗算から取り除く。
+    trms.forEach(x => x.remArg());
+
+    if(div.parent.isMul()){
+        // 除算の親が乗算の場合
+
+        // 除算の親の乗算
+        const div_parent_mul = div.parent as App;
+
+        // 除算の位置
+        const div_i = div_parent_mul.args.indexOf(div);
+        assert(div_i != -1);
+
+        // 除算の親の乗算に括り出す項を挿入する。
+        div_parent_mul.insArgs(trms, div_i + 1);
     }
+    else{
+        // 除算の親が乗算でない場合
 
-    // 新しい極限
-    const lim2 = new App(new RefVar("lim"), [ add2, lim.args[1].clone(), lim.args[2].clone() ]);
-    lim2.value = lim.value;
+        // 除算の親になる乗算を作る。
+        const parent_mul = new App(operator("*"), []);
 
-    // 元の極限と新しい極限の加算
-    const add3 = new App(operator("+"), []);
+        // 除算を乗算で置き換える。
+        div.replace(parent_mul);
+        
+        // 乗算に除算を追加する。
+        parent_mul.addArg(div);
 
-    // 元の極限を新しい加算で置き換える。
-    lim.replace(add3);
-
-    // 新しい加算に2つの極限を追加する。
-    add3.addArg(lim);
-    add3.addArg(lim2);
+        // 乗算に括り出す項を追加する。
+        parent_mul.addArgs(trms);
+    }
 }
 
 /**

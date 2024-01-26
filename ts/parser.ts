@@ -485,7 +485,7 @@ export class App extends Term{
             }
         }
 
-        if(this.isAdd() && this.parent.fncName == "lim"){
+        if((this.isAdd() || this.isMul()) && this.parent.fncName == "lim"){
 
             return `(${text})`;
         }

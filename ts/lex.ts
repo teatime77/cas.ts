@@ -116,8 +116,8 @@ function isDigit(s : string) : boolean {
     return s.length == 1 && "0123456789".indexOf(s) != -1;
 }
 
-function isLetterOrDigit(s : string) : boolean {
-    return isLetter(s) || isDigit(s);
+function isIdLetter(s : string) : boolean {
+    return isLetter(s) || isDigit(s) || s == "_";
 }
 
 export function isLetterOrAt(s : string) : boolean {
@@ -194,7 +194,7 @@ export function lexicalAnalysis(text : string) : Token[] {
             // 識別子の最初の文字の場合
 
             // 識別子の文字の最後を探します。識別子の文字はユニコードカテゴリーの文字か数字か'_'。
-            for (pos++; pos < text.length && isLetterOrDigit(text[pos]); pos++);
+            for (pos++; pos < text.length && isIdLetter(text[pos]); pos++);
 
             // 識別子の文字列
             var name : string = text.substring(start_pos, pos);

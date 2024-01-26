@@ -79,6 +79,11 @@ function* gen(texts : string){
                     yield* alg.addSide(app);
                     break;
 
+                case "@addpm":
+                    yield* addpm(app, alg.root);
+                    break;
+                    
+
                 case "@distribute":
                     yield* distribute(app, alg.root);
                     break;
@@ -112,7 +117,15 @@ function* gen(texts : string){
                     break;
 
                 case "@splitlim":
-                    yield* splitlim(app, alg.root);
+                    yield* splitLim(app, alg.root);
+                    break;
+
+                case "@show":
+                    show(app, alg.root);
+                    break;
+
+                case "@factor_out_div":
+                    yield* factor_out_div(app, alg.root);
                     break;
 
                 default:
