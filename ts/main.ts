@@ -71,7 +71,7 @@ function* gen(texts : string){
                     yield* alg.mulRoot(app);
                     break;
 
-                case "@moveadd":
+                case "@transpose":
                     yield* transpose(app, alg.root);
                     break;
 
@@ -101,6 +101,18 @@ function* gen(texts : string){
 
                 case "@square":
                     yield* trim_square(app, alg.root);
+                    break;
+
+                case "@movearg":
+                    yield* movearg(app, alg.root);
+                    break;
+
+                case "@splitdiv":
+                    yield* splitdiv(app, alg.root);
+                    break;
+
+                case "@splitlim":
+                    yield* splitlim(app, alg.root);
                     break;
 
                 default:

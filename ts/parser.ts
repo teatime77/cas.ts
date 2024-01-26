@@ -485,7 +485,11 @@ export class App extends Term{
             }
         }
 
-        if(this.isOperator() && this.parent != null && this.parent.isOperator() && !this.parent.isDiv()){
+        if(this.isAdd() && this.parent.fncName == "lim"){
+
+            return `(${text})`;
+        }
+        else if(this.isOperator() && this.parent != null && this.parent.isOperator() && !this.parent.isDiv()){
             if(this.parent.fncName == "^" && this.parent.args[1] == this){
                 return text;
             }
@@ -538,7 +542,7 @@ export class App extends Term{
     }
 
     insArgs(args : Term[], idx : number){
-        assert(this.isMul() && idx != -1, "ins parent mul 1");
+        assert(idx != -1, "ins parent mul 1");
 
         const args_cp = args.slice();
         while(args_cp.length != 0){

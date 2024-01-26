@@ -610,6 +610,105 @@ export function* trimMul(root : Term){
     }
 }
 
+export function* movearg(cmd : App, root : App){
+    assert(cmd.args.length == 2 && cmd.args[0] instanceof Path&& cmd.args[1] instanceof ConstNum, "move arg");
+
+    const trm = (cmd.args[0] as Path).getTerm(root);
+    let idx = trm.parent.args.indexOf(trm);
+    assert(idx != -1);
+
+    const n = (cmd.args[1] as ConstNum).value;
+    idx += n;
+
+    if(0 < n){
+        idx--;
+    }
+
+    trm.remArg();
+    trm.parent.insArg(trm, idx);
+}
+
+
+export function* splitdiv(cmd : App, root : App){
+    assert(cmd.args.length == 2 && cmd.args[0] instanceof Path&& cmd.args[1] instanceof ConstNum, "move arg");
+
+    // 分割する除算
+    const div = (cmd.args[0] as Path).getTerm(root) as App;
+    assert(div.isDiv());
+
+    // 分割位置
+    const idx = (cmd.args[1] as ConstNum).value;
+
+    // 分子の加算
+    const add = div.args[0] as App;
+    assert(add.isAdd());
+
+    // 新しい除算の分子になる加算
+    const add2 = new App(operator("+"), []);
+
+    // 元の加算から新しい加算に項を移動する。
+    while(idx < add.args.length){
+        const trm = add.args[idx];
+        trm.remArg();
+
+        add2.addArg(trm);
+    }
+
+    // 新しい除算
+    const div2 = new App(operator("/"), [ add2, div.args[1].clone() ]);
+    div2.value = div.value;
+
+    // 元の除算と新しい除算の加算
+    const add3 = new App(operator("+"), []);
+
+    // 元の除算を新しい加算で置き換える。
+    div.replace(add3);
+
+    // 新しい加算に2つの除算を追加する。
+    add3.addArg(div);
+    add3.addArg(div2);
+}
+
+export function* splitlim(cmd : App, root : App){
+    assert(cmd.args.length == 2 && cmd.args[0] instanceof Path&& cmd.args[1] instanceof ConstNum, "move arg");
+
+    // 分割する極限
+    const lim = (cmd.args[0] as Path).getTerm(root) as App;
+    assert(lim instanceof App && lim.fncName == "lim");
+
+    // 分割位置
+    const idx = (cmd.args[1] as ConstNum).value;
+
+    // 加算
+    const add = lim.args[0] as App;
+    assert(add.isAdd());
+
+    // 新しい除算の分子になる加算
+    const add2 = new App(operator("+"), []);
+
+    // 元の加算から新しい加算に項を移動する。
+    while(idx < add.args.length){
+        const trm = add.args[idx];
+        trm.remArg();
+
+        add2.addArg(trm);
+    }
+
+    // 新しい極限
+    const lim2 = new App(new RefVar("lim"), [ add2, lim.args[1].clone(), lim.args[2].clone() ]);
+    lim2.value = lim.value;
+
+    // 元の極限と新しい極限の加算
+    const add3 = new App(operator("+"), []);
+
+    // 元の極限を新しい加算で置き換える。
+    lim.replace(add3);
+
+    // 新しい加算に2つの極限を追加する。
+    add3.addArg(lim);
+    add3.addArg(lim2);
+}
+
 /**
  * 
  * @param cmd コマンド
