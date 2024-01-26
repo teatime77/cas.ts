@@ -10,6 +10,19 @@ export function show(app : App, root : App){
 
 /**
  * 
+ * @param mul 乗算
+ * @description 乗算の引数の係数をすべて1にする。
+ */
+function normalizeMul(mul : App){
+    assert(mul.isMul());
+    for(const trm of mul.args){
+        mul.value *= trm.value;
+        trm.value = 1;
+    }
+}
+
+/**
+ * 
  * @param multiplier_cp 乗数
  * @param multiplicand_cp 被乗数
  * @returns 
@@ -1002,7 +1015,21 @@ export function* greatestCommonFactor2(cmd : App, root : App){
 
     // 共通化する項のリスト
     const args = mul_parent_add.args.slice(start_pos, start_pos + cnt) as App[];
+
+    // 比較できるようにstrvalをセットする。
+    args.forEach(x => x.setStrVal());
+
+    // 共通化するすべての項を、加算から取り除く。
+    args.forEach(x => x.remArg());
+
+    for(const [i, trm] of Array.from(args).entries()){
+        if(! trm.isMul()){
+            args[i] = new App(operator("*"), [ trm, new ConstNum(1) ]);
+            args[i].setStrVal();
+        }
+    }
     assert(args.length != 0 && args.every(x => x.isMul()), "gcf 4");
+    args.forEach(x => normalizeMul(x));
 
     // 共通化する項の中のすべての乗数
     const all_multipliers : Term[] = [];
@@ -1016,9 +1043,6 @@ export function* greatestCommonFactor2(cmd : App, root : App){
     // 共通の除数のリスト
     let common_divisors: Term[];
 
-    // 比較できるようにstrvalをセットする。
-    args.forEach(x => x.setStrVal());
-
     for(const [idx, arg] of args.entries()){
         // 共通化するすべての項に対し
 
@@ -1031,15 +1055,19 @@ export function* greatestCommonFactor2(cmd : App, root : App){
             // 共通の乗数と除数のリストを、最初の項の乗数と除数のリストで初期化する。
             common_multipliers = multipliers.map(x => x.clone());
             common_divisors    = divisors.map(x => x.clone());
+
+            // 共通の乗数と除数は係数を1にする。
+            common_multipliers.forEach(x => x.value = 1);
+            common_divisors.forEach(x => x.value = 1);
         }
         else{
             // 最初の項でない場合
 
             // 共通の乗数は、この項の乗数の中に現れるものに限定する。
-            common_multipliers = common_multipliers.filter(x => multipliers.some(y => x.eq2(y)));
+            common_multipliers = common_multipliers.filter(x => multipliers.some(y => x.str2() == y.str2()));
 
             // 共通の除数は、この項の除数の中に現れるものに限定する。
-            common_divisors    = common_divisors.filter(x => divisors.some(y => x.eq2(y)));
+            common_divisors    = common_divisors.filter(x => divisors.some(y => x.str2() == y.str2()));
         }
         assert(common_multipliers.length != 0 || common_divisors.length != 0, "gcf 5");
 
@@ -1070,13 +1098,10 @@ export function* greatestCommonFactor2(cmd : App, root : App){
     }
 
     // 共通乗数に含まれる乗数はキャンセルする。
-    all_multipliers.filter(x => common_multipliers.some(y => x.eq2(y))).forEach(x => x.cancel = true);
+    all_multipliers.filter(x => common_multipliers.some(y => x.str2() == y.str2())).forEach(x => x.cancel = true);
 
     // 共通除数に含まれる除数はキャンセルする。
-    all_divisors.filter(x => common_divisors.some(y => x.eq2(y))).forEach(x => x.cancel = true);
-
-    // 共通化するすべての項を、加算から取り除く。
-    args.forEach(x => x.remArg());
+    all_divisors.filter(x => common_divisors.some(y => x.str2() == y.str2())).forEach(x => x.cancel = true);
 
     // 共通化するすべての項のみで、新たに加算を作る。
     const add_args = new App(operator("+"), args);
