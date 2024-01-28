@@ -7,6 +7,8 @@ namespace casts {
  * @description 極限の中の加算を分割する。
  */
 export function* splitLim(cmd : App, root : App){
+    addHtml("極限を２つに分割する。");
+    
     assert(cmd.args.length == 2 && cmd.args[0] instanceof Path&& cmd.args[1] instanceof ConstNum, "move arg");
 
     // 分割する極限

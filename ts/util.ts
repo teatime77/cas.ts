@@ -43,13 +43,20 @@ export function render(ele: HTMLElement, tex_text: string){
 export function addHtml(html : string){
     const div = document.createElement("div");
     div.innerHTML = html;
-    document.body.appendChild(div);
+    mathDiv.parentElement.insertBefore(div, mathDiv);
+    // document.body.appendChild(div);
 
     if(html.indexOf("$") != -1){
         renderMathInElement(div, {delimiters: [
             {left: "$", right: "$", display: false}
         ]});
     }
+}
+
+export function addDiv(html : string){
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    document.body.appendChild(div);
 }
 
 

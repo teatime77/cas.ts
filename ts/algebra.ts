@@ -5,7 +5,7 @@ export function show(app : App, root : App){
     const path = app.args[0] as Path;
     const trm  = path.getTerm(root);
     msg(`show:[${trm.str()}]`);
-    addHtml(`$ ${trm.tex()} $`)
+    // addHtml(`$ ${trm.tex()} $`)
 }
 
 /**
@@ -123,6 +123,8 @@ export function showRoot(root : Term){
 export function* subst(app: App, root : Term){
     assert(app.args.length == 2, "SUBST");
 
+    addHtml(`$${app.args[0].tex()}$ に $${app.args[1].tex()}$ を代入する。`);
+
     root.setParent(null);
     const targets = getSubTerms(root, app.args[0]);
     for(const t of targets){
@@ -204,6 +206,8 @@ export class Algebra {
      * @description ルートに乗数をかける。
      */
     *mulRoot(app: App){
+        addHtml(`両辺に $${app.args[0].tex()}$ をかける。`);
+
         assert(app.args.length == 1, "mul-eq");
 
         // 乗数
@@ -237,6 +241,8 @@ export class Algebra {
     *addSide(app : App){
         assert(app.args.length == 1, "add side");
         const side = app.args[0];
+
+        addHtml(`$${side.tex()}$ の辺を追加する。`)
 
         let eq : App;
         if(this.root.isEq()){
@@ -345,7 +351,14 @@ function* cancelOut(root : Term, app : App, multipliers : Term[], divisors : Ter
     }
 }
 
+/**
+ * 
+ * @param root ルート
+ * @description 乗算内の相殺する項をキャンセルする。
+ */
 export function* cancelMul(root : Term){
+    addHtml("乗算内の相殺する項をキャンセルする。");
+
     // すべての乗算のリスト
     const mul_terms = allTerms(root).filter(x => x.isMul()) as App[];
 
@@ -364,7 +377,14 @@ export function* cancelMul(root : Term){
 }
 
 
+/**
+ * 
+ * @param root ルート
+ * @description 除算の中の相殺する項をキャンセルする。
+ */
 export function* cancelDiv(root : Term){
+    addHtml("除算の中の相殺する項をキャンセルする。");
+
     // すべての除算のリスト
     const div_terms = allTerms(root).filter(x => x.isDiv()) as App[];
 
@@ -390,6 +410,8 @@ export function* cancelDiv(root : Term){
  * @description 加算内の相殺する項をキャンセルする。
  */
 export function* cancelAdd(root : Term){
+    addHtml("加算内の相殺する項をキャンセルする。");
+
     // すべての加算のリスト
     const add_terms = allTerms(root).filter(x => x.isAdd()) as App[];
 
@@ -418,7 +440,12 @@ export function* cancelAdd(root : Term){
     }
 }
 
-
+export function* highlight(trm : Term, root : Term){
+    trm.color = true;
+    showRoot(root);
+    yield;
+    trm.color = false;
+}
 
 /**
  * 
@@ -426,6 +453,8 @@ export function* cancelAdd(root : Term){
  * @description キャンセルされた項を取り除く。
  */
 export function* remCancel(root : Term){
+    addHtml("キャンセルされた項を取り除く。");
+
     // キャンセルされた項のリスト
     const canceled = allTerms(root).filter(x => x.cancel);
 
@@ -434,6 +463,8 @@ export function* remCancel(root : Term){
 
         if(can.parent.isMul() || can.parent.isAdd()){
             // 親が乗算の場合
+
+            yield* highlight(can, root);
 
             // 乗算の引数から取り除く。
             can.remArg();
@@ -488,6 +519,8 @@ function oneArg(app : App) {
 }
 
 export function* trimAdd(root : Term){
+    addHtml("加算の整理をする。");
+
     // すべての加算のリスト
     const add_terms = allTerms(root).filter(x => x.isAdd()) as App[];
 
@@ -526,6 +559,7 @@ export function* trimAdd(root : Term){
 
 
 export function* trimMul(root : Term){
+    addHtml("式の整理をする。");
 
     root.setParent(null);
     while(true){
@@ -632,6 +666,8 @@ export function* trimMul(root : Term){
 }
 
 export function* movearg(cmd : App, root : App){
+    addHtml("引数の順序を変える。");
+
     assert(cmd.args.length == 2 && cmd.args[0] instanceof Path&& cmd.args[1] instanceof ConstNum, "move arg");
 
     const trm = (cmd.args[0] as Path).getTerm(root);
@@ -671,6 +707,8 @@ export function* addpm(cmd : App, root : App){
     // 挿入する項
     const trm = cmd.args[1];
 
+    addHtml(`$${trm.tex()}$ の正と負の項を追加する。`)
+
     // 挿入する項に-1をかけた値
     const trm2 = trm.clone();
     trm2.value *= -1;
@@ -684,6 +722,8 @@ export function* addpm(cmd : App, root : App){
 
 
 export function* splitdiv(cmd : App, root : App){
+    addHtml("分数を２つに分割する。");
+
     assert(cmd.args.length == 2 && cmd.args[0] instanceof Path&& cmd.args[1] instanceof ConstNum, "move arg");
 
     // 分割する除算
@@ -724,6 +764,8 @@ export function* splitdiv(cmd : App, root : App){
 }
 
 export function* factor_out_div(cmd : App, root : App){
+    addHtml(`分数から因数をくくり出す。`);
+
     assert(cmd.args.length == 2 && cmd.args[0] instanceof Path&& cmd.args[1] instanceof ConstNum, "factor out div");
     const path = cmd.args[0] as Path;
     const trm = path.getTerm(root);
@@ -796,6 +838,8 @@ export function* transpose(cmd : App, root : Term){
 
     // 移動する項
     const trm = src_path.getTerm(root as App);
+
+    addHtml(`$${trm.tex()}$ を移項する。`)
 
     // 移動する項をキャンセルする。
     trm.cancel = true;
@@ -892,6 +936,8 @@ export function* distribute(cmd : App, root : App){
     // 乗数をかけられる加算
     const add = mul.args[1] as App;
 
+    addHtml(`$${multiplier.tex()}$ を $${add.tex()}$ の各項にかける。`)
+
     // 乗算を加算に置き換える。
     mul.replace(add);
 
@@ -911,6 +957,8 @@ export function* distribute(cmd : App, root : App){
 }
 
 export function* greatestCommonFactor(cmd : App, root : App){
+    addHtml(`共通因子をくくり出す。`);
+
     assert(cmd.args.length == 2 && cmd.args[0] instanceof Path && cmd.args[1] instanceof ConstNum, "greatest common factor");
 
     const src = cmd.args[0] as Path;
@@ -996,6 +1044,7 @@ export function* greatestCommonFactor(cmd : App, root : App){
  * @description 最大の共通因数でくくり出す。
  */
 export function* greatestCommonFactor2(cmd : App, root : App){
+    addHtml(`共通因子をくくり出す。`);
     assert(cmd.args.length == 2 && cmd.args[0] instanceof Path && cmd.args[1] instanceof ConstNum, "greatest common factor");
 
     const src = cmd.args[0] as Path;
@@ -1128,6 +1177,8 @@ export function* greatestCommonFactor2(cmd : App, root : App){
  * @description 乗算や除算の引数の符号をまとめる。
  */
 export function* mulSign(root : App){
+    addHtml("乗算や除算の引数の符号をまとめる。");
+
     const muldivs = allTerms(root).filter(x => x.isMul() || x.isDiv()) as App[];
 
     while(muldivs.length != 0){

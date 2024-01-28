@@ -58,6 +58,7 @@ export abstract class Term {
     value : number = 1;
 
     cancel : boolean = false;
+    color  : boolean = false;
 
     constructor(){
         this.id = termId++;
@@ -151,6 +152,10 @@ export abstract class Term {
                     val = "+" + val;
                 }
             }
+        }
+
+        if(this.color){
+            return `{\\color{red} ${val}}`;
         }
 
         if(this.cancel){

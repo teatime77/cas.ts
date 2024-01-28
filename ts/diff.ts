@@ -1,6 +1,8 @@
 namespace casts {
 //
 export function* pulloutDiff(root : App){
+    addHtml("微分の中の定数項をくくり出す。");
+
     const diffs = allTerms(root).filter(x => x.isDiff()) as App[];
 
     while(diffs.length != 0){
@@ -49,6 +51,8 @@ export function* pulloutDiff(root : App){
 }  
 
 export function* lowerdiff(cmd : App, root : App){
+    addHtml(`微分の階数を下げる。`);
+
     assert(cmd.args.length == 1 && cmd.args[0] instanceof Path, "lowerdiff");
 
     const path = cmd.args[0] as Path;
@@ -142,6 +146,8 @@ function diff(trm : Term, dvar : RefVar) : Term {
 }
 
 export function* calc_diff(cmd : App, root : App){
+    addHtml(`微分を計算する。`);
+
     assert(cmd.args.length == 1 && cmd.args[0] instanceof Path, "diff");
 
     const path = cmd.args[0] as Path;
@@ -175,6 +181,8 @@ function square(trm : Term) : Term {
 }
 
 export function* trim_square(cmd : App, root : App){
+    addHtml("自乗を計算する。");
+
     assert(cmd.args.length == 1 && cmd.args[0] instanceof Path, "square");
 
     const path = cmd.args[0] as Path;

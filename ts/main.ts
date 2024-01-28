@@ -38,11 +38,21 @@ function* gen(texts : string){
         if(text.startsWith("#")){
             heading(text);
         }
+        else if(2 <= text.length && text[0] == "@" && ' \t\n\r\v'.indexOf(text[1]) != -1){
+
+            addDiv(text.substring(2).trim());
+        }
+        else if(text.startsWith("@title")){
+            addDiv(`<h1>${text.substring("@title".length)}</h1>`);
+        }
+        else if(text.startsWith("@show")){
+            continue;
+        }       
         else{
 
-            const div = document.createElement("div");
-            div.innerText = text;
-            document.body.appendChild(div);
+            // const div = document.createElement("div");
+            // div.innerText = text;
+            // document.body.appendChild(div);
 
             // addHtml(" $\\sin$ を $\\cos$ で置換する。");
     
@@ -204,6 +214,14 @@ async function readDoc(path: string){
     const texts = await fetchText(`../data/${path}`);
     msg(texts);
 
+    let timeout:number;
+    if(path.indexOf("physics") == -1){
+        timeout = 500;
+    }
+    else{
+        timeout = 1;
+    }
+
     const iterator = gen(texts);
 
     const timer_id = setInterval(()=>{
@@ -213,7 +231,7 @@ async function readDoc(path: string){
             clearInterval(timer_id);
             console.log("ジェネレータ 終了");
         }        
-    }, 1);
+    }, timeout);
 
 }
 
@@ -263,7 +281,7 @@ function makeIndex(parent_ul : HTMLUListElement | HTMLDivElement, parent_dir : a
                 anc.setAttribute("data-path", file['path']);
                 anc.addEventListener("click", ()=>{
                     const path = anc.getAttribute("data-path");
-                    const new_url = `${window.location.href}?path=${path}`;
+                    const new_url = `${window.location.href}?path=${path}`.replace("index.html", "play.html");
                     msg(`url:${new_url}`);
 
                     window.open(new_url, "_blank");
@@ -354,7 +372,7 @@ async function main() {
     const youtube_text = await fetchText(`../data/youtube.json`);
     const youtube = JSON.parse(youtube_text);
 
-    mergeJson(index, youtube);
+    // mergeJson(index, youtube);
 
     const div = document.createElement("div");
     makeIndex(div, index)
