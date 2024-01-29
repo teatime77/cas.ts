@@ -59,5 +59,12 @@ export function addDiv(html : string){
     document.body.appendChild(div);
 }
 
+export function mulR(... rs : Rational[]) : Rational {
+    const numerator   = rs.reduce((acc, cur) => acc * cur.numerator,   1);
+    const denominator = rs.reduce((acc, cur) => acc * cur.denominator, 1);
+
+    return new Rational(numerator, denominator);
+}
+
 
 }

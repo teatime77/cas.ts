@@ -197,6 +197,7 @@ function* gen(texts : string){
                 mathDiv = document.createElement("div");
                 document.body.appendChild(mathDiv);
 
+                expr.setStrVal();
                 const tex = expr.tex();
                 render(mathDiv, tex);
 
@@ -232,7 +233,50 @@ async function readDoc(path: string){
             console.log("ジェネレータ 終了");
         }        
     }, timeout);
+}
 
+function* genDocPath(parent_dir : any) : Generator<string> {
+    if(parent_dir["dirs"] != undefined){
+        for(const dir of parent_dir["dirs"]){
+            yield* genDocPath(dir);
+        } 
+    }
+   
+    if(parent_dir["files"] != undefined){
+        for(const file of parent_dir["files"]){
+            const path = file['path'] as string;
+            msg(`path:${path}`);
+
+            let texts : string = "";
+            fetchText(`../data/${path}`).then((rcv : string)=>{
+                texts = rcv;
+            });
+
+            while(texts == ""){
+                yield;
+            }
+
+            document.body.innerHTML = "";
+
+            for(const g of gen(texts)){
+                yield;
+            }
+        }
+    }
+}
+
+
+function readAllDoc(parent_dir){
+    const iterator = genDocPath(parent_dir);
+
+    const timer_id = setInterval(()=>{
+        if(iterator.next().done){
+            // ジェネレータが終了した場合
+    
+            clearInterval(timer_id);
+            console.log("ジェネレータ 終了");
+        }        
+    }, 1);
 }
 
 function translate(text : string, lang : string = theLang) : string {
@@ -373,6 +417,11 @@ async function main() {
     const youtube = JSON.parse(youtube_text);
 
     // mergeJson(index, youtube);
+
+    if(params.get("all") != undefined){
+        readAllDoc(index);
+        return;
+    }
 
     const div = document.createElement("div");
     makeIndex(div, index)

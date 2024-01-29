@@ -49,13 +49,90 @@ function texName(text : string){
 
 let termId : number = 0;
 
+export class Rational{
+    numerator : number = 1;
+    denominator : number = 1;
+
+    constructor(numerator : number, denominator : number = 1){
+        this.numerator = numerator;
+        this.denominator = denominator;
+    }
+
+    is(numerator : number, denominator : number = 1) : boolean{
+        return(this.numerator == numerator && this.denominator == denominator);
+    }
+
+    set(numerator : number, denominator : number = 1){
+        this.numerator   = numerator;
+        this.denominator = denominator;
+    }
+
+    clone() : Rational {
+        return new Rational(this.numerator, this.denominator);
+    }
+
+    str() : string {
+        if(this.denominator == 1){
+
+            return `${this.numerator}`;
+        }
+        else{
+
+            return `${this.numerator} / ${this.denominator}`;
+        }
+    }
+
+    tex() : string {
+        if(this.denominator == 1){
+
+            return `${this.numerator}`;
+        }
+        else{
+
+            return `\\frac{${this.numerator}}{${this.denominator}}`;
+        }
+    }
+
+    setmul(... rs : Rational[]){
+        this.numerator   *= rs.reduce((acc, cur) => acc * cur.numerator,   1);
+        this.denominator *= rs.reduce((acc, cur) => acc * cur.denominator, 1);
+    }
+
+    setdiv(r : Rational){
+        this.numerator   *= r.denominator;
+        this.denominator *= r.numerator;
+    }
+
+    fval() : number {
+        return this.numerator / this.denominator;
+    }
+
+    abs() : number {
+        return Math.abs(this.fval());
+    }
+
+    setAbs() {
+        this.numerator   = Math.abs(this.numerator);
+        this.denominator = Math.abs(this.denominator);
+    }
+
+    int() : number {
+        assert(this.denominator == 1);
+        return this.numerator;
+    }
+
+    sign() : number {
+        return Math.sign(this.fval());
+    }
+}
+
 export abstract class Term {
     id : number;
     parent : App | null = null;
     strval : string;
 
     // 係数
-    value : number = 1;
+    value : Rational = new Rational(1);
 
     cancel : boolean = false;
     color  : boolean = false;
@@ -76,7 +153,7 @@ export abstract class Term {
     }
 
     copy(dst : Term){
-        dst.value  = this.value;
+        dst.value  = this.value.clone();
         dst.cancel = this.cancel;
     }
 
@@ -128,16 +205,20 @@ export abstract class Term {
         }
         else{
 
-            if(this.value == 1){
+            assert(this.value instanceof Rational);
+            if(this.value.fval() == 1){
                 val = text;
             }
-            else if(this.value == -1){
+            else if(this.value.fval() == -1){
                 // val = "-" + tex2;
                 val = `-[${text}]`;
             }
-            else{
+            else if(this.value.denominator == 1){
 
-                val = `${this.value} ${text}`
+                val = `${this.value.numerator} ${text}`
+            }
+            else{
+                assert(false);
             }
         }
 
@@ -147,7 +228,7 @@ export abstract class Term {
 
             if(idx != 0){
 
-                if(0 <= this.value){
+                if(0 <= this.value.fval()){
 
                     val = "+" + val;
                 }
@@ -207,11 +288,11 @@ export abstract class Term {
     }
 
     isZero() : boolean {
-        return this.value == 0;
+        return this.value.numerator == 0;
     }
 
     isOne() : boolean {
-        return this instanceof ConstNum && this.value == 1;
+        return this instanceof ConstNum && this.value.fval() == 1;
     }
 
     isE() : boolean {
@@ -303,15 +384,17 @@ export class RefVar extends Term{
 
 
 export class ConstNum extends Term{
-    value: number;
-
-    constructor(value: number){
+    constructor(numerator : number, denominator : number = 1){
         super();
-        this.value = value;
+        this.value = new Rational(numerator, denominator);
+    }
+
+    static fromRational(r : Rational) : ConstNum {
+        return new ConstNum(r.numerator, r.denominator);
     }
 
     clone() : ConstNum {
-        const cns = new ConstNum(this.value);
+        const cns = new ConstNum(this.value.numerator, this.value.denominator);
         this.copy(cns);
         cns.setStrVal();
 
@@ -319,15 +402,15 @@ export class ConstNum extends Term{
     }
 
     str2() : string {
-        return this.value.toString();        
+        return this.value.str();        
     }
 
     str() : string {
-        return this.value.toString();        
+        return this.value.str();        
     }
 
     tex2() : string {
-        return this.value.toString();
+        return this.value.tex();
     }
 }
 
@@ -593,7 +676,6 @@ export class Parser {
         return this.token.text;
     }
 
-
     readArgs(app : App){
         this.nextToken("(");
 
@@ -674,7 +756,7 @@ export class Parser {
         return trm;
     }
 
-    PowerExpression(){
+    PowerExpression() : Term {
         const trm1 = this.PrimaryExpression();
         if(this.token.text == "^"){
 
@@ -688,7 +770,7 @@ export class Parser {
         return trm1;
     }
 
-    UnaryExpression() {
+    UnaryExpression() : Term {
         if (this.token.text == "-") {
             // 負号の場合
 
@@ -698,7 +780,7 @@ export class Parser {
             const t1 = this.PowerExpression();
 
             // 符号を反転します。
-            t1.value *= -1;
+            t1.value.numerator *= -1;
 
             return t1;
         }
@@ -710,7 +792,7 @@ export class Parser {
     }
 
     
-    DivExpression(){
+    DivExpression() : Term {
         let trm1 = this.UnaryExpression();
         while(this.token.text == "/"){
             let app = new App(operator(this.token.text), [trm1]);
@@ -734,7 +816,7 @@ export class Parser {
     }
 
     
-    MultiplicativeExpression(){
+    MultiplicativeExpression() : Term {
         let trm1 = this.DivExpression();
         while(this.token.text == "*"){
             let app = new App(operator(this.token.text), [trm1]);
@@ -757,7 +839,7 @@ export class Parser {
         return trm1;
     }
     
-    AdditiveExpression(){
+    AdditiveExpression() : Term {
         const trm1 = this.MultiplicativeExpression();
 
         if(this.token.text == "+" || this.token.text == "-"){
@@ -769,7 +851,7 @@ export class Parser {
 
                 const trm2 = this.MultiplicativeExpression();
                 if(opr == "-"){
-                    trm2.value *= -1;
+                    trm2.value.numerator *= -1;
                 }
 
                 app.addArg(trm2);
@@ -781,7 +863,7 @@ export class Parser {
         return trm1;
     }
 
-    RelationalExpression(){
+    RelationalExpression() : Term {
         let trm1 = this.AdditiveExpression();
         while([ "==", "!=", "<", "<=", ].includes(this.token.text)){
             let app = new App(operator(this.token.text), [trm1]);
@@ -804,7 +886,7 @@ export class Parser {
         return trm1;
     }
 
-    Expression() : Term{
+    Expression() : Term {
         return this.RelationalExpression();
         // const trm1 = this.RelationalExpression();
 

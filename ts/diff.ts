@@ -69,8 +69,9 @@ export function* lowerdiff(cmd : App, root : App){
     const order = lo_diff.args[2] as ConstNum;
     assert(lo_diff.args.length == 3 && order instanceof ConstNum);
 
-    order.value -= 1;
-    if(order.value == 1){
+    assert(order.value.denominator == 1);
+    order.value.numerator -= 1;
+    if(order.value.int() == 1){
         // 1階微分の場合
 
         // 微分の階数は省略する。
@@ -166,7 +167,7 @@ export function* calc_diff(cmd : App, root : App){
 
 function square(trm : Term) : Term {
     if(trm instanceof ConstNum){
-        return new ConstNum(trm.value * trm.value);
+        return ConstNum.fromRational(mulR(trm.value, trm.value));
     }
     else if(trm.isI()){
         return new ConstNum(-1);

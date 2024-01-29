@@ -16,7 +16,7 @@ export function* splitLim(cmd : App, root : App){
     assert(lim instanceof App && lim.fncName == "lim");
 
     // 分割位置
-    const idx = (cmd.args[1] as ConstNum).value;
+    const idx = (cmd.args[1] as ConstNum).value.int();
 
     // 加算
     const add = lim.args[0] as App;
@@ -37,7 +37,7 @@ export function* splitLim(cmd : App, root : App){
 
     // 新しい極限
     const lim2 = new App(new RefVar("lim"), [ add2, lim.args[1].clone(), lim.args[2].clone() ]);
-    lim2.value = lim.value;
+    lim2.value = lim.value.clone();
 
     // 元の極限と新しい極限の加算
     const add3 = new App(operator(opr), []);
@@ -50,12 +50,12 @@ export function* splitLim(cmd : App, root : App){
     add3.addArg(lim2);
 
     if(add.args.length == 1){
-        add.args[0].value *= add.value;
+        add.args[0].value.setmul(add.value);
         add.replace(add.args[0]);
     }
 
     if(add2.args.length == 1){
-        add2.args[0].value *= add2.value;
+        add2.args[0].value.setmul(add2.value);
         add2.replace(add2.args[0]);
     }
     

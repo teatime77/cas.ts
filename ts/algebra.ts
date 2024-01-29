@@ -16,8 +16,8 @@ export function show(app : App, root : App){
 function normalizeMul(mul : App){
     assert(mul.isMul());
     for(const trm of mul.args){
-        mul.value *= trm.value;
-        trm.value = 1;
+        mul.value.setmul(trm.value);
+        trm.value.set(1);
     }
 }
 
@@ -41,9 +41,9 @@ export function multiply(multiplier : Term, multiplicand : Term) : Term {
     const multiplicand_cp = multiplicand.clone();
     
     // 乗算の係数 = 乗数の係数 * 被乗数の係数
-    mul.value = multiplier_cp.value * multiplicand_cp.value;
-    multiplier_cp.value = 1;
-    multiplicand_cp.value = 1;
+    mul.value = mulR(multiplier_cp.value, multiplicand_cp.value);
+    multiplier_cp.value.set(1);
+    multiplicand_cp.value.set(1);
 
     for(const trm of [multiplier_cp, multiplicand_cp]){
         // 乗数と被乗数に対し
@@ -133,7 +133,7 @@ export function* subst(app: App, root : Term){
             t.parent.insArgs((dst as App).args, t.index());
 
             t.remArg();
-            t.parent.value *= t.value;
+            t.parent.value.setmul(t.value);
         }
         else{
 
@@ -342,9 +342,9 @@ function* cancelOut(root : Term, app : App, multipliers : Term[], divisors : Ter
         m.cancel = true;
         d.cancel = true;
 
-        assert(Math.abs(d.value) == 1 || Math.abs(m.value) == Math.abs(d.value));
-        app.value *= m.value;
-        app.value /= d.value;
+        assert(d.value.abs() == 1 || m.value.abs() == d.value.abs());
+        app.value.setmul(m.value);
+        app.value.setdiv(d.value);
 
         showRoot(root);
         yield;
@@ -428,7 +428,7 @@ export function* cancelAdd(root : Term){
             }
 
             // 係数以外が一致し、キャンセル済みでなく、係数の正負が逆の項を探す。
-            const trm2 = add.args.slice(idx + 1).find(x => x.str2() == trm.str2() && ! x.cancel && x.value == - trm.value);
+            const trm2 = add.args.slice(idx + 1).find(x => x.str2() == trm.str2() && ! x.cancel && x.value.fval() == - trm.value.fval());
             if(trm2 != undefined){
                 trm.cancel = true;
                 trm2.cancel = true;
@@ -515,7 +515,7 @@ function oneArg(app : App) {
     app.replace(arg1);
 
     // 唯一の引数の係数に、加算や乗算の係数をかける。
-    arg1.value *= app.value;
+    arg1.value.setmul(app.value);
 }
 
 export function* trimAdd(root : Term){
@@ -545,7 +545,7 @@ export function* trimAdd(root : Term){
             add2.remArg();
 
             // 引数の中の加算の引数に係数をかける。
-            add2.args.forEach(x => x.value *= add2.value);
+            add2.args.forEach(x => x.value.setmul(add2.value));
 
             // 引数の中の加算の引数を元の加算の引数に入れる。
             add.insArgs(add2.args, idx);
@@ -612,7 +612,7 @@ export function* trimMul(root : Term){
             div.replace(div.args[0]);
 
             // 分子の係数に、除算の係数をかける。
-            div.args[0].value *= div.value;
+            div.args[0].value.setmul(div.value);
 
             showRoot(root);
             yield;
@@ -630,7 +630,7 @@ export function* trimMul(root : Term){
                 const nums = mul.args.filter(x => x instanceof ConstNum);
 
                 // 乗算の係数に、引数内の定数の積をかける。
-                mul.value *= nums.reduce((acc,cur) => acc * cur.value, 1);
+                mul.value.setmul( nums.reduce((acc,cur) => mulR(acc, cur.value), new Rational(1)) );
 
                 // 引数内の定数を取り除く。
                 nums.forEach(x => x.remArg());
@@ -674,7 +674,7 @@ export function* movearg(cmd : App, root : App){
     let idx = trm.parent.args.indexOf(trm);
     assert(idx != -1);
 
-    const n = (cmd.args[1] as ConstNum).value;
+    const n = (cmd.args[1] as ConstNum).value.int();
     idx += n;
 
     if(0 < n){
@@ -711,7 +711,7 @@ export function* addpm(cmd : App, root : App){
 
     // 挿入する項に-1をかけた値
     const trm2 = trm.clone();
-    trm2.value *= -1;
+    trm2.value.numerator *= -1;
 
     // 項を指定位置に挿入する。
     add.insArg(trm, idx);
@@ -731,7 +731,7 @@ export function* splitdiv(cmd : App, root : App){
     assert(div.isDiv());
 
     // 分割位置
-    const idx = (cmd.args[1] as ConstNum).value;
+    const idx = (cmd.args[1] as ConstNum).value.int();
 
     // 分子の加算
     const add = div.args[0] as App;
@@ -750,7 +750,7 @@ export function* splitdiv(cmd : App, root : App){
 
     // 新しい除算
     const div2 = new App(operator("/"), [ add2, div.args[1].clone() ]);
-    div2.value = div.value;
+    div2.value = div.value.clone();
 
     // 元の除算と新しい除算の加算
     const add3 = new App(operator("+"), []);
@@ -779,7 +779,7 @@ export function* factor_out_div(cmd : App, root : App){
     assert(div.isDiv() && div.args[0] == mul);
 
     // くくり出す項の数
-    const cnt = (cmd.args[1] as ConstNum).value;
+    const cnt = (cmd.args[1] as ConstNum).value.int();
 
     // くくり出す項の乗算内の位置
     const idx = last(path.indexes);
@@ -897,7 +897,7 @@ export function* transpose(cmd : App, root : Term){
     trm.cancel = false;
 
     // 移項したので符号を反転する。
-    trm.value *= -1;
+    trm.value.numerator *= -1;
 
     // 移動先のインデックス
     const idx = last(dst_path.indexes);
@@ -931,7 +931,7 @@ export function* distribute(cmd : App, root : App){
     const multiplier = mul.args[0];
 
     // 乗数の係数に乗算の係数をかける。
-    multiplier.value *= mul.value;
+    multiplier.value.setmul(mul.value);
 
     // 乗数をかけられる加算
     const add = mul.args[1] as App;
@@ -962,7 +962,7 @@ export function* greatestCommonFactor(cmd : App, root : App){
     assert(cmd.args.length == 2 && cmd.args[0] instanceof Path && cmd.args[1] instanceof ConstNum, "greatest common factor");
 
     const src = cmd.args[0] as Path;
-    const cnt = cmd.args[1].value;
+    const cnt = cmd.args[1].value.int();
 
     const mul = src.getTerm(root) as App;
     assert(mul.isMul(), "gcf 1");
@@ -1048,7 +1048,7 @@ export function* greatestCommonFactor2(cmd : App, root : App){
     assert(cmd.args.length == 2 && cmd.args[0] instanceof Path && cmd.args[1] instanceof ConstNum, "greatest common factor");
 
     const src = cmd.args[0] as Path;
-    const cnt = cmd.args[1].value;
+    const cnt = cmd.args[1].value.int();
 
     // 共通化する最初の項は乗算
     const mul = src.getTerm(root) as App;
@@ -1106,8 +1106,8 @@ export function* greatestCommonFactor2(cmd : App, root : App){
             common_divisors    = divisors.map(x => x.clone());
 
             // 共通の乗数と除数は係数を1にする。
-            common_multipliers.forEach(x => x.value = 1);
-            common_divisors.forEach(x => x.value = 1);
+            common_multipliers.forEach(x => x.value.set(1));
+            common_divisors.forEach(x => x.value.set(1));
         }
         else{
             // 最初の項でない場合
@@ -1184,11 +1184,11 @@ export function* mulSign(root : App){
     while(muldivs.length != 0){
         const app = muldivs.pop();
 
-        if(app.args.some(x => Math.sign(x.value) == -1)){
+        if(app.args.some(x => x.value.sign() == -1)){
 
-            const sgn = app.args.reduce((acc,cur)=> acc * Math.sign(cur.value), 1);
-            app.value *= sgn;
-            app.args.forEach(x => x.value = Math.abs(x.value));
+            const sgn = app.args.reduce((acc,cur)=> acc * cur.value.sign(), 1);
+            app.value.numerator *= sgn;
+            app.args.forEach(x => x.value.setAbs());
 
             showRoot(root);
             yield;
