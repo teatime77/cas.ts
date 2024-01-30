@@ -178,7 +178,6 @@ function square(trm : Term) : Term {
     else{
         return new App(operator("^"), [ trm.clone(), new ConstNum(2)]);
     }
-
 }
 
 export function* trim_square(cmd : App, root : App){

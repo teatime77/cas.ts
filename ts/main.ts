@@ -10,7 +10,6 @@ export function parseMath(text: string) : Term {
     if(parser.token.typeTkn != TokenType.eot){
         throw new Error();
     }
-    msg("parse end");
 
     trm.setParent(null);
 
@@ -86,7 +85,7 @@ function* gen(texts : string){
                     break;
 
                 case "@addside":
-                    yield* alg.addSide(app);
+                    yield* alg.appendSide(app);
                     break;
 
                 case "@addpm":
@@ -138,10 +137,18 @@ function* gen(texts : string){
                     yield* factor_out_div(app, alg.root);
                     break;
 
+                case "@verify":
+                    yield* zeroOneAddMul(alg.root);
+                    yield* verify(app, alg.root);
+                    return;
+
                 default:
                     assert(false, "gen 2");
                     break;
                 }
+
+                alg.root.setParent(null);
+                alg.root.verifyParent(null);
 
                 showRoot(alg.root);
             }
@@ -170,7 +177,7 @@ function* gen(texts : string){
                     break;
 
                 case "@trimadd":
-                    yield* trimAdd(alg.root);
+                    yield* mergeAdd(alg.root);
                     break;
 
                 case "@trimmul":
@@ -190,6 +197,9 @@ function* gen(texts : string){
                     break;
                 }
                 
+                alg.root.setParent(null);
+                alg.root.verifyParent(null);
+
                 showRoot(alg.root);
             }
             else{
@@ -208,7 +218,8 @@ function* gen(texts : string){
         yield;
     }
 
-    msg(`gen root:${alg.root.str()}`);
+    yield* zeroOneAddMul(alg.root);
+    msg(`result root: ${alg.root.str()}`);
 }
 
 async function readDoc(path: string){
@@ -430,6 +441,5 @@ async function main() {
 
 export function bodyOnLoad(){
     main();
-    msg("main end");
 }
 }

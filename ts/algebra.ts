@@ -64,6 +64,11 @@ export function multiply(multiplier : Term, multiplicand : Term) : Term {
     return mul;
 }
 
+/**
+ * 
+ * @param args 引数リスト
+ * @description 引数リストから乗算を作る。
+ */
 function multiplyArgs(args: Term[]) : Term {
     if(args.length == 0){
         return new ConstNum(1);
@@ -238,7 +243,7 @@ export class Algebra {
      * @param trm 辺の値
      * @description 辺を追加する。
      */
-    *addSide(app : App){
+    *appendSide(app : App){
         assert(app.args.length == 1, "add side");
         const side = app.args[0];
 
@@ -257,6 +262,13 @@ export class Algebra {
     }
 }
 
+/**
+ * 
+ * @param div 除算
+ * @param multipliers 乗数のリスト
+ * @param divisors 除数のリスト
+ * @description 除算の中の乗数と除算を、それぞれのリストに追加する。
+ */
 function getMultipliersDivisorsInDiv(div : App, multipliers : Term[], divisors : Term[]){
     if(div.args[0].isMul()){
         // 分子が乗算の場合
@@ -285,6 +297,12 @@ function getMultipliersDivisorsInDiv(div : App, multipliers : Term[], divisors :
     }
 }
 
+/**
+ * 
+ * @param mul 乗算
+ * @returns 乗数のリストと除数のリスト
+ * @description 乗算の中の乗数のリストと除数のリストを返す。
+ */
 function getMultipliersDivisors(mul : App) : [Term[], Term[]]{
     // 乗数のリスト
     let multipliers : Term[] = [];
@@ -317,6 +335,14 @@ function getMultipliersDivisors(mul : App) : [Term[], Term[]]{
     return [multipliers, divisors];
 }
 
+/**
+ * 
+ * @param root ルート
+ * @param app 乗算または除算
+ * @param multipliers 乗数のリスト
+ * @param divisors 除数のリスト
+ * @description 係数を除いて値が同じ乗数と除数のペアをキャンセルする。
+ */
 function* cancelOut(root : Term, app : App, multipliers : Term[], divisors : Term[]){
 
     // 乗数や除数のリストからキャンセルされた項を取り除く。
@@ -336,7 +362,7 @@ function* cancelOut(root : Term, app : App, multipliers : Term[], divisors : Ter
             continue;
         }
 
-        msg(`cancel m:[${m.str2()}] d:[${d.str2()}]`)
+        // msg(`cancel m:[${m.str2()}] d:[${d.str2()}]`)
 
         // 対応する乗数と除数をキャンセルする。
         m.cancel = true;
@@ -440,6 +466,12 @@ export function* cancelAdd(root : Term){
     }
 }
 
+/**
+ * 
+ * @param trm ハイライト表示する項
+ * @param root ルート
+ * @description 指定された項をハイライト表示する。
+ */
 export function* highlight(trm : Term, root : Term){
     trm.color = true;
     showRoot(root);
@@ -498,7 +530,6 @@ export function* remCancel(root : Term){
         showRoot(root);
         yield;
     }
-
 }
 
 /**
@@ -518,7 +549,12 @@ function oneArg(app : App) {
     arg1.value.setmul(app.value);
 }
 
-export function* trimAdd(root : Term){
+/**
+ * 
+ * @param root ルート
+ * @description 加算の中の加算を、親の加算にまとめる。
+ */
+export function* mergeAdd(root : Term){
     addHtml("加算の整理をする。");
 
     // すべての加算のリスト
@@ -556,12 +592,9 @@ export function* trimAdd(root : Term){
     }
 }
 
-
-
-export function* trimMul(root : Term){
-    addHtml("式の整理をする。");
-
+export function* zeroOneAddMul(root : App){
     root.setParent(null);
+
     while(true){
         // 引数が１つしかない加算や乗算を探す。
         const bin1 = allTerms(root).find(x => (x.isAdd() || x.isMul()) && (x as App).args.length == 1);
@@ -602,6 +635,17 @@ export function* trimMul(root : Term){
             yield;
             continue;
         }
+
+        break;
+    }
+}
+
+export function* trimMul(root : App){
+    addHtml("式の整理をする。");
+
+    root.setParent(null);
+    while(true){
+        yield* zeroOneAddMul(root);
 
         // 分母が1の除算を探す。
         const div = allTerms(root).find(x => x.isDiv() && (x as App).args[1].isOne()) as App;
@@ -720,7 +764,12 @@ export function* addpm(cmd : App, root : App){
     add.insArg(trm2, idx + 1);
 }
 
-
+/**
+ * 
+ * @param cmd コマンド
+ * @param root ルート
+ * @description 除算を指定した位置で２つに分割する。
+ */
 export function* splitdiv(cmd : App, root : App){
     addHtml("分数を２つに分割する。");
 
@@ -1196,7 +1245,29 @@ export function* mulSign(root : App){
     }
 }
 
+export function* verify(cmd : App, root : App){
+    assert(cmd.args.length == 1 && cmd.args[0] instanceof App);
+    const expr = cmd.args[0] as App;
 
+    if(expr.str() == root.str()){
+        msg("verify ok");        
+    }
+    else{
+        msg(`org:[${root.str()}]`);
+        msg(`ver:[${expr.str()}]`);
+        addDiv("<h1>エラー</h1>")
+
+        const div = document.createElement("div");
+        document.body.appendChild(mathDiv);
+
+        expr.setStrVal();
+        const tex = expr.tex();
+        render(div, tex);
+        yield;
+
+        assert(false);
+    }
+}
 
 
 }

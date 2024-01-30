@@ -52,6 +52,7 @@ let termId : number = 0;
 export class Rational{
     numerator : number = 1;
     denominator : number = 1;
+    parent : Term = null;
 
     constructor(numerator : number, denominator : number = 1){
         this.numerator = numerator;
@@ -159,6 +160,12 @@ export abstract class Term {
 
     setParent(parent : App | null){
         this.parent = parent;
+        this.value.parent = this;
+    }
+
+    verifyParent(parent : App | null){
+        assert(this.parent == parent);
+        assert(this.value.parent == this)
     }
 
     setStrVal(){
@@ -211,11 +218,11 @@ export abstract class Term {
             }
             else if(this.value.fval() == -1){
                 // val = "-" + tex2;
-                val = `-[${text}]`;
+                val = `- ${text}`;
             }
             else if(this.value.denominator == 1){
 
-                val = `${this.value.numerator} ${text}`
+                val = `${this.value.numerator} * ${text}`
             }
             else{
                 assert(false);
@@ -230,7 +237,7 @@ export abstract class Term {
 
                 if(0 <= this.value.fval()){
 
-                    val = "+" + val;
+                    val = "+ " + val;
                 }
             }
         }
@@ -468,6 +475,15 @@ export class App extends Term{
         this.args.forEach(x => x.setParent(this));
     }
 
+
+    verifyParent(parent : App){
+        super.verifyParent(parent);
+
+        this.fnc.verifyParent(this);
+
+        this.args.forEach(x => x.verifyParent(this));
+    }
+
     setStrVal(){
         this.strval = this.str();
         this.fnc.setStrVal();
@@ -477,23 +493,46 @@ export class App extends Term{
     str2() : string {
         const args = this.args.map(x => x.str());
         
+        let text : string;
         if(this.fnc instanceof App){
             const args_s = args.join(", ");
-            return `(${this.fnc.str()})(${args_s})`;
+            text = `(${this.fnc.str()})(${args_s})`;
         }
         else if(isLetterOrAt(this.fncName)){
             const args_s = args.join(", ");
-            return `${this.fncName}(${args_s})`;
-        }
-
-        if(this.fncName == "+"){
-
-            return args.join(` `);
+            text = `${this.fncName}(${args_s})`;
         }
         else{
 
-            return args.join(` ${this.fncName} `);
+            switch(this.fncName){
+                case "+":
+                    switch(args.length){
+                    case 0: return " +[] ";
+                    case 1: return ` +[${args[0]}] `;
+                    }
+                    text = args.join(` `);
+                    break
+    
+                case "/":
+                    if(this.args.length != 2){
+                        throw new Error();
+                    }
+                    text = `${args[0]} / ${args[1]}`;
+                    break
+        
+                default:
+                    text = args.join(` ${this.fncName} `);
+                    break
+            }
         }
+
+        if(this.isOperator() && this.parent != null && this.parent.isOperator()){
+            if(this.parent.precedence() <= this.precedence()){
+                return `(${text})`;
+            }            
+        }
+
+        return text;
     }
 
     tex2() : string {
@@ -840,7 +879,16 @@ export class Parser {
     }
     
     AdditiveExpression() : Term {
+        let nagative : boolean = false;
+        if(this.token.text == "-"){
+            nagative = true;
+            this.next();
+        }
+
         const trm1 = this.MultiplicativeExpression();
+        if(nagative){
+            trm1.value.numerator *= -1;
+        }
 
         if(this.token.text == "+" || this.token.text == "-"){
             let app = new App(operator("+"), [trm1]);
