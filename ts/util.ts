@@ -32,9 +32,29 @@ export function render(ele: HTMLElement, tex_text: string){
         katex.render(tex_text, ele, {
             throwOnError: false,
             displayMode : true,
+            trust : true,
             // newLineInDisplayMode : "ignore",
             macros : getUserMacros()
-        });    
+        });
+
+        
+        const term_spans = Array.from(ele.getElementsByClassName("enclosing")) as HTMLSpanElement[];
+        for(const span of term_spans){
+            const id_str     = span.getAttribute("data-id");
+            const tabidx_str = span.getAttribute("data-tabidx");
+            if(id_str != null && tabidx_str != null){
+                const id = parseInt(id_str);
+                const tabidx = parseInt(tabidx_str);
+
+                const trm = termDic[id];
+                assert(trm != undefined);
+
+                span.tabIndex = tabidx;
+                span.addEventListener("focus", (ev:FocusEvent)=>{
+                    msg(`focus: id:${id} tab-idx:${tabidx} type:${trm.constructor.name}`);
+                })
+            }
+        }
     }
     catch(e){
     }
@@ -47,9 +67,12 @@ export function addHtml(html : string){
     // document.body.appendChild(div);
 
     if(html.indexOf("$") != -1){
-        renderMathInElement(div, {delimiters: [
-            {left: "$", right: "$", display: false}
-        ]});
+        renderMathInElement(div, {
+            delimiters : [ 
+                {left: "$", right: "$", display: false}
+            ],
+            trust : true
+        });
     }
 }
 

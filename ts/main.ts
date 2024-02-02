@@ -1,7 +1,9 @@
 namespace casts {
 
 export let mathDiv : HTMLDivElement;
+let formulas : { [text : string] : string};
 let translation : { [text : string] : string};
+export let termDic : { [id : number] : Term } = {};
 const theLang : string = "ja";
 
 export function parseMath(text: string) : Term {
@@ -57,20 +59,28 @@ function* gen(texts : string){
     
             const expr = parseMath(text);
             if(expr instanceof App && expr.fncName[0] == "@"){
+                const app = expr as App;
+
+                if(app.refVar.name == "@formula"){
+
+                    alg.root = app.args[0].clone() as App;
+                    alg.root.setParent(null);
+                    continue;
+                }
+
                 mathDiv = document.createElement("div");
                 document.body.appendChild(mathDiv);
 
                 alg.root = alg.root.clone();
                 alg.root.setParent(null);
 
-                const app = expr as App;
 
                 assert(alg.root != null, "gen");
 
                 switch(app.refVar.name){
-                case "@cancel":
-                    yield* cancel(app, alg.root);
-                    break;
+                // case "@cancel":
+                //     yield* cancelOLD(app, alg.root);
+                //     break;
 
                 case "@subst":
                     yield* subst(app, alg.root);
@@ -208,6 +218,7 @@ function* gen(texts : string){
                 document.body.appendChild(mathDiv);
 
                 expr.setStrVal();
+                expr.setTabIdx();
                 const tex = expr.tex();
                 render(mathDiv, tex);
 
@@ -228,7 +239,7 @@ async function readDoc(path: string){
 
     let timeout:number;
     if(path.indexOf("physics") == -1){
-        timeout = 500;
+        timeout = 1;
     }
     else{
         timeout = 1;
@@ -332,8 +343,14 @@ function makeIndex(parent_ul : HTMLUListElement | HTMLDivElement, parent_dir : a
                 anc.target = "_blank";
             }
             else{
+                const path = file['path'];
 
-                anc.setAttribute("data-path", file['path']);
+                const formula = file['formula'] as string;
+                if(formula != undefined){
+                    formulas[path] = formula;
+                }
+    
+                anc.setAttribute("data-path", path);
                 anc.addEventListener("click", ()=>{
                     const path = anc.getAttribute("data-path");
                     const new_url = `${window.location.href}?path=${path}`.replace("index.html", "play.html");
@@ -435,6 +452,7 @@ async function main() {
     }
 
     const div = document.createElement("div");
+    formulas = {};
     makeIndex(div, index)
     document.body.appendChild(div);
 }

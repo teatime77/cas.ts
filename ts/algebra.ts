@@ -87,7 +87,7 @@ function multiplyArgs(args: Term[]) : Term {
  * @param root_arg ルート
  * @description 指定した項をキャンセルする。
  */
-export function* cancel(app: App, root_arg : App){
+export function* cancelOLD(app: App, root_arg : App){
     let root : Term;
 
     if(app.args.length == 2){
@@ -115,6 +115,7 @@ export function showRoot(root : Term){
     assert(root != null, "show root");
     root.setParent(null);
 
+    root.setTabIdx();
     const tex = root.tex();
     render(mathDiv, tex);
 }
@@ -1261,6 +1262,7 @@ export function* verify(cmd : App, root : App){
         document.body.appendChild(mathDiv);
 
         expr.setStrVal();
+        expr.setTabIdx();
         const tex = expr.tex();
         render(div, tex);
         yield;

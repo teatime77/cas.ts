@@ -128,7 +128,9 @@ export class Rational{
 }
 
 export abstract class Term {
+    static tabIdxCnt : number = 0;
     id : number;
+    tabIdx : number = 0;
     parent : App | null = null;
     strval : string;
 
@@ -161,6 +163,10 @@ export abstract class Term {
     setParent(parent : App | null){
         this.parent = parent;
         this.value.parent = this;
+    }
+
+    setTabIdx(){
+        this.tabIdx = ++Term.tabIdxCnt;
     }
 
     verifyParent(parent : App | null){
@@ -265,9 +271,15 @@ export abstract class Term {
         return this.putValue(text);
     }
 
+
+    htmldata(text : string) : string {
+        termDic[this.id] = this;
+        return `\\htmlData{id=${this.id}, tabidx=${this.tabIdx}}{${text}}`;
+    }
+    
     tex() : string {
         const text = this.tex2();
-        return this.putValue(text);
+        return this.htmldata(this.putValue(text));
     }
 
     isOperator() : boolean {
@@ -475,6 +487,12 @@ export class App extends Term{
         this.args.forEach(x => x.setParent(this));
     }
 
+    setTabIdx(){
+        super.setTabIdx();
+        this.fnc.setTabIdx();
+        this.args.forEach(x => x.setTabIdx());
+    }
+
 
     verifyParent(parent : App){
         super.verifyParent(parent);
@@ -548,7 +566,7 @@ export class App extends Term{
             text = `\\lim_{${args[1]} \\to ${args[2]}} ${args[0]}`;
         }
         else if(this.isDiff()){
-            const n = (this.args.length == 3 ? `^${args[2]}`:``);
+            const n = (this.args.length == 3 ? `^{${args[2]}}`:``);
 
             const d = (this.fncName == "diff" ? "d" : "\\partial");
 
