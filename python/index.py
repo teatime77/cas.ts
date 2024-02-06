@@ -21,14 +21,21 @@ def enumDir(parent_dir, path):
             if(file_path.endswith(".json")):
                 continue
 
+            formula = None
             with codecs.open(path_obj, 'r', 'utf-8') as f:
                 lines = f.readlines()
                 for line in lines:
-                    if line.strip().startswith("@title"):
+                    if line.startswith("@title"):
                         title = line[len("@title"):].strip()
 
+                    elif line.startswith("@formula"):
+                        formula = line[len("@formula"):].strip()
             
-            parent_dir['files'].append({'title': title, 'path' : file_path})
+            item = {'title': title, 'path' : file_path}
+            if not formula is None:
+                item['formula'] = formula
+
+            parent_dir['files'].append(item)
 
 
 def main():

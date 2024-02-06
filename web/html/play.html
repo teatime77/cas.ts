@@ -59,9 +59,24 @@
       cursor:pointer;
       color: blue;
   }
+
+.container {
+  display: flex;
+  flex-direction: column;
+  border-style: ridge;
+}
+
+.candidate {
+  display: flex;
+  flex-direction: row;
+}
+
 </style>
 </head>
 <body onload="casts.bodyOnLoad()">
 <!-- <iframe id="map-iframe" src="./map.svg" ></iframe> -->
+
+<div id="candidate-div" class="container" ></div>
+<div id="math-div-root"></div>
 </body>
 </html>

@@ -50,9 +50,9 @@ export function render(ele: HTMLElement, tex_text: string){
                 assert(trm != undefined);
 
                 span.tabIndex = tabidx;
-                span.addEventListener("focus", (ev:FocusEvent)=>{
-                    msg(`focus: id:${id} tab-idx:${tabidx} type:${trm.constructor.name}`);
-                })
+                span.addEventListener("keypress", (ev : KeyboardEvent)=>{
+                    onKeypress(ev, span, trm);
+                });
             }
         }
     }
@@ -60,11 +60,15 @@ export function render(ele: HTMLElement, tex_text: string){
     }
 }
 
+export function makeMathDiv(){
+    mathDiv = document.createElement("div");
+    mathDivRoot.appendChild(mathDiv);
+}
+
 export function addHtml(html : string){
     const div = document.createElement("div");
     div.innerHTML = html;
     mathDiv.parentElement.insertBefore(div, mathDiv);
-    // document.body.appendChild(div);
 
     if(html.indexOf("$") != -1){
         renderMathInElement(div, {
@@ -79,7 +83,7 @@ export function addHtml(html : string){
 export function addDiv(html : string){
     const div = document.createElement("div");
     div.innerHTML = html;
-    document.body.appendChild(div);
+    mathDivRoot.appendChild(div);
 }
 
 export function mulR(... rs : Rational[]) : Rational {

@@ -1,7 +1,8 @@
 namespace casts {
 
+export let mathDivRoot : HTMLDivElement;
 export let mathDiv : HTMLDivElement;
-let formulas : { [text : string] : string};
+export let formulas : Map<string, App> = new Map<string, App>();
 let translation : { [text : string] : string};
 export let termDic : { [id : number] : Term } = {};
 const theLang : string = "ja";
@@ -21,10 +22,8 @@ export function parseMath(text: string) : Term {
 function heading(text : string){
     const words = text.match(/#+/);
     const n = words[0].length;
-    const h = document.createElement(`h${n}`) as HTMLHeadingElement;
-    h.innerText = text.substring(n);
 
-    document.body.appendChild(h);
+    addDiv(`<h${n}>${text.substring(n)}</${n}>`);
 }
 
 function* gen(texts : string){
@@ -50,12 +49,6 @@ function* gen(texts : string){
             continue;
         }       
         else{
-
-            // const div = document.createElement("div");
-            // div.innerText = text;
-            // document.body.appendChild(div);
-
-            // addHtml(" $\\sin$ を $\\cos$ で置換する。");
     
             const expr = parseMath(text);
             if(expr instanceof App && expr.fncName[0] == "@"){
@@ -63,13 +56,11 @@ function* gen(texts : string){
 
                 if(app.refVar.name == "@formula"){
 
-                    alg.root = app.args[0].clone() as App;
-                    alg.root.setParent(null);
+                    alg.setRoot(app.args[0].clone() as App);
                     continue;
                 }
 
-                mathDiv = document.createElement("div");
-                document.body.appendChild(mathDiv);
+                makeMathDiv();
 
                 alg.root = alg.root.clone();
                 alg.root.setParent(null);
@@ -163,8 +154,7 @@ function* gen(texts : string){
                 showRoot(alg.root);
             }
             else if(expr instanceof RefVar && expr.name[0] == '@'){
-                mathDiv = document.createElement("div");
-                document.body.appendChild(mathDiv);
+                makeMathDiv();
 
                 alg.root = alg.root.clone();
                 alg.root.setParent(null);
@@ -214,15 +204,7 @@ function* gen(texts : string){
             }
             else{
                 assert(expr instanceof App, "gen 4");
-                mathDiv = document.createElement("div");
-                document.body.appendChild(mathDiv);
-
-                expr.setStrVal();
-                expr.setTabIdx();
-                const tex = expr.tex();
-                render(mathDiv, tex);
-
-                alg.root = expr as App;
+                alg.setRoot(expr as App);
             }
         }
 
@@ -278,7 +260,7 @@ function* genDocPath(parent_dir : any) : Generator<string> {
                 yield;
             }
 
-            document.body.innerHTML = "";
+            mathDivRoot.innerHTML = "";
 
             for(const g of gen(texts)){
                 yield;
@@ -313,6 +295,28 @@ function translate(text : string, lang : string = theLang) : string {
     return text;
 }
 
+function makeFormulas(json : any){
+    if(json["dirs"] != undefined){
+        for(const dir of json["dirs"]){
+            makeFormulas(dir);
+        }
+    }
+
+    if(json["files"] != undefined){
+        for(const file of json["files"]){
+            const path = file['path'];
+
+            const formula = file['formula'] as string;
+            if(formula != undefined){
+                const app = parseMath(formula) as App;
+                assert(app.isEq());
+                formulas.set(path, app);
+                msg(`formula:${formula}`);
+            }
+        }
+    }
+}
+
 function makeIndex(parent_ul : HTMLUListElement | HTMLDivElement, parent_dir : any){
     assert(parent_dir != undefined);
     const ul = document.createElement("ul");
@@ -344,11 +348,6 @@ function makeIndex(parent_ul : HTMLUListElement | HTMLDivElement, parent_dir : a
             }
             else{
                 const path = file['path'];
-
-                const formula = file['formula'] as string;
-                if(formula != undefined){
-                    formulas[path] = formula;
-                }
     
                 anc.setAttribute("data-path", path);
                 anc.addEventListener("click", ()=>{
@@ -425,15 +424,7 @@ function mergeJson(js1 : any, js2 : any){
 }
 
 async function main() {
-    // makeYoutubeJson();
-
-    const url = new URL(window.location.href);
-    const params = url.searchParams;
-    const path= params.get("path");
-    if(path != undefined){
-        await readDoc(path);
-        return;
-    }
+    mathDivRoot = document.getElementById("math-div-root") as HTMLDivElement;
 
     const translation_text = await fetchText(`../data/translation.json`);
     translation = JSON.parse(translation_text);
@@ -445,6 +436,17 @@ async function main() {
     const youtube = JSON.parse(youtube_text);
 
     // mergeJson(index, youtube);
+    // makeYoutubeJson();
+
+    makeFormulas(index);
+
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+    const path= params.get("path");
+    if(path != undefined){
+        await readDoc(path);
+        return;
+    }
 
     if(params.get("all") != undefined){
         readAllDoc(index);
@@ -452,7 +454,6 @@ async function main() {
     }
 
     const div = document.createElement("div");
-    formulas = {};
     makeIndex(div, index)
     document.body.appendChild(div);
 }

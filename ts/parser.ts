@@ -59,6 +59,10 @@ export class Rational{
         this.denominator = denominator;
     }
 
+    eq(r : Rational) : boolean {
+        return(this.numerator == r.numerator && this.denominator == r.denominator);
+    }
+
     is(numerator : number, denominator : number = 1) : boolean{
         return(this.numerator == numerator && this.denominator == denominator);
     }
@@ -158,6 +162,54 @@ export abstract class Term {
     copy(dst : Term){
         dst.value  = this.value.clone();
         dst.cancel = this.cancel;
+    }
+
+
+    /**
+     * 
+     * @returns コピーしたルートと、thisと同じ位置の項を返す。
+     */
+    cloneRoot() : [ App, Term] {
+        // ルートからthisに至るパスを得る。
+        const path = this.getPath();
+
+        // ルートを得る。
+        const root = this.getRoot();
+        assert(path.getTerm(root) == this);
+
+        // ルートをコピーする。
+        const root_cp = root.clone();
+
+        // コピーしたルートから同じパスを辿って項を得る。
+        const this_cp = path.getTerm(root_cp);
+        assert(this_cp.str() == this.str());
+
+        // コピーしたルートと、thisと同じ位置の項を返す。
+        return [root_cp, this_cp];
+    }
+
+    getPath(path : Path = new Path([])) : Path {
+        if(this.parent == null){
+
+            return path;
+        }
+        const idx = this.parent.args.indexOf(this);
+        assert(idx != -1);
+
+        path.indexes.unshift(idx);
+        return this.parent.getPath(path);
+    }
+
+    getRoot() : App {
+        if(this.parent == null){
+            if(this instanceof App){
+                return this;
+            }
+            assert(false);
+        }
+        else{
+            return this.parent.getRoot();
+        }
     }
 
     setParent(parent : App | null){
@@ -287,7 +339,7 @@ export abstract class Term {
     }
 
     isEq() : boolean {
-        return this instanceof App && this.fncName == "==";
+        return this instanceof App && (this.fncName == "==" || this.fncName == "=");
     }
 
     isAdd() : boolean {
@@ -465,6 +517,8 @@ export class App extends Term{
     constructor(fnc: Term, args: Term[]){
         super();
         this.fnc    = fnc;
+        this.fnc.parent = this;
+
         this.args   = args.slice();
 
         this.args.forEach(x => x.parent = this);

@@ -205,6 +205,17 @@ export function* mulEq(multiplier : Term, root : App) : Generator<Term> {
 export class Algebra {
     root : App | null = null;    
 
+    setRoot(root : App){
+        this.root = root;
+
+        makeMathDiv();
+
+        root.setStrVal();
+        root.setTabIdx();
+        const tex = root.tex();
+        render(mathDiv, tex);
+    }
+
     /**
      * 
      * @param app 乗数
@@ -1258,13 +1269,12 @@ export function* verify(cmd : App, root : App){
         msg(`ver:[${expr.str()}]`);
         addDiv("<h1>エラー</h1>")
 
-        const div = document.createElement("div");
-        document.body.appendChild(mathDiv);
+        makeMathDiv();
 
         expr.setStrVal();
         expr.setTabIdx();
         const tex = expr.tex();
-        render(div, tex);
+        render(mathDiv, tex);
         yield;
 
         assert(false);
