@@ -128,7 +128,7 @@ export class Transformation {
 
     onClick(ev : MouseEvent){
         // 候補リストを削除する。
-        setTimeout(()=>{ document.getElementById("candidate-div").innerHTML = ""; }, 1);
+        setTimeout(()=>{ document.getElementById("candidate-div")!.innerHTML = ""; }, 1);
 
         // 既存のspanはフォーカスできないようにする。
         const all_spans = mathDivRoot.getElementsByTagName("span");
@@ -161,7 +161,7 @@ export class Transformation {
 
 function substByDic(dic : Map<string, Term>, root : App){
     const refs = allTerms(root).filter(x => x instanceof RefVar && dic.has(x.name)) as RefVar[];
-    refs.forEach(x => x.replace(dic.get(x.name).clone()));
+    refs.forEach(x => x.replace(dic.get(x.name)!.clone()));
 }
 
 function onFocusRun(focus : Term){

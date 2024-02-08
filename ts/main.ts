@@ -3,7 +3,7 @@ namespace casts {
 export let mathDivRoot : HTMLDivElement;
 export let mathDiv : HTMLDivElement;
 export let formulas : Map<string, App> = new Map<string, App>();
-let translation : { [text : string] : string};
+let translation : { [text : string] : { [text : string] : string} };
 export let termDic : { [id : number] : Term } = {};
 const theLang : string = "ja";
 
@@ -20,7 +20,7 @@ export function parseMath(text: string) : Term {
 }
 
 function heading(text : string){
-    const words = text.match(/#+/);
+    const words = text.match(/#+/)!;
     const n = words[0].length;
 
     addDiv(`<h${n}>${text.substring(n)}</${n}>`);
@@ -54,7 +54,7 @@ function* gen(texts : string){
             if(expr instanceof App && expr.fncName[0] == "@"){
                 const app = expr as App;
 
-                if(app.refVar.name == "@formula"){
+                if(app.refVar!.name == "@formula"){
 
                     alg.setRoot(app.args[0].clone() as App);
                     continue;
@@ -62,13 +62,13 @@ function* gen(texts : string){
 
                 makeMathDiv();
 
-                alg.root = alg.root.clone();
+                alg.root = alg.root!.clone();
                 alg.root.setParent(null);
 
 
                 assert(alg.root != null, "gen");
 
-                switch(app.refVar.name){
+                switch(app.refVar!.name){
                 // case "@cancel":
                 //     yield* cancelOLD(app, alg.root);
                 //     break;
@@ -156,7 +156,7 @@ function* gen(texts : string){
             else if(expr instanceof RefVar && expr.name[0] == '@'){
                 makeMathDiv();
 
-                alg.root = alg.root.clone();
+                alg.root = alg.root!.clone();
                 alg.root.setParent(null);
 
                 switch(expr.name){
@@ -211,8 +211,8 @@ function* gen(texts : string){
         yield;
     }
 
-    yield* zeroOneAddMul(alg.root);
-    msg(`result root: ${alg.root.str()}`);
+    yield* zeroOneAddMul(alg.root!);
+    msg(`result root: ${alg.root!.str()}`);
 }
 
 async function readDoc(path: string){
@@ -239,7 +239,7 @@ async function readDoc(path: string){
     }, timeout);
 }
 
-function* genDocPath(parent_dir : any) : Generator<string> {
+function* genDocPath(parent_dir : any) : any {
     if(parent_dir["dirs"] != undefined){
         for(const dir of parent_dir["dirs"]){
             yield* genDocPath(dir);
@@ -270,7 +270,7 @@ function* genDocPath(parent_dir : any) : Generator<string> {
 }
 
 
-function readAllDoc(parent_dir){
+function readAllDoc(parent_dir : any){
     const iterator = genDocPath(parent_dir);
 
     const timer_id = setInterval(()=>{
@@ -370,7 +370,7 @@ function makeIndex(parent_ul : HTMLUListElement | HTMLDivElement, parent_dir : a
 }
 
 function makeYoutubeJson(){
-    let doc = (document.getElementById("map-iframe") as HTMLIFrameElement).contentWindow.document;
+    let doc = (document.getElementById("map-iframe") as HTMLIFrameElement).contentWindow!.document;
 
     const gs = doc.getElementsByTagName("g");
     
@@ -400,7 +400,7 @@ function mergeJson(js1 : any, js2 : any){
         else{
 
             for(const dir2 of js2["dirs"]){
-                const dir1 = js1["dirs"].find(x => x["title"] == dir2["title"]);
+                const dir1 = js1["dirs"].find((x: { [x: string]: any; }) => x["title"] == dir2["title"]);
                 if(dir1 == undefined){
                     js1["dirs"].push(dir2);
                 }

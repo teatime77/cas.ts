@@ -52,7 +52,7 @@ let termId : number = 0;
 export class Rational{
     numerator : number = 1;
     denominator : number = 1;
-    parent : Term = null;
+    parent : Term | null = null;
 
     constructor(numerator : number, denominator : number = 1){
         this.numerator = numerator;
@@ -136,7 +136,7 @@ export abstract class Term {
     id : number;
     tabIdx : number = 0;
     parent : App | null = null;
-    strval : string;
+    strval : string = "";
 
     // 係数
     value : Rational = new Rational(1);
@@ -207,9 +207,8 @@ export abstract class Term {
             }
             assert(false);
         }
-        else{
-            return this.parent.getRoot();
-        }
+
+        return this.parent!.getRoot();
     }
 
     setParent(parent : App | null){
@@ -231,7 +230,7 @@ export abstract class Term {
     }
 
     replace(target : Term){
-        const app : App = this.parent;
+        const app : App = this.parent!;
         assert(app != null, "replace");
 
         if(app.fnc == this){
@@ -248,7 +247,7 @@ export abstract class Term {
 
     index() : number {
         assert(this.parent != null, "index 1");
-        const idx = this.parent.args.indexOf(this);
+        const idx = this.parent!.args.indexOf(this);
         assert(idx != -1, "index 2");
 
         return idx;
@@ -256,9 +255,9 @@ export abstract class Term {
 
     remArg() {
         assert(this.parent != null, "rem arg 1");
-        const idx = this.parent.args.indexOf(this);
+        const idx = this.parent!.args.indexOf(this);
         assert(idx != -1, "rem arg 2");
-        this.parent.args.splice(idx, 1);
+        this.parent!.args.splice(idx, 1);
     }
 
     putValue(text : string) : string {
@@ -283,7 +282,7 @@ export abstract class Term {
                 val = `${this.value.numerator} * ${text}`
             }
             else{
-                assert(false);
+                throw new MyError();
             }
         }
 
@@ -423,7 +422,7 @@ export class Path extends Term {
                 app = app.args[idx] as App;
             }
         }
-        assert(false, "get term");
+        throw new MyError("get term");
     }
 
 }
@@ -533,7 +532,7 @@ export class App extends Term{
         return app;
     }
 
-    setParent(parent : App){
+    setParent(parent : App | null){
         super.setParent(parent);
 
         this.fnc.setParent(this);
@@ -548,7 +547,7 @@ export class App extends Term{
     }
 
 
-    verifyParent(parent : App){
+    verifyParent(parent : App | null){
         super.verifyParent(parent);
 
         this.fnc.verifyParent(this);
@@ -684,7 +683,7 @@ export class App extends Term{
             }
         }
 
-        if((this.isAdd() || this.isMul()) && this.parent.fncName == "lim"){
+        if((this.isAdd() || this.isMul()) && this.parent!.fncName == "lim"){
 
             return `(${text})`;
         }
@@ -745,7 +744,7 @@ export class App extends Term{
 
         const args_cp = args.slice();
         while(args_cp.length != 0){
-            const trm = args_cp.pop();
+            const trm = args_cp.pop()!;
             this.insArg(trm, idx);
         }
     }

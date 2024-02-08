@@ -1,12 +1,18 @@
 var katex : any;
-var getUserMacros;
+declare let getUserMacros : any;
 var renderMathInElement : any;
 
 namespace casts {
 
+export class MyError extends Error {
+    constructor(text : string = ""){
+        super();
+    }
+}
+
 export function assert(b : boolean, msg : string = ""){
     if(!b){
-        throw new Error(msg);
+        throw new MyError(msg);
     }
 }    
 
@@ -68,7 +74,7 @@ export function makeMathDiv(){
 export function addHtml(html : string){
     const div = document.createElement("div");
     div.innerHTML = html;
-    mathDiv.parentElement.insertBefore(div, mathDiv);
+    mathDiv.parentElement!.insertBefore(div, mathDiv);
 
     if(html.indexOf("$") != -1){
         renderMathInElement(div, {

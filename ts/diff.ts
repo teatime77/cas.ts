@@ -6,7 +6,7 @@ export function* pulloutDiff(root : App){
     const diffs = allTerms(root).filter(x => x.isDiff()) as App[];
 
     while(diffs.length != 0){
-        const diff = diffs.pop();
+        const diff = diffs.pop()!;
 
         if(! diff.args[0].isMul()){
             continue;
@@ -33,9 +33,9 @@ export function* pulloutDiff(root : App){
 
         mul.args = depends;
 
-        if(diff.parent.isMul()){
+        if(diff.parent!.isMul()){
 
-            diff.parent.insArgs(no_depends, diff.index());
+            diff.parent!.insArgs(no_depends, diff.index());
         }
         else{
 
@@ -118,7 +118,7 @@ function diffmul(mul_arg : App, dvar : RefVar) : Term {
 }
 
 function diff(trm : Term, dvar : RefVar) : Term {
-    let result : Term = null;
+    let result : Term | null = null;
     if(trm instanceof ConstNum){
         result = new ConstNum(0);
     }
@@ -143,7 +143,7 @@ function diff(trm : Term, dvar : RefVar) : Term {
     }
 
     assert(result != null);
-    return result;
+    return result!;
 }
 
 export function* calc_diff(cmd : App, root : App){

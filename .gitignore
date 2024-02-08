@@ -1,3 +1,7 @@
+public/data
+public/katex
+public/js
+functions
 web/data/**/*.md
 web/data/**/*.txt
 web/data/**/*.json
@@ -14,3 +18,5 @@ web/html/svg.html
 web/html/css/styles.css
 web/html/map.svg
 tmp
+.firebase/hosting.*.cache
+**/*.log

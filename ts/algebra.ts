@@ -135,11 +135,11 @@ export function* subst(app: App, root : Term){
     const targets = getSubTerms(root, app.args[0]);
     for(const t of targets){
         const dst = app.args[1].clone();
-        if(dst.isMul() && t.parent.isMul()){
-            t.parent.insArgs((dst as App).args, t.index());
+        if(dst.isMul() && t.parent!.isMul()){
+            t.parent!.insArgs((dst as App).args, t.index());
 
             t.remArg();
-            t.parent.value.setmul(t.value);
+            t.parent!.value.setmul(t.value);
         }
         else{
 
@@ -230,10 +230,10 @@ export class Algebra {
         // 乗数
         const multiplier = app.args[0];
 
-        if(this.root.isEq()){
+        if(this.root!.isEq()){
             // ルートが等式の場合
 
-            yield* mulEq(multiplier, this.root);
+            yield* mulEq(multiplier, this.root!);
         }
         else if(this.root instanceof App && this.root.fncName == "+"){
             // ルートが加算の場合
@@ -245,7 +245,7 @@ export class Algebra {
             // ルートが等式や加算でない場合
 
             // 被乗数に乗数をかける。
-            this.root = multiply(multiplier, this.root) as App;
+            this.root = multiply(multiplier, this.root!) as App;
             assert(this.root instanceof App, "mul root");
         }
     }
@@ -262,11 +262,11 @@ export class Algebra {
         addHtml(`$${side.tex()}$ の辺を追加する。`)
 
         let eq : App;
-        if(this.root.isEq()){
-            eq = this.root;
+        if(this.root!.isEq()){
+            eq = this.root!;
         }
         else{
-            eq = new App(operator("=="), [this.root]);
+            eq = new App(operator("=="), [this.root!]);
             this.root = eq;
         }
 
@@ -505,7 +505,7 @@ export function* remCancel(root : Term){
     for(const can of canceled){
         // すべてのキャンセルされた項に対し
 
-        if(can.parent.isMul() || can.parent.isAdd()){
+        if(can.parent!.isMul() || can.parent!.isAdd()){
             // 親が乗算の場合
 
             yield* highlight(can, root);
@@ -513,26 +513,26 @@ export function* remCancel(root : Term){
             // 乗算の引数から取り除く。
             can.remArg();
         }
-        else if(can.parent.isDiv()){
+        else if(can.parent!.isDiv()){
             // 親が除算の場合
 
-            if(can.parent.args[0] == can){
+            if(can.parent!.args[0] == can){
                 // 分子の場合
 
                 // 分子を1にする。
-                can.parent.args[0] = new ConstNum(1);
+                can.parent!.args[0] = new ConstNum(1);
             }
-            else if(can.parent.args[1] == can){
+            else if(can.parent!.args[1] == can){
                 // 分母の場合
 
                 // 分母を1にする。
-                can.parent.args[1] = new ConstNum(1);
+                can.parent!.args[1] = new ConstNum(1);
             }
             else{
                 assert(false, "trim mul 2");
             }
         }
-        // else if(can.parent.isAdd()){
+        // else if(can.parent!.isAdd()){
 
         // }
         else{
@@ -575,7 +575,7 @@ export function* mergeAdd(root : Term){
     while(add_terms.length != 0){
         // 未処理の加算がある場合
 
-        const add = add_terms.pop();
+        const add = add_terms.pop()!;
 
         while(true){
             // 加算の引数の中の加算を探す。
@@ -627,13 +627,13 @@ export function* zeroOneAddMul(root : App){
             // 引数がない乗算がある場合
 
             assert(mul0.parent != null, "trim-mul 3");
-            if(mul0.parent.isDiv()){
+            if(mul0.parent!.isDiv()){
                 // 引数がない乗算が、除算の分子か分母の場合
 
                 // その除算の分子か分母を1で置き換える。
                 mul0.replace(new ConstNum(1));
             }
-            else if(mul0.parent.isMul()){
+            else if(mul0.parent!.isMul()){
                 // 引数のない乗算が、乗算の引数の場合
 
                 // その乗算の引数を取り除く。
@@ -727,7 +727,7 @@ export function* movearg(cmd : App, root : App){
     assert(cmd.args.length == 2 && cmd.args[0] instanceof Path&& cmd.args[1] instanceof ConstNum, "move arg");
 
     const trm = (cmd.args[0] as Path).getTerm(root);
-    let idx = trm.parent.args.indexOf(trm);
+    let idx = trm.parent!.args.indexOf(trm);
     assert(idx != -1);
 
     const n = (cmd.args[1] as ConstNum).value.int();
@@ -738,7 +738,7 @@ export function* movearg(cmd : App, root : App){
     }
 
     trm.remArg();
-    trm.parent.insArg(trm, idx);
+    trm.parent!.insArg(trm, idx);
 }
 
 /**
@@ -851,7 +851,7 @@ export function* factor_out_div(cmd : App, root : App){
     // 括り出す項を乗算から取り除く。
     trms.forEach(x => x.remArg());
 
-    if(div.parent.isMul()){
+    if(div.parent!.isMul()){
         // 除算の親が乗算の場合
 
         // 除算の親の乗算
@@ -908,7 +908,7 @@ export function* transpose(cmd : App, root : Term){
     yield;
 
     // 移動元の項の親
-    const trm_parent_add = trm.parent;
+    const trm_parent_add = trm.parent!;
 
     if(trm_parent_add.isAdd()){
         // 移動元の項の親が加算の場合
@@ -1028,7 +1028,7 @@ export function* greatestCommonFactor(cmd : App, root : App){
     const mul = src.getTerm(root) as App;
     assert(mul.isMul(), "gcf 1");
 
-    const mul_parent_add = mul.parent;
+    const mul_parent_add = mul.parent!;
     assert(mul_parent_add.isAdd(), "gcf 2");
 
     const start_pos = mul_parent_add.args.indexOf(mul);
@@ -1116,7 +1116,7 @@ export function* greatestCommonFactor2(cmd : App, root : App){
     assert(mul.isMul(), "gcf 1");
 
     // 共通化する項の親は加算
-    const mul_parent_add = mul.parent;
+    const mul_parent_add = mul.parent!;
     assert(mul_parent_add.isAdd(), "gcf 2");
 
     // 共通化する最初の項の位置
@@ -1174,10 +1174,10 @@ export function* greatestCommonFactor2(cmd : App, root : App){
             // 最初の項でない場合
 
             // 共通の乗数は、この項の乗数の中に現れるものに限定する。
-            common_multipliers = common_multipliers.filter(x => multipliers.some(y => x.str2() == y.str2()));
+            common_multipliers = common_multipliers!.filter(x => multipliers.some(y => x.str2() == y.str2()));
 
             // 共通の除数は、この項の除数の中に現れるものに限定する。
-            common_divisors    = common_divisors.filter(x => divisors.some(y => x.str2() == y.str2()));
+            common_divisors    = common_divisors!.filter(x => divisors.some(y => x.str2() == y.str2()));
         }
         assert(common_multipliers.length != 0 || common_divisors.length != 0, "gcf 5");
 
@@ -1188,14 +1188,14 @@ export function* greatestCommonFactor2(cmd : App, root : App){
 
     // 共通因子
     let common_factor : Term
-    if(common_divisors.length != 0){
+    if(common_divisors!.length != 0){
         // 共通の除数がある場合
 
         // 分子
-        const numerator   = multiplyArgs(common_multipliers);
+        const numerator   = multiplyArgs(common_multipliers!);
 
         // 分母
-        const denominator = multiplyArgs(common_divisors);
+        const denominator = multiplyArgs(common_divisors!);
 
         // 除算で共通因子を作る。
         common_factor = new App(operator("/"), [ numerator, denominator ]);
@@ -1204,7 +1204,7 @@ export function* greatestCommonFactor2(cmd : App, root : App){
         // 共通の除数がない場合
 
         // 乗算で共通因子を作る。
-        common_factor = multiplyArgs(common_multipliers);
+        common_factor = multiplyArgs(common_multipliers!);
     }
 
     // 共通乗数に含まれる乗数はキャンセルする。
@@ -1243,7 +1243,7 @@ export function* mulSign(root : App){
     const muldivs = allTerms(root).filter(x => x.isMul() || x.isDiv()) as App[];
 
     while(muldivs.length != 0){
-        const app = muldivs.pop();
+        const app = muldivs.pop()!;
 
         if(app.args.some(x => x.value.sign() == -1)){
 
