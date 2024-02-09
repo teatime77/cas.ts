@@ -1,5 +1,4 @@
 namespace casts {
-// declare let firebase: any;
 declare let navigator : any;
 
 declare let glb : any;
@@ -14,7 +13,7 @@ let inEditor : boolean = false;
 // firebase-js-sdk/packages/firebase/index.d.ts を firebase.d.tsにリネームする。
 let db: firebase.firestore.Firestore;
 
-const defaultUid = "qQTgoL6riZMpmFhU6KDvLfEwg5x1";  // "Rb6xnDguG5Z9Jij6XLIPHV4oNge2";
+const defaultUid = "ngwpo76dYib1LoszZObGdfNswnm4";
 let loginUid : string | null = null;
 let guestUid = defaultUid;
 
@@ -75,8 +74,7 @@ function maxFileId(){
     return Math.max(... indexFile.docs.concat(indexFile.maps).map(x => x.id));
 }
 
-
-export function initFirebase(fnc:()=>void){
+export function initFirebase(){
     firebase.auth().onAuthStateChanged(function(user: any) {
         loginUid = null;
         guestUid = defaultUid;
@@ -108,29 +106,20 @@ export function initFirebase(fnc:()=>void){
             msg("ログアウト");
         }
 
-        fetchDB("index", (id: string | null, data:any)=>{
-            if(data != null){
-                indexFile = data;
-            }
-            else{
-                indexFile = { docs: [], maps: [], imgs: [] };
-            }
+        // fetchDB("index", (id: string | null, data:any)=>{
+        //     if(data != null){
+        //         indexFile = data;
+        //     }
+        //     else{
+        //         indexFile = { docs: [], maps: [], imgs: [] };
+        //     }
 
-            fnc();
-        });
+        //     fnc();
+        // });
     });
-
-    db = firebase.firestore();
-
-    if(! inEditor){
-        return;
-    }
-
-    dropZone = document.getElementById('drop-zone') as HTMLDivElement;
-
-    dropZone.addEventListener('dragover', handleDragOver, false);
-    dropZone.addEventListener('drop', handleFileSelect, false);
 }
+
+
 
 export function writeDB(id: string, data: any, msg: string, fnc:(()=>void) | null = null){
     db.collection('users').doc(loginUid!).collection('docs').doc(id).set(data)
@@ -306,11 +295,11 @@ export function initDB(){
             fnc();
         });    
     }
-    initFirebase(()=>{
-        set_click("db-upload", dbUpload);
-        set_click("db-backup", dbBackup);
-        set_click("db-batch",  dbBatch);
-    });
+    // initFirebase(()=>{
+    //     set_click("db-upload", dbUpload);
+    //     set_click("db-backup", dbBackup);
+    //     set_click("db-batch",  dbBatch);
+    // });
 }
 
 

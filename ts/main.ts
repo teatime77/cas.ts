@@ -424,6 +424,8 @@ function mergeJson(js1 : any, js2 : any){
 }
 
 async function main() {
+    initFirebase();
+
     mathDivRoot = document.getElementById("math-div-root") as HTMLDivElement;
 
     const translation_text = await fetchText(`../data/translation.json`);
