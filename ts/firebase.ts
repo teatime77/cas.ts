@@ -7,7 +7,12 @@ declare let fetchFileList : any;
 
 export let dropZone : HTMLDivElement;
 
-let inEditor : boolean = false;
+let isEdit : boolean = false;
+
+let id_inp : HTMLInputElement;
+let title_inp : HTMLInputElement;
+let assertion_text : HTMLTextAreaElement;
+
 
 // https://github.com/firebase/firebase-js-sdk をクローン
 // firebase-js-sdk/packages/firebase/index.d.ts を firebase.d.tsにリネームする。
@@ -19,9 +24,81 @@ let guestUid = defaultUid;
 
 export let indexFile: IndexFile;
 
-export class Doc {
-    // title   : string = "";
-    // widgets : Widget[] = [];
+abstract class DbItem {
+    id!              : string;
+    parent!          : string | null;
+    fnc!             : ()=>void | null;
+
+    abstract data()  : any;
+    abstract table() : string;
+
+    writeDB(fnc : (()=>void) | null = null) : void {
+        db.collection('users').doc(loginUid!).collection(this.table()).doc(this.id).set(this.data())
+        .then(function() {
+            console.log(`OK:${msg}`);
+            if(fnc != null){
+                fnc();
+            }
+        })
+        .catch(function(error : any) {
+            console.error("Error adding document: ", error);
+        });
+    }
+}
+
+class Section extends DbItem {
+    title     : string;
+    children  : DbItem[] = [];
+
+    table() : string {
+        return "sections";
+    }
+
+    constructor(parent : string | null, id : string, title : string){
+        super();
+        this.parent = parent;
+        this.id     = id;
+        this.title  = title;
+    }
+
+    data() : any {
+        return {
+            "parent" : this.parent,
+            "title"  : this.title
+        }
+    }
+}
+
+class Index extends DbItem {
+    id        : string;
+    title     : string;
+    assertion : string[];
+
+    static fromData(id : string, data : any) : Index {
+        return new Index(id, data.title, (data.assertion as string).split("\n"))
+    }
+
+    table() : string {
+        return "indexes";
+    }
+
+    constructor(id : string, title : string, assertion : string[]){
+        super();
+        this.id        = id;
+        this.title     = title;
+        this.assertion = assertion
+    }
+
+    data() : any {
+        return {
+            "title"     : this.title,
+            "assertion" : this.assertion.join("\n")
+        };
+    }
+
+    str() : string {
+        return `id:${this.id} title:${this.title}`;
+    }
 }
 
 class TextFile {
@@ -75,6 +152,15 @@ function maxFileId(){
 }
 
 export function initFirebase(){
+    isEdit = window.location.href.includes("edit.html");
+
+    if(isEdit){
+
+        id_inp        = document.getElementById("doc-id") as HTMLInputElement;
+        title_inp     = document.getElementById("doc-title") as HTMLInputElement;
+        assertion_text = document.getElementById("doc-assertion") as HTMLTextAreaElement;
+    }
+
     firebase.auth().onAuthStateChanged(function(user: any) {
         loginUid = null;
         guestUid = defaultUid;
@@ -92,6 +178,11 @@ export function initFirebase(){
                 guestUid = user.uid;
 
                 msg(`login B ${user1.uid} ${user1.displayName} ${user1.email}`);
+
+                const root = new Section(null, "root", "目次");
+                root.writeDB();
+
+                readIndexes();
             } 
             else {
                 // No user is signed in.
@@ -117,14 +208,73 @@ export function initFirebase(){
         //     fnc();
         // });
     });
+
+    db = firebase.firestore();
+
+    const doc = db.collection("formulas").doc("加法:交換法則");
+    doc.set({
+        title : "交換法則",
+        assertion : "a + b = b + a"
+    })
+    .then(() => {
+        msg(`doc write OK:${doc.id}`);
+
+        // MsgBox.show(`doc write OK:${doc.id}`, ()=>{
+        //     msg("ok clicked");
+
+        //     SubMenu("メニュー", [
+        //         Menu("カット", ()=>{}),
+        //         Menu("コピー", ()=>{}),
+        //         Menu("ペースト", ()=>{})
+        //     ])
+        //     .show();
+        // });
+    })
+    .catch((error) => {
+        msg(`doc write ERROR!!!:${doc.id}`);
+    });
+}
+
+function readIndexes() : void {
+    msg("read indexes");
+
+    const indexes : Index[] = [];
+    db.collection('users').doc(loginUid!).collection('indexes').get().then((querySnapshot) => {
+        querySnapshot.forEach((doc) => {
+            const index_data = doc.data();
+
+            console.log(doc.id, " => ", index_data);
+            const index = Index.fromData(doc.id, index_data);
+            indexes.push(index);
+
+            msg(`index : ${index.str()}`);
+        });
+
+        const root = indexes.find(x => x)
+
+        const div = document.createElement("div");
+        // makeIndex(div, index)
+        document.body.appendChild(div);
+    
+    });    
+
+}
+
+export function writeFormula() : void {
+    const id = id_inp.value.trim();
+    const title = title_inp.value.trim();
+    const assertion = assertion_text.value.trim().split("\n");
+    const index = new Index(id, title, assertion);
+
+    writeDB('indexes', id, index.data(), "write index");
 }
 
 
 
-export function writeDB(id: string, data: any, msg: string, fnc:(()=>void) | null = null){
-    db.collection('users').doc(loginUid!).collection('docs').doc(id).set(data)
+export function writeDB(table : string, id: string, data: any, msg: string, fnc:(()=>void) | null = null){
+    db.collection('users').doc(loginUid!).collection(table).doc(id).set(data)
     .then(function() {
-        console.log(msg);
+        console.log(`OK:${msg}`);
         if(fnc != null){
             fnc();
         }
@@ -268,6 +418,7 @@ function dbUpload(){
         let map_data = new TextFile( JSON.stringify({ edges: obj.edges }) );
 
         writeDB(
+            "NULL", 
             `${max_id}`, map_data, `[${max_id}]$ にマップを書き込みました。`,
             ()=>{
                 let doc = obj.files.map((x:any) => newFileInfo(x.id, x.title));
@@ -275,6 +426,7 @@ function dbUpload(){
                 let root = newIndexFile(doc, [ newFileInfo(max_id, "依存関係") ], []);
     
                 writeDB(
+                    "NULL", 
                     "index", root, `[${max_id}]$ にマップを書き込みました。`,
                     ()=>{
                         pendingFiles = obj.files.slice(0, 10);
@@ -382,7 +534,7 @@ export function dbBackup(){
         let docs : any[] = [];
 
         querySnapshot.forEach((dt: any) => {
-            const doc = dt.data() as Doc;
+            const doc = dt.data();
 
             docs.push({
                 id  : dt.id,
@@ -448,7 +600,7 @@ export function dbBatch(){
         });
 
         let tmpIdx = cloneIndexFile();
-        writeDB("index", tmpIdx, "索引を更新しました。");
+        writeDB("NULL", "index", tmpIdx, "索引を更新しました。");
     });    
 }
 

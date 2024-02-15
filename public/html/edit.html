@@ -7,11 +7,11 @@
     <meta http-equiv="Cache-Control" content="no-cache">
     <meta http-equiv="Expires" content="0">    
 
-    <script defer src="/__/firebase/10.8.0/firebase-app-compat.js"></script>
-    <script defer src="/__/firebase/10.8.0/firebase-auth-compat.js"></script>
-    <script defer src="/__/firebase/10.8.0/firebase-firestore-compat.js"></script>
-    <script defer src="/__/firebase/init.js?useEmulator=true"></script>
-  
+  <script defer src="/__/firebase/10.8.0/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/10.8.0/firebase-auth-compat.js"></script>
+  <script defer src="/__/firebase/10.8.0/firebase-firestore-compat.js"></script>
+  <script defer src="/__/firebase/init.js?useEmulator=true"></script>
+
     <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css" integrity="sha384-vKruj+a13U8yHIkAyGgK1J3ArTLzrFGBbBc0tDp4ad/EyewESeXE/Iv67Aj8gKZ0" crossorigin="anonymous"> -->
 
     <!-- The loading of KaTeX is deferred to speed up page rendering -->
@@ -30,7 +30,7 @@
     <!-- To automatically render math in text elements, include the auto-render extension: -->
     <script defer src="../katex/contrib/auto-render.min.js" integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
 
-    <script type="text/javascript" src="../js/main.js?ver=3"></script>
+    <script type="text/javascript" src="../js/main.js?ver=7"></script>
 
 <script>
 </script>
@@ -64,24 +64,31 @@
       cursor:pointer;
       color: blue;
   }
-
-.container {
-  display: flex;
-  flex-direction: column;
-  border-style: ridge;
-}
-
-.candidate {
-  display: flex;
-  flex-direction: row;
-}
-
 </style>
 </head>
 <body onload="casts.bodyOnLoad()">
-<!-- <iframe id="map-iframe" src="./map.svg" ></iframe> -->
 
-<div id="candidate-div" class="container" ></div>
+<h1>数学と物理の公式・定理集</h1>  
+
+数式処理を使って数学や物理の式の導出をしています。
+<!-- <iframe id="map-iframe" src="./map.svg" ></iframe> -->
 <div id="math-div-root"></div>
+
+<div style="display: grid; grid-template-columns: 300px 1fr;">
+    <span>ID</span>
+    <input id="doc-id" type="text" style="width: 10em;"  />
+
+    <span>タイトル</span>
+    <input id="doc-title" type="text" style="width: 10em;"  />
+
+    <span>主張</span>
+    <textarea id="doc-assertion" type="text" cols="100" rows="5"></textarea>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr;">
+  <button onclick="casts.writeFormula()">登録</button>
+  <button>クリア</button>
+</div>
+
 </body>
 </html>
