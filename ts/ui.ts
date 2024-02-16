@@ -1,4 +1,29 @@
 namespace casts {
+
+export async function inputBox() : Promise<string | null> {
+    const dlg = document.getElementById("input-box-dlg") as HTMLDialogElement;
+    dlg.showModal();
+
+    return new Promise((resolve) => {
+        const ok = document.getElementById("input-box-ok") as HTMLButtonElement;
+        ok.addEventListener("click", (ev : MouseEvent)=>{
+            const inp = document.getElementById("input-box-text") as HTMLInputElement;
+            resolve(inp.value);
+            dlg.close();
+        });
+
+        document.getElementById("input-box-text")?.addEventListener("keypress", (ev : KeyboardEvent)=>{
+            if(ev.key == "Enter"){
+                ok.click();
+            }
+        });
+    
+        dlg.addEventListener("cancel", (ev : Event)=>{
+            resolve(null);
+        })
+    });
+}
+
 export class MsgBox {
     static dlg : HTMLDialogElement;
 
@@ -61,13 +86,18 @@ export class MenuClass extends AbstractMenuClass {
 
     showMenu(ul : HTMLUListElement) : void {
         const li = document.createElement("li");
-        li.innerText = this.text;
+        li.style.cursor = "pointer";
+        li.innerText = this.text;        
+        li.addEventListener("click", this.fnc)
+        li.addEventListener("click", (ev : MouseEvent)=>{ SubMenuClass.theDlg.close() });
 
         ul.appendChild(li);
     }
 }
 
 export class SubMenuClass extends AbstractMenuClass {
+    static theDlg : HTMLDialogElement;
+
     text : string;
     menus : AbstractMenuClass[];
 
@@ -80,6 +110,9 @@ export class SubMenuClass extends AbstractMenuClass {
     showMenu(ul : HTMLUListElement) : void {
         const ul_sub = document.createElement("ul");
 
+        ul_sub.style.margin  = "2px";
+        ul_sub.style.padding = "3px";
+
         const li = document.createElement("li");
         li.innerText = this.text;
 
@@ -91,13 +124,23 @@ export class SubMenuClass extends AbstractMenuClass {
         ul.appendChild(ul_sub);
     }
 
-    show(){
+    show(ev : MouseEvent){
         const dlg = document.createElement("dialog");
+        SubMenuClass.theDlg = dlg;
+
+        dlg.style.position = "absolute";
+        dlg.style.left = ev.pageX + "px";
+        dlg.style.top  = ev.pageY + "px";
+        dlg.style.margin = "0";
+        dlg.style.padding = "5px";
 
         const  h  = document.createElement("h5");
         h.innerText = this.text;
+        h.style.margin = "0";
 
         const ul = document.createElement("ul");
+        ul.style.margin  = "2px";
+        ul.style.padding = "3px";
 
         for(const menu of this.menus){
             menu.showMenu(ul);

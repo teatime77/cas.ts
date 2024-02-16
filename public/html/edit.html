@@ -30,7 +30,7 @@
     <!-- To automatically render math in text elements, include the auto-render extension: -->
     <script defer src="../katex/contrib/auto-render.min.js" integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
 
-    <script type="text/javascript" src="../js/main.js?ver=7"></script>
+    <script type="text/javascript" src="../js/main.js?ver=23"></script>
 
 <script>
 </script>
@@ -89,6 +89,12 @@
   <button onclick="casts.writeFormula()">登録</button>
   <button>クリア</button>
 </div>
+
+<dialog id="input-box-dlg">
+  <h4 id="input-box-label"></h4>
+  <input id="input-box-text" type="text" size="20" />
+  <button id="input-box-ok">OK</button>
+</dialog>
 
 </body>
 </html>

@@ -283,7 +283,7 @@ function readAllDoc(parent_dir : any){
     }, 1);
 }
 
-function translate(text : string, lang : string = theLang) : string {
+export function translate(text : string, lang : string = theLang) : string {
     const item = translation[text.replace('-', ' ')];
     if(item != undefined){
         const dst_text = item[lang];
@@ -424,12 +424,12 @@ function mergeJson(js1 : any, js2 : any){
 }
 
 async function main() {
-    await initFirebase();
-
     mathDivRoot = document.getElementById("math-div-root") as HTMLDivElement;
 
     const translation_text = await fetchText(`../data/translation.json`);
     translation = JSON.parse(translation_text);
+
+    await initFirebase();
 
     const index_text = await fetchText(`../data/index.json`);
     const index = JSON.parse(index_text);

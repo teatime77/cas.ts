@@ -17,13 +17,15 @@ let guestUid = defaultUid;
 
 
 abstract class DbItem {
-    parentId         : string  | null;
-    parent           : Section | null = null;
-    id               : string;
-    fnc              : (()=>void) | null = null;
+    parentId : string  | null;
+    parent   : Section | null = null;
+    id       : string;
+    fnc      : (()=>void) | null = null;
+    ul       : HTMLUListElement | null = null;
 
     abstract data()  : any;
     abstract table() : string;
+    abstract makeContents(parent_ul : HTMLUListElement | HTMLDivElement) : void;
 
     constructor(id : string, parent_id : string | null){
         this.id = id;
@@ -59,9 +61,48 @@ class Section extends DbItem {
 
     data() : any {
         return {
-            "parent" : this.parent,
-            "title"  : this.title
+            "parentId" : this.parentId,
+            "title"    : this.title
         }
+    }
+
+    makeContents(parent_ul : HTMLUListElement | HTMLDivElement){
+        const li = document.createElement("li");
+        li.style.cursor = "pointer";
+        li.innerText = translate(this.title);
+        li.addEventListener("click", (ev : MouseEvent)=>{
+            SubMenu("メニュー", [
+                Menu("子のセクションを追加", this.addChildSection.bind(this)),
+                Menu("コピー", ()=>{}),
+                Menu("ペースト", ()=>{})
+            ])
+            .show(ev);
+        });
+
+        parent_ul.appendChild(li);
+
+        this.ul = document.createElement("ul");
+    
+        for(const item of this.children){
+            item.makeContents(this.ul);
+        }
+        
+        parent_ul.appendChild(this.ul);
+    }
+
+    async addChildSection(){
+        const text = await inputBox();
+        msg(`input ${text}`);
+        if(text == null){
+            return;
+        }
+
+        const section = new Section(text, this.id, text);
+        section.parent = this;
+        this.children.push(section);
+
+        await section.writeDB();
+        section.makeContents(this.ul!);
     }
 }
 
@@ -85,6 +126,7 @@ class Index extends DbItem {
 
     data() : any {
         return {
+            "parentId"  : this.parentId,
             "title"     : this.title,
             "assertion" : this.assertion.join("\n")
         };
@@ -92,6 +134,12 @@ class Index extends DbItem {
 
     str() : string {
         return `id:${this.id} title:${this.title}`;
+    }
+
+    makeContents(parent_ul : HTMLUListElement | HTMLDivElement) : void {
+        const title_li = document.createElement("li");
+        title_li.innerText = translate(this.title);
+        parent_ul.appendChild(title_li);
     }
 }
 
@@ -174,12 +222,35 @@ export async function initFirebase(){
 
     db = firebase.firestore();
 
-    const root = new Section("root", null, "目次");
-    await root.writeDB();
-
     const sections = await readSections();
 
+    let root : Section;
+    if(sections.length == 0){
+
+        root = new Section("root", null, "目次");
+        await root.writeDB();
+    }
+    else{
+        root = sections.find(x => x.parentId == null)!;
+        assert(root != undefined);
+    }
+
     const indexes = await readIndexes();
+
+    const sections_indexes = (sections as DbItem[]).concat(indexes);
+
+    const map = new Map<string, DbItem>();
+    sections_indexes.forEach(x => map.set(x.id, x));
+
+    for(const item of sections_indexes){
+        if(item.parentId != null){
+            const parent = map.get(item.parentId) as Section;
+            assert(parent != undefined);
+            
+            item.parent = parent;
+            parent.children.push(item);
+        }
+    }
 
     const doc = db.collection("formulas").doc("加法:交換法則");
     doc.set({
@@ -191,18 +262,15 @@ export async function initFirebase(){
 
         // MsgBox.show(`doc write OK:${doc.id}`, ()=>{
         //     msg("ok clicked");
-
-        //     SubMenu("メニュー", [
-        //         Menu("カット", ()=>{}),
-        //         Menu("コピー", ()=>{}),
-        //         Menu("ペースト", ()=>{})
-        //     ])
-        //     .show();
         // });
     })
     .catch((error) => {
         msg(`doc write ERROR!!!:${doc.id}`);
     });
+
+    const div = document.createElement("div");
+    root.makeContents(div);
+    document.body.appendChild(div);
 }
 
 }
