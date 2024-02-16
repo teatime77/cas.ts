@@ -4,8 +4,8 @@ let isEdit : boolean = false;
 
 let id_inp : HTMLInputElement;
 let title_inp : HTMLInputElement;
-let assertion_text : HTMLTextAreaElement;
-
+let assertionInput : HTMLTextAreaElement;
+let assertionTex : HTMLDivElement;
 
 // https://github.com/firebase/firebase-js-sdk をクローン
 // firebase-js-sdk/packages/firebase/index.d.ts を firebase.d.tsにリネームする。
@@ -20,16 +20,18 @@ abstract class DbItem {
     parentId : string  | null;
     parent   : Section | null = null;
     id       : string;
+    order    : number = 0;
     fnc      : (()=>void) | null = null;
-    ul       : HTMLUListElement | null = null;
+    ul       : HTMLUListElement | null = null;    
 
     abstract data()  : any;
     abstract table() : string;
     abstract makeContents(parent_ul : HTMLUListElement | HTMLDivElement) : void;
 
-    constructor(id : string, parent_id : string | null){
+    constructor(id : string, parent_id : string | null, order : number){
         this.id = id;
         this.parentId = parent_id;
+        this.order    = order;
     }
 
     async writeDB(fnc : (()=>void) | null = null) : Promise<void> {
@@ -47,21 +49,22 @@ class Section extends DbItem {
     children  : DbItem[] = [];
 
     static fromData(id : string, data : any) : Section {
-        return new Section(id, data.parentId, data.title)
+        return new Section(id, data.parentId, data.order, data.title)
     }
 
     table() : string {
         return "sections";
     }
 
-    constructor(id : string, parent_id : string | null, title : string){
-        super(id, parent_id);
+    constructor(id : string, parent_id : string | null, order : number, title : string){
+        super(id, parent_id, order);
         this.title  = title;
     }
 
     data() : any {
         return {
             "parentId" : this.parentId,
+            "order"     : this.order,
             "title"    : this.title
         }
     }
@@ -96,7 +99,7 @@ class Section extends DbItem {
             return;
         }
 
-        const section = new Section(text, this.id, text);
+        const section = new Section(text, this.id, this.children.length, text);
         section.parent = this;
         this.children.push(section);
 
@@ -110,9 +113,9 @@ class Section extends DbItem {
         if(title == ""){
             title = id;
         }
-        const assertion = assertion_text.value.trim().split("\n");
+        const assertion = assertionInput.value.trim().split("\n");
 
-        const index = new Index(id, this.id, title, assertion);
+        const index = new Index(id, this.id, this.children.length, title, assertion);
         index.parent = this;
         this.children.push(index);
 
@@ -126,15 +129,15 @@ class Index extends DbItem {
     assertion : string[];
 
     static fromData(id : string, data : any) : Index {
-        return new Index(id, data.parentId, data.title, (data.assertion as string).split("\n"))
+        return new Index(id, data.parentId, data.order, data.title, (data.assertion as string).split("\n"))
     }
 
     table() : string {
         return "indexes";
     }
 
-    constructor(id : string, parent_id : string | null, title : string, assertion : string[]){
-        super(id, parent_id);
+    constructor(id : string, parent_id : string | null, order : number, title : string, assertion : string[]){
+        super(id, parent_id, order);
         this.title     = title;
         this.assertion = assertion
     }
@@ -142,6 +145,7 @@ class Index extends DbItem {
     data() : any {
         return {
             "parentId"  : this.parentId,
+            "order"     : this.order,
             "title"     : this.title,
             "assertion" : this.assertion.join("\n")
         };
@@ -152,9 +156,13 @@ class Index extends DbItem {
     }
 
     makeContents(parent_ul : HTMLUListElement | HTMLDivElement) : void {
-        const title_li = document.createElement("li");
-        title_li.innerText = translate(this.title);
-        parent_ul.appendChild(title_li);
+        const li = document.createElement("li");
+        li.style.cursor = "pointer";
+        li.innerText = translate(this.title);
+        li.addEventListener("click", (ev : MouseEvent)=>{
+            render(assertionTex, this.assertion.join("\n"));
+        });
+        parent_ul.appendChild(li);
     }
 }
 
@@ -188,7 +196,8 @@ export async function initFirebase(){
 
         id_inp        = document.getElementById("doc-id") as HTMLInputElement;
         title_inp     = document.getElementById("doc-title") as HTMLInputElement;
-        assertion_text = document.getElementById("doc-assertion") as HTMLTextAreaElement;
+        assertionInput = document.getElementById("doc-assertion") as HTMLTextAreaElement;
+        assertionTex  = document.getElementById("assertion-tex") as HTMLDivElement;        
     }
 
     function auth() : Promise<firebase.User | null> {
@@ -242,7 +251,7 @@ export async function initFirebase(){
     let root : Section;
     if(sections.length == 0){
 
-        root = new Section("root", null, "目次");
+        root = new Section("root", null, 0, "目次");
         await root.writeDB();
     }
     else{
@@ -254,6 +263,8 @@ export async function initFirebase(){
 
     const sections_indexes = (sections as DbItem[]).concat(indexes);
 
+    // for(const x of sections_indexes){ await x.writeDB(); };
+
     const map = new Map<string, DbItem>();
     sections_indexes.forEach(x => map.set(x.id, x));
 
@@ -264,6 +275,12 @@ export async function initFirebase(){
             
             item.parent = parent;
             parent.children.push(item);
+        }
+    }
+
+    for(const section of sections){
+        if(2 <= section.children.length){
+            section.children.sort((a,b) => a.order - b.order);
         }
     }
 

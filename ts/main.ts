@@ -423,12 +423,13 @@ function mergeJson(js1 : any, js2 : any){
     }
 }
 
-async function main() {
+async function main() {    
     mathDivRoot = document.getElementById("math-div-root") as HTMLDivElement;
 
     const translation_text = await fetchText(`../data/translation.json`);
     translation = JSON.parse(translation_text);
 
+    initAction();
     await initFirebase();
 
     const index_text = await fetchText(`../data/index.json`);
