@@ -73,8 +73,7 @@ class Section extends DbItem {
         li.addEventListener("click", (ev : MouseEvent)=>{
             SubMenu("メニュー", [
                 Menu("子のセクションを追加", this.addChildSection.bind(this)),
-                Menu("コピー", ()=>{}),
-                Menu("ペースト", ()=>{})
+                Menu("項目を追加", this.addIndex.bind(this))
             ])
             .show(ev);
         });
@@ -103,6 +102,22 @@ class Section extends DbItem {
 
         await section.writeDB();
         section.makeContents(this.ul!);
+    }
+
+    async addIndex(){
+        const id = id_inp.value.trim();
+        let   title = title_inp.value.trim();
+        if(title == ""){
+            title = id;
+        }
+        const assertion = assertion_text.value.trim().split("\n");
+
+        const index = new Index(id, this.id, title, assertion);
+        index.parent = this;
+        this.children.push(index);
+
+        await index.writeDB();
+        index.makeContents(this.ul!);
     }
 }
 
