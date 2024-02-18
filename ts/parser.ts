@@ -984,7 +984,7 @@ export class Parser {
 
     RelationalExpression() : Term {
         let trm1 = this.AdditiveExpression();
-        while([ "==", "!=", "<", "<=", ].includes(this.token.text)){
+        while([ "==", "=", "!=", "<", "<=", ].includes(this.token.text)){
             let app = new App(operator(this.token.text), [trm1]);
             this.next();
 

@@ -24,6 +24,24 @@ export async function inputBox() : Promise<string | null> {
     });
 }
 
+export async function showDlg(dlg_id : string, ok_id : string) : Promise<boolean> {
+    const dlg = document.getElementById(dlg_id) as HTMLDialogElement;
+    dlg.showModal();
+
+    return new Promise((resolve) => {
+        const ok = document.getElementById(ok_id) as HTMLButtonElement;
+        ok.addEventListener("click", (ev : MouseEvent)=>{
+            resolve(true);
+            dlg.close();
+        });
+    
+        dlg.addEventListener("cancel", (ev : Event)=>{
+            resolve(false);
+        })
+    });
+}
+
+
 export class MsgBox {
     static dlg : HTMLDialogElement;
 

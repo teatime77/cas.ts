@@ -1,11 +1,10 @@
 namespace casts {
 
-let isEdit : boolean = false;
-
 let id_inp : HTMLInputElement;
 let title_inp : HTMLInputElement;
 let assertionInput : HTMLTextAreaElement;
 let assertionTex : HTMLDivElement;
+let contentsDlg : HTMLDialogElement;
 
 // https://github.com/firebase/firebase-js-sdk をクローン
 // firebase-js-sdk/packages/firebase/index.d.ts を firebase.d.tsにリネームする。
@@ -21,6 +20,7 @@ abstract class DbItem {
     parent   : Section | null = null;
     id       : string;
     order    : number = 0;
+    title    : string;
     fnc      : (()=>void) | null = null;
     ul       : HTMLUListElement | null = null;    
 
@@ -28,10 +28,11 @@ abstract class DbItem {
     abstract table() : string;
     abstract makeContents(parent_ul : HTMLUListElement | HTMLDivElement) : void;
 
-    constructor(id : string, parent_id : string | null, order : number){
+    constructor(id : string, parent_id : string | null, order : number, title : string){
         this.id = id;
         this.parentId = parent_id;
         this.order    = order;
+        this.title    = title;
     }
 
     async writeDB(fnc : (()=>void) | null = null) : Promise<void> {
@@ -45,7 +46,6 @@ abstract class DbItem {
 }
 
 class Section extends DbItem {
-    title     : string;
     children  : DbItem[] = [];
 
     static fromData(id : string, data : any) : Section {
@@ -57,8 +57,7 @@ class Section extends DbItem {
     }
 
     constructor(id : string, parent_id : string | null, order : number, title : string){
-        super(id, parent_id, order);
-        this.title  = title;
+        super(id, parent_id, order, title);
     }
 
     data() : any {
@@ -108,12 +107,17 @@ class Section extends DbItem {
     }
 
     async addIndex(){
+        const ok = await showDlg("index-dlg", "index-ok");
+        if(! ok){
+            return;
+        }
+
         const id = id_inp.value.trim();
         let   title = title_inp.value.trim();
         if(title == ""){
             title = id;
         }
-        const assertion = assertionInput.value.trim().split("\n");
+        const assertion = assertionInput.value.trim();
 
         const index = new Index(id, this.id, this.children.length, title, assertion);
         index.parent = this;
@@ -125,20 +129,18 @@ class Section extends DbItem {
 }
 
 class Index extends DbItem {
-    title     : string;
-    assertion : string[];
+    assertion : string;
 
     static fromData(id : string, data : any) : Index {
-        return new Index(id, data.parentId, data.order, data.title, (data.assertion as string).split("\n"))
+        return new Index(id, data.parentId, data.order, data.title, data.assertion)
     }
 
     table() : string {
         return "indexes";
     }
 
-    constructor(id : string, parent_id : string | null, order : number, title : string, assertion : string[]){
-        super(id, parent_id, order);
-        this.title     = title;
+    constructor(id : string, parent_id : string | null, order : number, title : string, assertion : string){
+        super(id, parent_id, order, title);
         this.assertion = assertion
     }
 
@@ -147,7 +149,7 @@ class Index extends DbItem {
             "parentId"  : this.parentId,
             "order"     : this.order,
             "title"     : this.title,
-            "assertion" : this.assertion.join("\n")
+            "assertion" : this.assertion
         };
     }
 
@@ -160,7 +162,9 @@ class Index extends DbItem {
         li.style.cursor = "pointer";
         li.innerText = translate(this.title);
         li.addEventListener("click", (ev : MouseEvent)=>{
-            render(assertionTex, this.assertion.join("\n"));
+            const expr = parseMath(this.assertion);
+
+            render(assertionTex, expr.tex());
         });
         parent_ul.appendChild(li);
     }
@@ -189,15 +193,14 @@ async function readIndexes() : Promise<Index[]> {
     return indexes;
 }
 
-export async function initFirebase(){
-    isEdit = window.location.href.includes("edit.html");
-
-    if(isEdit){
+export async function initFirebase(page : string){
+    if(page == "edit"){
 
         id_inp        = document.getElementById("doc-id") as HTMLInputElement;
         title_inp     = document.getElementById("doc-title") as HTMLInputElement;
         assertionInput = document.getElementById("doc-assertion") as HTMLTextAreaElement;
         assertionTex  = document.getElementById("assertion-tex") as HTMLDivElement;        
+        contentsDlg    = document.getElementById("contents-dlg") as HTMLDialogElement;
     }
 
     function auth() : Promise<firebase.User | null> {
@@ -300,9 +303,13 @@ export async function initFirebase(){
         msg(`doc write ERROR!!!:${doc.id}`);
     });
 
-    const div = document.createElement("div");
-    root.makeContents(div);
-    document.body.appendChild(div);
+    if(page == "edit"){
+        const div = document.getElementById("contents-div") as HTMLDivElement;
+        root.makeContents(div);
+
+        contentsDlg.showModal();
+    }
+    
 }
 
 }

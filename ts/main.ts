@@ -423,14 +423,14 @@ function mergeJson(js1 : any, js2 : any){
     }
 }
 
-async function main() {    
+async function main(page : string) {    
     mathDivRoot = document.getElementById("math-div-root") as HTMLDivElement;
 
     const translation_text = await fetchText(`../data/translation.json`);
     translation = JSON.parse(translation_text);
 
     initAction();
-    await initFirebase();
+    await initFirebase(page);
 
     const index_text = await fetchText(`../data/index.json`);
     const index = JSON.parse(index_text);
@@ -456,12 +456,15 @@ async function main() {
         return;
     }
 
-    const div = document.createElement("div");
-    makeIndex(div, index)
-    document.body.appendChild(div);
+    if(page == "index"){
+
+        const div = document.createElement("div");
+        makeIndex(div, index)
+        document.body.appendChild(div);
+    }
 }
 
-export function bodyOnLoad(){
-    main();
+export function bodyOnLoad(page : string){
+    main(page);
 }
 }

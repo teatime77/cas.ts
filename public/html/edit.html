@@ -30,7 +30,7 @@
     <!-- To automatically render math in text elements, include the auto-render extension: -->
     <script defer src="../katex/contrib/auto-render.min.js" integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
 
-    <script type="text/javascript" src="../js/main.js?ver=27"></script>
+    <script type="text/javascript" src="../js/main.js?ver=0"></script>
 
 <script>
 </script>
@@ -73,7 +73,7 @@
 }
 </style>
 </head>
-<body onload="casts.bodyOnLoad()">
+<body onload="casts.bodyOnLoad('edit')">
 
 <h1>数学と物理の公式・定理集</h1>  
 
@@ -81,22 +81,25 @@
 <!-- <iframe id="map-iframe" src="./map.svg" ></iframe> -->
 <div id="math-div-root"></div>
 
-<div style="display: grid; grid-template-columns: 300px 1fr;">
+<dialog id="index-dlg">
+  <div style="display: grid; grid-template-columns: 300px 1fr;">
     <span>ID</span>
     <input id="doc-id" type="text" style="width: 10em;"  />
-
+  
     <span>タイトル</span>
     <input id="doc-title" type="text" style="width: 10em;"  />
-
+  
     <span>主張</span>
     <textarea id="doc-assertion" type="text" cols="100" rows="5"></textarea>
-</div>
+  </div>
+  <button id="index-ok">OK</button>
+</dialog>
+
 
 <div id="assertion-tex"></div>
 
 <div style="display: grid; grid-template-columns: 1fr 1fr;">
   <button onclick="casts.eqActionBtn()" >操作</button>
-  <button onclick="casts.writeFormula()">登録</button>
   <button>クリア</button>
 </div>
 
@@ -118,6 +121,10 @@
   <span class="l1">式の操作</span><br/>
     <span class="l2">左辺と右辺を交換</span><br/>
     <span class="l2">式に番号をつける</span><br/>
+</dialog>
+
+<dialog id="contents-dlg">
+  <div id="contents-div"></div>
 </dialog>
 
 </body>
