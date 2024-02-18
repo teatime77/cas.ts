@@ -24,6 +24,10 @@ export async function inputBox() : Promise<string | null> {
     });
 }
 
+export function showMsg(text : string){
+    msg(`show msg:${text}`);
+}
+
 export async function showDlg(dlg_id : string, ok_id : string) : Promise<boolean> {
     const dlg = document.getElementById(dlg_id) as HTMLDialogElement;
     dlg.showModal();

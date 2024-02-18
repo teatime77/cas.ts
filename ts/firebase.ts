@@ -1,6 +1,5 @@
 namespace casts {
 
-let id_inp : HTMLInputElement;
 let title_inp : HTMLInputElement;
 let assertionInput : HTMLTextAreaElement;
 let assertionTex : HTMLDivElement;
@@ -14,11 +13,19 @@ const defaultUid = "ngwpo76dYib1LoszZObGdfNswnm4";
 let loginUid : string | null = null;
 let guestUid = defaultUid;
 
+let Sections : Section[];
+let Indexes : Index[];
+
+function getMaxId() : number {
+    const dbitems = (Sections as DbItem[]).concat(Indexes);
+
+    return dbitems.map(x => x.id).reduce((acc,cur)=> Math.max(acc, cur), 0);
+}
 
 abstract class DbItem {
-    parentId : string  | null;
+    parentId : number  | null;
     parent   : Section | null = null;
-    id       : string;
+    id       : number;
     order    : number = 0;
     title    : string;
     fnc      : (()=>void) | null = null;
@@ -28,7 +35,7 @@ abstract class DbItem {
     abstract table() : string;
     abstract makeContents(parent_ul : HTMLUListElement | HTMLDivElement) : void;
 
-    constructor(id : string, parent_id : string | null, order : number, title : string){
+    constructor(id : number, parent_id : number | null, order : number, title : string){
         this.id = id;
         this.parentId = parent_id;
         this.order    = order;
@@ -36,9 +43,19 @@ abstract class DbItem {
     }
 
     async writeDB(fnc : (()=>void) | null = null) : Promise<void> {
-        await db.collection('users').doc(loginUid!).collection(this.table()).doc(this.id).set(this.data());
+        await db.collection('users').doc(loginUid!).collection(this.table()).doc(`${this.id}`).set(this.data());
 
         console.log(`OK:write ${this.table()} ${this.id}`);
+        if(this instanceof Section){
+            Sections.push(this);
+        }
+        else if(this instanceof Index){
+            Indexes.push(this);
+        }
+        else{
+            assert(false);
+        }
+
         if(fnc != null){
             fnc();
         }
@@ -48,7 +65,7 @@ abstract class DbItem {
 class Section extends DbItem {
     children  : DbItem[] = [];
 
-    static fromData(id : string, data : any) : Section {
+    static fromData(id : number, data : any) : Section {
         return new Section(id, data.parentId, data.order, data.title)
     }
 
@@ -56,14 +73,14 @@ class Section extends DbItem {
         return "sections";
     }
 
-    constructor(id : string, parent_id : string | null, order : number, title : string){
+    constructor(id : number, parent_id : number | null, order : number, title : string){
         super(id, parent_id, order, title);
     }
 
     data() : any {
         return {
             "parentId" : this.parentId,
-            "order"     : this.order,
+            "order"    : this.order,
             "title"    : this.title
         }
     }
@@ -92,13 +109,13 @@ class Section extends DbItem {
     }
 
     async addChildSection(){
-        const text = await inputBox();
-        msg(`input ${text}`);
-        if(text == null){
+        const title = await inputBox();
+        msg(`input ${title}`);
+        if(title == null){
             return;
         }
 
-        const section = new Section(text, this.id, this.children.length, text);
+        const section = new Section(getMaxId() + 1, this.id, this.children.length, title);
         section.parent = this;
         this.children.push(section);
 
@@ -112,14 +129,21 @@ class Section extends DbItem {
             return;
         }
 
-        const id = id_inp.value.trim();
         let   title = title_inp.value.trim();
         if(title == ""){
-            title = id;
-        }
-        const assertion = assertionInput.value.trim();
 
-        const index = new Index(id, this.id, this.children.length, title, assertion);
+            showMsg(`title is empty!`);
+            return;
+        }
+
+        const assertion = assertionInput.value.trim();
+        if(assertion == ""){
+
+            showMsg(`assertion is empty!`);
+            return;
+        }
+
+        const index = new Index(getMaxId() + 1, this.id, this.children.length, title, assertion);
         index.parent = this;
         this.children.push(index);
 
@@ -131,7 +155,7 @@ class Section extends DbItem {
 class Index extends DbItem {
     assertion : string;
 
-    static fromData(id : string, data : any) : Index {
+    static fromData(id : number, data : any) : Index {
         return new Index(id, data.parentId, data.order, data.title, data.assertion)
     }
 
@@ -139,7 +163,7 @@ class Index extends DbItem {
         return "indexes";
     }
 
-    constructor(id : string, parent_id : string | null, order : number, title : string, assertion : string){
+    constructor(id : number, parent_id : number | null, order : number, title : string, assertion : string){
         super(id, parent_id, order, title);
         this.assertion = assertion
     }
@@ -175,7 +199,8 @@ async function readSections() : Promise<Section[]> {
 
     const sections : Section[] = [];
     snapshot.forEach((doc)=>{
-        sections.push( Section.fromData(doc.id, doc.data()) );
+        const id = parseInt(doc.id);
+        sections.push( Section.fromData(id, doc.data()) );
     });
 
     return sections;
@@ -187,7 +212,8 @@ async function readIndexes() : Promise<Index[]> {
 
     const indexes : Index[] = [];
     snapshot.forEach((doc)=>{
-        indexes.push( Index.fromData(doc.id, doc.data()) );
+        const id = parseInt(doc.id);
+        indexes.push( Index.fromData(id, doc.data()) );
     });
 
     return indexes;
@@ -196,10 +222,9 @@ async function readIndexes() : Promise<Index[]> {
 export async function initFirebase(page : string){
     if(page == "edit"){
 
-        id_inp        = document.getElementById("doc-id") as HTMLInputElement;
-        title_inp     = document.getElementById("doc-title") as HTMLInputElement;
+        title_inp      = document.getElementById("doc-title") as HTMLInputElement;
         assertionInput = document.getElementById("doc-assertion") as HTMLTextAreaElement;
-        assertionTex  = document.getElementById("assertion-tex") as HTMLDivElement;        
+        assertionTex   = document.getElementById("assertion-tex") as HTMLDivElement;        
         contentsDlg    = document.getElementById("contents-dlg") as HTMLDialogElement;
     }
 
@@ -249,26 +274,26 @@ export async function initFirebase(page : string){
 
     db = firebase.firestore();
 
-    const sections = await readSections();
+    Sections = await readSections();
 
     let root : Section;
-    if(sections.length == 0){
+    if(Sections.length == 0){
 
-        root = new Section("root", null, 0, "目次");
+        root = new Section(0, null, 0, "目次");
         await root.writeDB();
     }
     else{
-        root = sections.find(x => x.parentId == null)!;
-        assert(root != undefined);
+        root = Sections.find(x => x.parentId == null)!;
+        assert(root != undefined && root.id == 0);
     }
 
-    const indexes = await readIndexes();
+    Indexes = await readIndexes();
 
-    const sections_indexes = (sections as DbItem[]).concat(indexes);
+    const sections_indexes = (Sections as DbItem[]).concat(Indexes);
 
     // for(const x of sections_indexes){ await x.writeDB(); };
 
-    const map = new Map<string, DbItem>();
+    const map = new Map<number, DbItem>();
     sections_indexes.forEach(x => map.set(x.id, x));
 
     for(const item of sections_indexes){
@@ -281,27 +306,11 @@ export async function initFirebase(page : string){
         }
     }
 
-    for(const section of sections){
+    for(const section of Sections){
         if(2 <= section.children.length){
             section.children.sort((a,b) => a.order - b.order);
         }
     }
-
-    const doc = db.collection("formulas").doc("加法:交換法則");
-    doc.set({
-        title : "交換法則",
-        assertion : "a + b = b + a"
-    })
-    .then(() => {
-        msg(`doc write OK:${doc.id}`);
-
-        // MsgBox.show(`doc write OK:${doc.id}`, ()=>{
-        //     msg("ok clicked");
-        // });
-    })
-    .catch((error) => {
-        msg(`doc write ERROR!!!:${doc.id}`);
-    });
 
     if(page == "edit"){
         const div = document.getElementById("contents-div") as HTMLDivElement;
