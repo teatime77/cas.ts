@@ -1,5 +1,10 @@
 namespace casts {
 
+export function bindClick(id : string, fnc : ()=>void){
+    const ele = document.getElementById(id)!;
+    ele.onclick = fnc;
+}
+
 export async function inputBox() : Promise<string | null> {
     const dlg = document.getElementById("input-box-dlg") as HTMLDialogElement;
     dlg.showModal();
@@ -28,7 +33,14 @@ export function showMsg(text : string){
     msg(`show msg:${text}`);
 }
 
-export async function showDlg(dlg_id : string, ok_id : string) : Promise<boolean> {
+export function showDlg(ev : MouseEvent, dlg_id : string){
+    const dlg = document.getElementById(dlg_id) as HTMLDialogElement;
+    dlg.style.left = ev.pageX + "px";
+    dlg.style.top  = ev.pageY + "px";
+    dlg.showModal();
+}
+
+export async function showDlgOk(dlg_id : string, ok_id : string) : Promise<boolean> {
     const dlg = document.getElementById(dlg_id) as HTMLDialogElement;
     dlg.showModal();
 

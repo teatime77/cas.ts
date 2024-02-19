@@ -4,6 +4,7 @@ let title_inp : HTMLInputElement;
 let assertionInput : HTMLTextAreaElement;
 let assertionTex : HTMLDivElement;
 let contentsDlg : HTMLDialogElement;
+let indexMenuDlg : HTMLDialogElement;
 
 // https://github.com/firebase/firebase-js-sdk をクローン
 // firebase-js-sdk/packages/firebase/index.d.ts を firebase.d.tsにリネームする。
@@ -22,6 +23,32 @@ function getMaxId() : number {
     return dbitems.map(x => x.id).reduce((acc,cur)=> Math.max(acc, cur), 0);
 }
 
+async function inputIndex(title : string = "", assertion : string = "") : Promise<[string, string] | null> {
+    title_inp.value = title;
+    assertionInput.value = assertion;
+
+    const ok = await showDlgOk("index-dlg", "index-ok");
+    if(! ok){
+        return null;
+    }
+
+    title = title_inp.value.trim();
+    if(title == ""){
+
+        showMsg(`title is empty!`);
+        return null;
+    }
+
+    assertion = assertionInput.value.trim();
+    if(assertion == ""){
+
+        showMsg(`assertion is empty!`);
+        return null;
+    }
+
+    return [title, assertion];
+}
+
 abstract class DbItem {
     parentId : number  | null;
     parent   : Section | null = null;
@@ -29,6 +56,7 @@ abstract class DbItem {
     order    : number = 0;
     title    : string;
     fnc      : (()=>void) | null = null;
+    li       : HTMLLIElement | null = null;
     ul       : HTMLUListElement | null = null;    
 
     abstract data()  : any;
@@ -42,10 +70,10 @@ abstract class DbItem {
         this.title    = title;
     }
 
-    async writeDB(fnc : (()=>void) | null = null) : Promise<void> {
+    async putDB(fnc : (()=>void) | null = null) : Promise<void> {
         await db.collection('users').doc(loginUid!).collection(this.table()).doc(`${this.id}`).set(this.data());
 
-        console.log(`OK:write ${this.table()} ${this.id}`);
+        console.log(`OK:put ${this.table()} ${this.id}`);
         if(this instanceof Section){
             Sections.push(this);
         }
@@ -55,6 +83,15 @@ abstract class DbItem {
         else{
             assert(false);
         }
+
+        if(fnc != null){
+            fnc();
+        }
+    }
+
+    async updateDB(fnc : (()=>void) | null = null) : Promise<void> {
+        await db.collection('users').doc(loginUid!).collection(this.table()).doc(`${this.id}`).set(this.data());
+        console.log(`OK:edit ${this.table()} ${this.id}`);
 
         if(fnc != null){
             fnc();
@@ -86,18 +123,18 @@ class Section extends DbItem {
     }
 
     makeContents(parent_ul : HTMLUListElement | HTMLDivElement){
-        const li = document.createElement("li");
-        li.style.cursor = "pointer";
-        li.innerText = translate(this.title);
-        li.addEventListener("click", (ev : MouseEvent)=>{
-            SubMenu("メニュー", [
-                Menu("子のセクションを追加", this.addChildSection.bind(this)),
-                Menu("項目を追加", this.addIndex.bind(this))
-            ])
-            .show(ev);
+        this.li = document.createElement("li");
+        this.li.style.cursor = "pointer";
+        this.li.innerText = translate(this.title);
+        this.li.addEventListener("contextmenu", (ev : MouseEvent)=>{
+            ev.preventDefault();
+
+            bindClick("add-section", this.addChildSection.bind(this));
+            bindClick("add-index", this.addIndex.bind(this));
+            showDlg(ev, "section-menu-dlg");
         });
 
-        parent_ul.appendChild(li);
+        parent_ul.appendChild(this.li);
 
         this.ul = document.createElement("ul");
     
@@ -119,35 +156,22 @@ class Section extends DbItem {
         section.parent = this;
         this.children.push(section);
 
-        await section.writeDB();
+        await section.putDB();
         section.makeContents(this.ul!);
     }
 
     async addIndex(){
-        const ok = await showDlg("index-dlg", "index-ok");
-        if(! ok){
+        const res = await inputIndex();
+        if(res == null){
             return;
         }
-
-        let   title = title_inp.value.trim();
-        if(title == ""){
-
-            showMsg(`title is empty!`);
-            return;
-        }
-
-        const assertion = assertionInput.value.trim();
-        if(assertion == ""){
-
-            showMsg(`assertion is empty!`);
-            return;
-        }
+        const [title, assertion] = res;
 
         const index = new Index(getMaxId() + 1, this.id, this.children.length, title, assertion);
         index.parent = this;
         this.children.push(index);
 
-        await index.writeDB();
+        await index.putDB();
         index.makeContents(this.ul!);
     }
 }
@@ -182,15 +206,50 @@ class Index extends DbItem {
     }
 
     makeContents(parent_ul : HTMLUListElement | HTMLDivElement) : void {
-        const li = document.createElement("li");
-        li.style.cursor = "pointer";
-        li.innerText = translate(this.title);
-        li.addEventListener("click", (ev : MouseEvent)=>{
+        this.li = document.createElement("li");
+        this.li.style.cursor = "pointer";
+        this.li.innerText = translate(this.title);
+
+        this.li.addEventListener("click", (ev : MouseEvent)=>{
             const expr = parseMath(this.assertion);
 
             render(assertionTex, expr.tex());
         });
-        parent_ul.appendChild(li);
+
+        this.li.addEventListener("contextmenu", (ev : MouseEvent)=>{
+            ev.preventDefault();
+
+            bindClick("index-menu-edit", this.edit.bind(this));
+            bindClick("index-menu-delete", this.delete.bind(this));
+            showDlg(ev, "index-menu-dlg");
+        });
+
+        parent_ul.appendChild(this.li);
+    }
+
+    async edit(){
+        msg("edit start");
+
+        indexMenuDlg.close();
+
+        const res = await inputIndex(this.title, this.assertion);
+        if(res == null){
+            return;
+        }
+
+        [this.title, this.assertion] = res;
+
+        this.li!.innerText = translate(this.title);
+
+        await this.updateDB();
+
+        // contentsDlg.close();
+    }
+
+    delete(){
+        msg("delete start");
+        indexMenuDlg.close();
+        contentsDlg.close();
     }
 }
 
@@ -226,6 +285,7 @@ export async function initFirebase(page : string){
         assertionInput = document.getElementById("doc-assertion") as HTMLTextAreaElement;
         assertionTex   = document.getElementById("assertion-tex") as HTMLDivElement;        
         contentsDlg    = document.getElementById("contents-dlg") as HTMLDialogElement;
+        indexMenuDlg   = document.getElementById("index-menu-dlg") as HTMLDialogElement;
     }
 
     function auth() : Promise<firebase.User | null> {
@@ -280,7 +340,7 @@ export async function initFirebase(page : string){
     if(Sections.length == 0){
 
         root = new Section(0, null, 0, "目次");
-        await root.writeDB();
+        await root.putDB();
     }
     else{
         root = Sections.find(x => x.parentId == null)!;
