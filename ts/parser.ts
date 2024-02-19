@@ -2,6 +2,10 @@ namespace casts {
 
 export const pathSep = ":";
 
+export function Zero() : ConstNum {
+    return new ConstNum(0);
+}
+
 function isGreek(text : string) : boolean {
     const greeks = [
         "alpha", "beta", "gamma", "delta", "epsilon", "varepsilon", "zeta", "eta", "theta", 
@@ -683,20 +687,24 @@ export class App extends Term{
             }
         }
 
-        if((this.isAdd() || this.isMul()) && this.parent!.fncName == "lim"){
+        if(this.parent != null){
 
-            return `(${text})`;
-        }
-        else if(this.isOperator() && this.parent != null && this.parent.isOperator() && !this.parent.isDiv()){
-            if(this.parent.fncName == "^" && this.parent.args[1] == this){
-                return text;
+            if((this.isAdd() || this.isMul()) && this.parent.fncName == "lim"){
+
+                return `(${text})`;
+            }
+            else if(this.isOperator() && this.parent.isOperator() && !this.parent.isDiv()){
+                if(this.parent.fncName == "^" && this.parent.args[1] == this){
+                    return text;
+                }
+
+                if(this.parent.precedence() <= this.precedence()){
+                    return `(${text})`;
+                }            
             }
 
-            if(this.parent.precedence() <= this.precedence()){
-                return `(${text})`;
-            }            
         }
-
+        
         return text;
     }
 

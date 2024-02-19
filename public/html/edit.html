@@ -75,6 +75,9 @@
   margin-left: 20px;
   cursor:pointer;
 }
+.menu_dlg {
+  position: absolute; margin: 0;
+}
 </style>
 </head>
 <body onload="casts.bodyOnLoad('edit')">
@@ -82,8 +85,13 @@
 <h1>数学と物理の公式・定理集</h1>  
 
 数式処理を使って数学や物理の式の導出をしています。
-<!-- <iframe id="map-iframe" src="./map.svg" ></iframe> -->
+
+<h2 id="title-h"></h2>
+<div id="assertion-tex"></div>
+
+<div id="candidate-div" class="container" ></div>
 <div id="math-div-root"></div>
+
 
 <dialog id="index-dlg">
   <div style="display: grid; grid-template-columns: 300px 1fr;">
@@ -96,17 +104,16 @@
   <button id="index-ok">OK</button>
 </dialog>
 
-<dialog id="section-menu-dlg" style="position: absolute; margin: 0;">
+<dialog id="section-menu-dlg" class="menu_dlg">
   <span class="mn1" id="add-section">セクションを追加</span><br/>
   <span class="mn1" id="add-index">項目を追加</span><br/>
 </dialog>
 
-<dialog id="index-menu-dlg" style="position: absolute; margin: 0;">
+<dialog id="index-menu-dlg" class="menu_dlg">
   <span class="mn1" id="index-menu-edit">編集</span><br/>
   <span class="mn1" id="index-menu-delete">削除</span><br/>
+  <span class="mn1" id="index-menu-proof">証明</span><br/>
 </dialog>
-
-<div id="assertion-tex"></div>
 
 <div style="display: grid; grid-template-columns: 1fr 1fr;">
   <button onclick="casts.eqActionBtn()" >操作</button>
@@ -119,10 +126,10 @@
   <button id="input-box-ok">OK</button>
 </dialog>
 
-<dialog id="eq-action-dlg">
+<dialog id="eq-action-dlg" class="menu_dlg">
   <span class="l1">辺を追加</span><br/>
-    <span class="l2">主張の左辺</span><br/>
-    <span class="l2">主張の右辺</span><br/>
+    <span class="l2" onclick="casts.addAssertionLeft()">主張の左辺</span><br/>
+    <span class="l2" onclick="casts.addAssertionRight()">主張の右辺</span><br/>
 
   <span class="l1">式を追加</span><br/>
     <span class="l2">公式</span><br/>

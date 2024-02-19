@@ -1,5 +1,22 @@
 namespace casts {
 
+const $dic = new Map<string, HTMLElement>();
+
+
+export function $(id : string) : HTMLElement {
+    let ele = $dic.get(id);
+    if(ele == undefined){
+        ele = document.getElementById(id)!;
+        $dic.set(id, ele);
+    }
+
+    return ele;
+}
+
+export function $h(id : string) : HTMLHeadElement {
+    return $(id) as HTMLHeadElement;
+}
+
 export function bindClick(id : string, fnc : ()=>void){
     const ele = document.getElementById(id)!;
     ele.onclick = fnc;
@@ -33,6 +50,10 @@ export function showMsg(text : string){
     msg(`show msg:${text}`);
 }
 
+export function closeDlg(dlg_id : string){
+    ($(dlg_id) as HTMLDialogElement).close();
+}
+
 export function showDlg(ev : MouseEvent, dlg_id : string){
     const dlg = document.getElementById(dlg_id) as HTMLDialogElement;
     dlg.style.left = ev.pageX + "px";
@@ -57,6 +78,16 @@ export async function showDlgOk(dlg_id : string, ok_id : string) : Promise<boole
     });
 }
 
+export function onContextmenu(ev : MouseEvent){
+    ev.preventDefault();
+
+    switch((ev.currentTarget as HTMLElement).id){
+    case "assertion-tex":
+        showDlg(ev, "eq-action-dlg");
+        break;
+    }
+
+}
 
 export class MsgBox {
     static dlg : HTMLDialogElement;

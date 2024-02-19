@@ -4,6 +4,7 @@ let title_inp : HTMLInputElement;
 let assertionInput : HTMLTextAreaElement;
 let assertionTex : HTMLDivElement;
 let contentsDlg : HTMLDialogElement;
+let sectionMenuDlg : HTMLDialogElement;
 let indexMenuDlg : HTMLDialogElement;
 
 // https://github.com/firebase/firebase-js-sdk をクローン
@@ -146,6 +147,8 @@ class Section extends DbItem {
     }
 
     async addChildSection(){
+        sectionMenuDlg.close();
+
         const title = await inputBox();
         msg(`input ${title}`);
         if(title == null){
@@ -161,6 +164,8 @@ class Section extends DbItem {
     }
 
     async addIndex(){
+        sectionMenuDlg.close();
+
         const res = await inputIndex();
         if(res == null){
             return;
@@ -176,7 +181,7 @@ class Section extends DbItem {
     }
 }
 
-class Index extends DbItem {
+export class Index extends DbItem {
     assertion : string;
 
     static fromData(id : number, data : any) : Index {
@@ -221,6 +226,7 @@ class Index extends DbItem {
 
             bindClick("index-menu-edit", this.edit.bind(this));
             bindClick("index-menu-delete", this.delete.bind(this));
+            bindClick("index-menu-proof", this.proof.bind(this));
             showDlg(ev, "index-menu-dlg");
         });
 
@@ -250,6 +256,14 @@ class Index extends DbItem {
         msg("delete start");
         indexMenuDlg.close();
         contentsDlg.close();
+    }
+
+    proof(){
+        msg("proof start");
+        indexMenuDlg.close();
+        contentsDlg.close();
+
+        startProof(this);
     }
 }
 
@@ -285,6 +299,7 @@ export async function initFirebase(page : string){
         assertionInput = document.getElementById("doc-assertion") as HTMLTextAreaElement;
         assertionTex   = document.getElementById("assertion-tex") as HTMLDivElement;        
         contentsDlg    = document.getElementById("contents-dlg") as HTMLDialogElement;
+        sectionMenuDlg = document.getElementById("section-menu-dlg") as HTMLDialogElement;
         indexMenuDlg   = document.getElementById("index-menu-dlg") as HTMLDialogElement;
     }
 
