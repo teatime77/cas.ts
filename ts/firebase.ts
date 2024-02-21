@@ -2,7 +2,6 @@ namespace casts {
 
 let title_inp : HTMLInputElement;
 let assertionInput : HTMLTextAreaElement;
-let assertionTex : HTMLDivElement;
 let contentsDlg : HTMLDialogElement;
 let sectionMenuDlg : HTMLDialogElement;
 let indexMenuDlg : HTMLDialogElement;
@@ -218,7 +217,7 @@ export class Index extends DbItem {
         this.li.addEventListener("click", (ev : MouseEvent)=>{
             const expr = parseMath(this.assertion);
 
-            render(assertionTex, expr.tex());
+            render($("assertion-tex"), expr.tex());
         });
 
         this.li.addEventListener("contextmenu", (ev : MouseEvent)=>{
@@ -297,7 +296,6 @@ export async function initFirebase(page : string){
 
         title_inp      = document.getElementById("doc-title") as HTMLInputElement;
         assertionInput = document.getElementById("doc-assertion") as HTMLTextAreaElement;
-        assertionTex   = document.getElementById("assertion-tex") as HTMLDivElement;        
         contentsDlg    = document.getElementById("contents-dlg") as HTMLDialogElement;
         sectionMenuDlg = document.getElementById("section-menu-dlg") as HTMLDialogElement;
         indexMenuDlg   = document.getElementById("index-menu-dlg") as HTMLDialogElement;

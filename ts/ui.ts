@@ -81,12 +81,13 @@ export async function showDlgOk(dlg_id : string, ok_id : string) : Promise<boole
 export function onContextmenu(ev : MouseEvent){
     ev.preventDefault();
 
-    switch((ev.currentTarget as HTMLElement).id){
-    case "assertion-tex":
-        showDlg(ev, "eq-action-dlg");
-        break;
-    }
+    if(ev.currentTarget instanceof HTMLDivElement){
+        const div = ev.currentTarget;
+        if(div.id == "assertion-tex" || div.className == "math-div"){
 
+            showDlg(ev, "eq-action-dlg");
+        }
+    }
 }
 
 export class MsgBox {

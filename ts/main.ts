@@ -429,7 +429,10 @@ async function main(page : string) {
     const translation_text = await fetchText(`../data/translation.json`);
     translation = JSON.parse(translation_text);
 
-    initAction();
+    if(page == "edit"){
+
+        initAction();
+    }
     await initFirebase(page);
 
     const index_text = await fetchText(`../data/index.json`);

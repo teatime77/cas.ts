@@ -2,27 +2,45 @@ namespace casts {
 //
 let eqActionDlg : HTMLDialogElement;
 let index : Index;
-let actions : App[];
+let actions : Action[];
 let assertion : App;
 let alg : Algebra;
 
+export class Action {
+    expr : App;
+    div  : HTMLDivElement;
+
+    constructor(expr : App, div : HTMLDivElement){
+        this.expr = expr;
+        this.div  = div;
+    }
+}
 
 function actionRef(name : string) : RefVar {
     return new RefVar(name);
 }
 
-function doAction(act : App){
-    switch(act.fncName){
-    case "@assertion_side":{
-        assert(act.args.length == 1 && act.args[0] instanceof ConstNum);
-        const side_idx = act.args[0].value.int();
+function doCommand(cmd : App){
+    let act : Action;
+    
+    switch(cmd.fncName){
+    case "@add_side":{
+        assert(cmd.args.length == 1 && cmd.args[0] instanceof ConstNum);
+        const side_idx = cmd.args[0].value.int();
         assert(side_idx < assertion.args.length);
         const side = assertion.args[side_idx].clone() as App;
         side.setParent(null);
         alg.setRoot(side);
+        act = new Action(side, mathDiv);
+        mathDiv.addEventListener("contextmenu", onContextmenu);
         break;
     }
+
+    default:
+        throw new MyError("do command");
     }
+
+    actions.push(act);
 }
 
 export function startProof(index_arg : Index){
@@ -34,31 +52,25 @@ export function startProof(index_arg : Index){
     assert(assertion.isEq());
     render($("assertion-tex"), assertion.tex());
 
-    $("assertion-tex").addEventListener("contextmenu", onContextmenu);
-
     actions = [];
 }
 
 export function initAction(){
     eqActionDlg = document.getElementById("eq-action-dlg") as HTMLDialogElement;
+
+    $("assertion-tex").addEventListener("contextmenu", onContextmenu);
 }
 
-export function eqActionBtn(){
-    eqActionDlg.showModal();
-}    
-
-export function addAssertionLeft(){
+export function addLHS(){
     closeDlg("eq-action-dlg");
-    const act = new App(actionRef("@assertion_side"), [Zero()]);
-    actions.push(act);
-    doAction(act);
+    const cmd = new App(actionRef("@add_side"), [Zero()]);
+    doCommand(cmd);
 }
 
-export function addAssertionRight(){
+export function addRHS(){
     closeDlg("eq-action-dlg");
-    const act = new App(actionRef("@assertion_side"), [new ConstNum(assertion.args.length - 1)]);
-    actions.push(act);
-    doAction(act);
+    const cmd = new App(actionRef("@add_side"), [new ConstNum(assertion.args.length - 1)]);
+    doCommand(cmd);
 }
 
 }

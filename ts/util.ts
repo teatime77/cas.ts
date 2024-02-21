@@ -68,6 +68,7 @@ export function render(ele: HTMLElement, tex_text: string){
 
 export function makeMathDiv(){
     mathDiv = document.createElement("div");
+    mathDiv.className = "math-div";
     mathDivRoot.appendChild(mathDiv);
 }
 

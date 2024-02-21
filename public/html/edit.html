@@ -78,6 +78,10 @@
 .menu_dlg {
   position: absolute; margin: 0;
 }
+.math-div {
+  background-color: cornsilk;
+}
+
 </style>
 </head>
 <body onload="casts.bodyOnLoad('edit')">
@@ -111,14 +115,10 @@
 
 <dialog id="index-menu-dlg" class="menu_dlg">
   <span class="mn1" id="index-menu-edit">編集</span><br/>
-  <span class="mn1" id="index-menu-delete">削除</span><br/>
   <span class="mn1" id="index-menu-proof">証明</span><br/>
+  <span class="mn1" id="index-menu-delete"></span><br/>
+  <span class="mn1" id="index-menu-delete">削除</span><br/>
 </dialog>
-
-<div style="display: grid; grid-template-columns: 1fr 1fr;">
-  <button onclick="casts.eqActionBtn()" >操作</button>
-  <button>クリア</button>
-</div>
 
 <dialog id="input-box-dlg">
   <h4 id="input-box-label"></h4>
@@ -128,8 +128,8 @@
 
 <dialog id="eq-action-dlg" class="menu_dlg">
   <span class="l1">辺を追加</span><br/>
-    <span class="l2" onclick="casts.addAssertionLeft()">主張の左辺</span><br/>
-    <span class="l2" onclick="casts.addAssertionRight()">主張の右辺</span><br/>
+    <span class="l2" onclick="casts.addLHS()">左辺</span><br/>
+    <span class="l2" onclick="casts.addRHS()">右辺</span><br/>
 
   <span class="l1">式を追加</span><br/>
     <span class="l2">公式</span><br/>
