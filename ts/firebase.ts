@@ -49,7 +49,11 @@ async function inputIndex(title : string = "", assertion : string = "") : Promis
     return [title, assertion];
 }
 
-abstract class DbItem {
+export async function writeDB(table_name : string, id : number, data : any) : Promise<void> {
+    await db.collection('users').doc(loginUid!).collection(table_name).doc(`${id}`).set(data);
+}
+
+export abstract class DbItem {
     parentId : number  | null;
     parent   : Section | null = null;
     id       : number;
@@ -182,6 +186,7 @@ class Section extends DbItem {
 
 export class Index extends DbItem {
     assertion : string;
+    commands  : string[] | null = null;
 
     static fromData(id : number, data : any) : Index {
         return new Index(id, data.parentId, data.order, data.title, data.assertion)
@@ -263,6 +268,32 @@ export class Index extends DbItem {
         contentsDlg.close();
 
         startProof(this);
+    }
+
+    async readProof() : Promise<void> {
+        this.commands = [];
+
+        const doc_ref : firebase.firestore.DocumentReference = await db.collection('users').doc(loginUid!).collection('proofs').doc(`${this.id}`);
+        const doc = await doc_ref.get();
+
+        if(!doc.exists){
+            msg(`read proof : no doc : ${this.title}`);
+            return;
+        }
+
+        const data = doc.data();
+        if(data == undefined){
+            msg(`read proof : no data : ${this.title}`);
+            return;
+        }
+
+        const commands = data["commands"];
+        assert(typeof commands == "string");
+        
+        this.commands = JSON.parse(commands);
+        assert( Array.isArray(this.commands) );
+
+        msg(`commands:${this.title}\n${commands}`);
     }
 }
 

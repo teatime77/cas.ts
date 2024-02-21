@@ -229,14 +229,8 @@ async function readDoc(path: string){
 
     const iterator = gen(texts);
 
-    const timer_id = setInterval(()=>{
-        if(iterator.next().done){
-            // ジェネレータが終了した場合
-    
-            clearInterval(timer_id);
-            console.log("ジェネレータ 終了");
-        }        
-    }, timeout);
+    await doGenerator(iterator, timeout);
+    console.log("do generator end");
 }
 
 function* genDocPath(parent_dir : any) : any {

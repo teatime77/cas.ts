@@ -20,8 +20,32 @@ export function msg(txt : string){
     console.log(txt);
 }
 
+export function getAncestors(index : Index) : DbItem[] {
+    const path : DbItem[]= [];
+
+    for(let section = index.parent; section != null; section = section.parent){
+        path.push(section);
+    }
+
+    return path;
+}
+
 export function last<T>(v : Array<T>) : T {
     return v[v.length - 1];
+}
+
+export async function doGenerator(iterator : Generator, timeout : number){
+    return new Promise((resolve)=>{
+        const timer_id = setInterval(()=>{
+            if(iterator.next().done){
+                // ジェネレータが終了した場合
+        
+                clearInterval(timer_id);
+                resolve(undefined);
+                console.log("ジェネレータ 終了");
+            }        
+        }, timeout);    
+    });
 }
 
 export async function fetchText(fileURL: string) {
