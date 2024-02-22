@@ -15,7 +15,7 @@ let loginUid : string | null = null;
 let guestUid = defaultUid;
 
 let Sections : Section[];
-let Indexes : Index[];
+export let Indexes : Index[];
 
 function getMaxId() : number {
     const dbitems = (Sections as DbItem[]).concat(Indexes);
@@ -185,7 +185,7 @@ class Section extends DbItem {
 }
 
 export class Index extends DbItem {
-    assertion : string;
+    assertion : App;
     commands  : string[] | null = null;
 
     static fromData(id : number, data : any) : Index {
@@ -196,9 +196,10 @@ export class Index extends DbItem {
         return "indexes";
     }
 
-    constructor(id : number, parent_id : number | null, order : number, title : string, assertion : string){
+    constructor(id : number, parent_id : number | null, order : number, title : string, assertion_str : string){
         super(id, parent_id, order, title);
-        this.assertion = assertion
+        this.assertion = parseMath(assertion_str) as App;
+        msg(`formula NEW:${assertion_str}`);
     }
 
     data() : any {
@@ -206,7 +207,7 @@ export class Index extends DbItem {
             "parentId"  : this.parentId,
             "order"     : this.order,
             "title"     : this.title,
-            "assertion" : this.assertion
+            "assertion" : this.assertion.str()
         };
     }
 
@@ -220,9 +221,7 @@ export class Index extends DbItem {
         this.li.innerText = translate(this.title);
 
         this.li.addEventListener("click", (ev : MouseEvent)=>{
-            const expr = parseMath(this.assertion);
-
-            render($("assertion-tex"), expr.tex());
+            render($("assertion-tex"), this.assertion.tex());
         });
 
         this.li.addEventListener("contextmenu", (ev : MouseEvent)=>{
@@ -242,12 +241,14 @@ export class Index extends DbItem {
 
         indexMenuDlg.close();
 
-        const res = await inputIndex(this.title, this.assertion);
+        const res = await inputIndex(this.title, this.assertion.str());
         if(res == null){
             return;
         }
 
-        [this.title, this.assertion] = res;
+        let assertion_str : string;
+        [this.title, assertion_str] = res;
+        this.assertion = parseMath(assertion_str) as App;
 
         this.li!.innerText = translate(this.title);
 

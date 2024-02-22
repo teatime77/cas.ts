@@ -237,7 +237,7 @@ export function lexicalAnalysis(text : string) : Token[] {
                 sub_type = TokenSubType.integer;
             }
         }
-        else if(ch1 == "#" && isDigit(ch2)){
+        else if(ch1 == "#"){
 
             token_type = TokenType.path;
 

@@ -412,8 +412,12 @@ export class Path extends Term {
     }
 
     getTerm(root : App, get_parent : boolean = false) : Term {
-        let app = root;
+        if(this.indexes.length == 0){
+            return root;
+        }
     
+        let app = root;
+
         const last_i = (get_parent ? this.indexes.length - 2 : this.indexes.length - 1);
 
         for(const [i, idx] of this.indexes.entries()){
@@ -704,7 +708,7 @@ export class App extends Term{
             }
 
         }
-        
+
         return text;
     }
 
@@ -842,8 +846,15 @@ export class Parser {
         }
         else if(this.token.typeTkn == TokenType.path){
             assert(this.token.text[0] == "#", "parse path");
-            const indexes = this.token.text.substring(1).split(pathSep).map(x => parseFloat(x));
-            trm = new Path(indexes);
+            if(this.token.text == "#"){
+
+                trm = new Path([]);
+            }
+            else{
+
+                const indexes = this.token.text.substring(1).split(pathSep).map(x => parseFloat(x));
+                trm = new Path(indexes);
+            }
 
             this.next();
         }

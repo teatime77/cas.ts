@@ -25,18 +25,17 @@ export function splitAddMul(app: App, cnt : number){
 
 export class Transformation {
     focus : Term;
+    formulaId : number;
     formula_root_cp : App;
     sideIdx : number;
     dic : Map<string, Term>;
-    focus_root : Term;
 
-    constructor(focus : Term, formula_root_cp : App, sideIdx : number, dic : Map<string, Term>){
+    constructor(focus : Term, formula_id : number , formula_root_cp : App, sideIdx : number, dic : Map<string, Term>){
         this.focus           = focus;
+        this.formulaId       = formula_id;
         this.formula_root_cp = formula_root_cp;
         this.sideIdx         = sideIdx;
         this.dic             = dic;
-
-        this.focus_root = this.focus.getRoot();
     }
 
 
@@ -108,8 +107,7 @@ export class Transformation {
         }
     }
     
-
-     showCandidate(candidate_div : HTMLDivElement){
+    showCandidate(candidate_div : HTMLDivElement){
         const div = document.createElement("div");
         div.className = "candidate";
     
@@ -135,44 +133,31 @@ export class Transformation {
         const tab_spans = Array.from(all_spans).filter(x => x.getAttribute("data-tabidx") != null);
         tab_spans.forEach(x => x.tabIndex = -1);
 
-        makeMathDiv();
+        const focus_path = this.focus.getPath();
+        const formula_id = new ConstNum(this.formulaId);
+        const formula_side_idx         = new ConstNum(this.sideIdx);
+        const formula_another_side_idx = new ConstNum(this.sideIdx == 0 ? 1 : 0);
 
-        const another_formula_side_idx = (this.sideIdx == 0 ? 1 : 0);
-        const another_formula_side = this.formula_root_cp.args[another_formula_side_idx];
-
-        another_formula_side.value.setmul(this.focus.value);
-        if(this.focus.parent != null){
-
-            this.focus.replace(another_formula_side);
-        }
-        else{
-            assert(this.focus_root == this.focus);
-            this.focus_root = another_formula_side;
-            this.focus_root.setParent(null);
-        }
-
-        this.focus_root.setStrVal();
-        this.focus_root.setTabIdx();
-        const tex = this.focus_root.tex();
-        render(mathDiv, tex);
+        const cmd = new App(actionRef("@apply_formula"), [ focus_path, formula_id, formula_side_idx, formula_another_side_idx]);
+        doCommand(cmd);
     }
-    
 }
 
-function substByDic(dic : Map<string, Term>, root : App){
+export function substByDic(dic : Map<string, Term>, root : App){
     const refs = allTerms(root).filter(x => x instanceof RefVar && dic.has(x.name)) as RefVar[];
     refs.forEach(x => x.replace(dic.get(x.name)!.clone()));
 }
 
-function onFocusRun(focus : Term){
+export function matchFormulas(focus : Term){
     msg(`run: id:${focus.id} ${focus.constructor.name}`);
 
     const candidate_div = document.getElementById("candidate-div") as HTMLDivElement;
     candidate_div.innerHTML = "";
 
-    for(const [key, form] of formulas.entries()){
+    for(const index of Indexes.filter(x => x != curIndex)){
+        const form = index.assertion;
         assert(2 <= form.args.length);
-        for(const [idx, side] of form.args.entries()){
+        for(const [side_idx, side] of form.args.entries()){
             if(focus instanceof App && side instanceof App){
                 if(focus.fncName == side.fncName && focus.args.length == side.args.length){
 
@@ -180,7 +165,7 @@ function onFocusRun(focus : Term){
 
                     const dic = new Map<string, Term>();
                     try{
-                        const trans = new Transformation(focus, formula_root_cp, idx, dic);
+                        const trans = new Transformation(focus, index.id, formula_root_cp, side_idx, dic);
                         trans.matchTerm(dic, focus, side_cp);
 
                         substByDic(dic, formula_root_cp);
@@ -201,14 +186,6 @@ function onFocusRun(focus : Term){
             }
         }
     }
-}
-
-export function onKeypress(ev : KeyboardEvent, span : HTMLSpanElement, trm : Term){
-    msg(`key: [${ev.key}] ${trm.str()}`);
-    if(ev.key == " "){
-        onFocusRun(trm);
-    }
-    ev.stopPropagation();
 }
 
 }

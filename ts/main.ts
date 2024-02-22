@@ -2,7 +2,6 @@ namespace casts {
 
 export let mathDivRoot : HTMLDivElement;
 export let mathDiv : HTMLDivElement;
-export let formulas : Map<string, App> = new Map<string, App>();
 let translation : { [text : string] : { [text : string] : string} };
 export let termDic : { [id : number] : Term } = {};
 const theLang : string = "ja";
@@ -289,28 +288,6 @@ export function translate(text : string, lang : string = theLang) : string {
     return text;
 }
 
-function makeFormulas(json : any){
-    if(json["dirs"] != undefined){
-        for(const dir of json["dirs"]){
-            makeFormulas(dir);
-        }
-    }
-
-    if(json["files"] != undefined){
-        for(const file of json["files"]){
-            const path = file['path'];
-
-            const formula = file['formula'] as string;
-            if(formula != undefined){
-                const app = parseMath(formula) as App;
-                assert(app.isEq());
-                formulas.set(path, app);
-                msg(`formula:${formula}`);
-            }
-        }
-    }
-}
-
 function makeIndex(parent_ul : HTMLUListElement | HTMLDivElement, parent_dir : any){
     assert(parent_dir != undefined);
     const ul = document.createElement("ul");
@@ -437,8 +414,6 @@ async function main(page : string) {
 
     // mergeJson(index, youtube);
     // makeYoutubeJson();
-
-    makeFormulas(index);
 
     const url = new URL(window.location.href);
     const params = url.searchParams;

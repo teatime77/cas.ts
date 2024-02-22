@@ -81,7 +81,10 @@ export function render(ele: HTMLElement, tex_text: string){
 
                 span.tabIndex = tabidx;
                 span.addEventListener("keypress", (ev : KeyboardEvent)=>{
-                    onKeypress(ev, span, trm);
+                    ev.stopPropagation();
+                    if(ev.key == " "){
+                        matchFormulas(trm);
+                    }
                 });
             }
         }
