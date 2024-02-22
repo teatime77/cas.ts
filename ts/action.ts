@@ -31,8 +31,8 @@ export async function writeProof(){
     const data = {
         "commands" : commands
     };
-    await writeDB("proofs", curIndex.id, data);
     msg(`write proof:${commands}`);
+    await writeDB("proofs", curIndex.id, data);
 }
 
 function addSide(cmd : App) : App {
@@ -111,6 +111,10 @@ export function doCommand(cmd : App){
 
     case "@resolveAddMul":
         expr = BasicTransformation.fromCommand(cmd);
+        break;
+
+    case "@change_order":
+        expr = ChangeOrder.fromCommand(cmd);
         break;
 
     default:

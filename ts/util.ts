@@ -85,7 +85,14 @@ export function render(ele: HTMLElement, tex_text: string){
                     if(ev.key == " "){
                         searchCandidate(trm);
                     }
-                    msg(`key press :${ev.key}`);
+                });
+                span.addEventListener("keydown", (ev:KeyboardEvent)=>{
+                    if(ev.key == "ArrowLeft"){
+                        ChangeOrder.move(trm, -1);
+                    }
+                    else if(ev.key == "ArrowRight"){
+                        ChangeOrder.move(trm,  1);
+                    }
                 });
             }
         }

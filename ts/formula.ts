@@ -52,7 +52,7 @@ export abstract class Transformation {
         $div("candidate-div").appendChild(div);
     }
 
-    onClick(ev : MouseEvent){
+    onClick(ev : MouseEvent | null){
         // 候補リストを削除する。
         setTimeout(()=>{ $("candidate-div").innerHTML = ""; }, 1);
 
@@ -262,5 +262,59 @@ export function searchCandidate(focus : Term){
     matchFormulas(focus);
     elementaryAlgebra(focus);
 }
+
+export class ChangeOrder extends Transformation {
+    shift : number;
+
+    static move(focus : Term, shift : number){
+        if(focus.parent != null && (focus.parent.isAdd() || focus.parent.isMul()) && focus.parent.fnc != focus){
+            const idx = focus.index();
+            const adjacent_idx = idx + shift;
+            if(adjacent_idx < 0 || focus.parent.args.length <= adjacent_idx){
+                return;
+            }
+
+            const trans = new ChangeOrder(focus, shift);
+            trans.onClick(null);    
+        }    
+    }
+
+    static fromCommand(cmd : App){
+        assert(cmd.args.length == 2);
+        assert(cmd.args[0] instanceof Path);
+        assert(cmd.args[1] instanceof ConstNum);
+    
+        const focus_path = cmd.args[0] as Path;
+        const focus = focus_path.getTerm(Alg.root!);
+
+        const shift = cmd.args[1].value.int();
+
+        const trans = new ChangeOrder(focus, shift);
+        return trans.result();
+    }
+
+    constructor(focus : Term, shift : number){
+        super("@change_order", focus);
+        this.shift = shift;
+    }
+
+    result() : App {
+        const [root_cp, focus_cp] = this.focus.cloneRoot() as [App, App];
+
+        const idx = focus_cp.index();
+        focus_cp.parent!.args.splice(idx, 1);
+        const new_idx = idx + this.shift + (this.shift < 0 ? 0: -1);
+        focus_cp.parent!.args.splice(new_idx, 0, focus_cp);
+
+        return root_cp;
+    }
+
+    getCommand(focus_path : Path) : App {
+        return new App(actionRef(this.commandName), [ focus_path, new ConstNum(this.shift) ]);
+    }
+}
+
+
+
 
 }

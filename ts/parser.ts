@@ -257,11 +257,18 @@ export abstract class Term {
     }
 
     index() : number {
-        assert(this.parent != null, "index 1");
-        const idx = this.parent!.args.indexOf(this);
-        assert(idx != -1, "index 2");
+        if(this.parent != null){
+            if(this.parent.fnc == this){
+                return -1;
+            }
+            const idx = this.parent!.args.indexOf(this);
+            assert(idx != -1, "index 1");
+            return idx;
+        }
+        else{
 
-        return idx;
+            throw new MyError("index 2");
+        }
     }
 
     remArg() {
