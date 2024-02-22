@@ -197,8 +197,15 @@ export abstract class Term {
 
             return path;
         }
-        const idx = this.parent.args.indexOf(this);
-        assert(idx != -1);
+        let idx : number;
+        if(this.parent.fnc == this){
+            idx = -1;
+        }
+        else{
+
+            idx = this.parent.args.indexOf(this);
+            assert(idx != -1);
+        }
 
         path.indexes.unshift(idx);
         return this.parent.getPath(path);
@@ -395,7 +402,7 @@ export class Path extends Term {
     }
 
     str() : string {
-        return `#${this.indexes.join(".")}`;
+        return `#${this.indexes.join(pathSep)}`;
     }
 
     tex2() : string {
@@ -423,16 +430,15 @@ export class Path extends Term {
         for(const [i, idx] of this.indexes.entries()){
             if(i == last_i){
     
-                return app.args[idx];
+                return (idx == -1 ? app.fnc : app.args[idx]);
             }
             else{
-                assert(app.args[idx] instanceof App, "pass:get term");
-                app = app.args[idx] as App;
+                app = (idx == -1 ? app.fnc : app.args[idx]) as App;
+                assert(app instanceof App, "pass:get term");
             }
         }
         throw new MyError("get term");
     }
-
 }
 
 export class RefVar extends Term{

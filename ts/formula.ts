@@ -138,6 +138,9 @@ export class Transformation {
         const formula_side_idx         = new ConstNum(this.sideIdx);
         const formula_another_side_idx = new ConstNum(this.sideIdx == 0 ? 1 : 0);
 
+        const focus_root = this.focus.getRoot();
+        assert(focus_path.getTerm(focus_root) == this.focus);
+
         const cmd = new App(actionRef("@apply_formula"), [ focus_path, formula_id, formula_side_idx, formula_another_side_idx]);
         doCommand(cmd);
     }

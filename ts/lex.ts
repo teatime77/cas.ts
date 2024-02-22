@@ -241,7 +241,7 @@ export function lexicalAnalysis(text : string) : Token[] {
 
             token_type = TokenType.path;
 
-            for (pos++; pos < text.length && (isDigit(text[pos]) || text[pos] == pathSep); pos++);
+            for (pos++; pos < text.length && (isDigit(text[pos]) || text[pos] == '-' || text[pos] == pathSep); pos++);
         }
         else if (SymbolTable.indexOf("" + ch1 + ch2) != -1) {
             // 2文字の記号の表にある場合

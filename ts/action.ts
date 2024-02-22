@@ -32,7 +32,7 @@ export async function writeProof(){
         "commands" : commands
     };
     await writeDB("proofs", curIndex.id, data);
-    msg(`write proof`);
+    msg(`write proof:${commands}`);
 }
 
 function addSide(cmd : App) : App {
