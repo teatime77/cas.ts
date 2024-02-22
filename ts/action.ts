@@ -2,7 +2,7 @@ namespace casts {
 //
 export let curIndex : Index;
 let actions : Action[];
-let alg : Algebra;
+export let Alg : Algebra;
 
 export class Action {
     command : App;
@@ -38,8 +38,8 @@ export async function writeProof(){
 function addSide(cmd : App) : App {
     assert(cmd.args.length == 1 && cmd.args[0] instanceof ConstNum);
     const side_idx = cmd.args[0].value.int();
-    assert(alg.root!.isEq() && side_idx < alg.root!.args.length);
-    const expr = alg.root!.args[side_idx].clone() as App;
+    assert(Alg.root!.isEq() && side_idx < Alg.root!.args.length);
+    const expr = Alg.root!.args[side_idx].clone() as App;
 
     return expr;
 }
@@ -56,7 +56,7 @@ function applyFormula(cmd : App) : App {
     const formula_side_idx         = cmd.args[2].value.int();
     const formula_another_side_idx = cmd.args[3].value.int();
 
-    const root_cp = alg.root!.clone();
+    const root_cp = Alg.root!.clone();
     const focus = focus_path.getTerm(root_cp) as App;
     assert(focus instanceof App);
 
@@ -70,7 +70,7 @@ function applyFormula(cmd : App) : App {
 
     const dic = new Map<string, Term>();
     try{
-        const trans = new Transformation(focus, formula_id, formula_root_cp, formula_side_idx, dic);
+        const trans = new ApplyFormula(focus, formula_id, formula_root_cp, formula_side_idx, dic);
         trans.matchTerm(dic, focus, side_cp);
 
         substByDic(dic, formula_root_cp);
@@ -109,12 +109,16 @@ export function doCommand(cmd : App){
         expr = applyFormula(cmd);
         break;
 
+    case "@resolveAddMul":
+        expr = BasicTransformation.fromCommand(cmd);
+        break;
+
     default:
         throw new MyError("do command");
     }
 
     expr.setParent(null);
-    alg.setRoot(expr);
+    Alg.setRoot(expr);
 
     const act = new Action(cmd, expr, mathDiv);
 
@@ -145,8 +149,8 @@ export async function startProof(index : Index){
     assert(curIndex.assertion.isEq());
     render($("assertion-tex"), curIndex.assertion.tex());
 
-    alg = new Algebra();
-    alg.root = curIndex.assertion;
+    Alg = new Algebra();
+    Alg.root = curIndex.assertion;
 
     await curIndex.readProof();
 
@@ -168,7 +172,7 @@ export function addLHS(){
 
 export function addRHS(){
     closeDlg("eq-action-dlg");
-    const cmd = new App(actionRef("@add_side"), [new ConstNum(alg.root!.args.length - 1)]);
+    const cmd = new App(actionRef("@add_side"), [new ConstNum(Alg.root!.args.length - 1)]);
     doCommand(cmd);
 }
 

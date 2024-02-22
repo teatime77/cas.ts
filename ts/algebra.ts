@@ -81,36 +81,6 @@ function multiplyArgs(args: Term[]) : Term {
     }
 }
 
-/**
- * 
- * @param app コマンド
- * @param root_arg ルート
- * @description 指定した項をキャンセルする。
- */
-export function* cancelOLD(app: App, root_arg : App){
-    let root : Term;
-
-    if(app.args.length == 2){
-        const root_path = app.args[1] as Path;
-        assert(root_path instanceof Path);
-
-        root = root_path.getTerm(root_arg);
-    }
-    else{
-        assert(app.args.length == 1, "cancel");
-
-        root = root_arg;
-    }
-
-    const targets = getSubTerms(root, app.args[0]);
-    for(const t of targets){
-        t.cancel = true;
-        const tex = root.tex();
-        render(mathDiv, tex);
-        yield;
-    }
-}
-
 export function showRoot(root : Term){
     assert(root != null, "show root");
     root.setParent(null);
@@ -562,11 +532,30 @@ function oneArg(app : App) {
 }
 
 /**
+ * @param add 親の加算
+ * @param add_child 子の加算
+ * @description 加算の中の加算を、親の加算にまとめる。
+ */
+export function resolveAdd(add : App, add_child : App){
+    // 引数の中の加算の位置
+    const idx = add.args.indexOf(add_child);
+
+    // 引数の中の加算を削除する。
+    add_child.remArg();
+
+    // 引数の中の加算の引数に係数をかける。
+    add_child.args.forEach(x => x.value.setmul(add_child.value));
+
+    // 引数の中の加算の引数を元の加算の引数に入れる。
+    add.insArgs(add_child.args, idx);
+}
+
+/**
  * 
  * @param root ルート
  * @description 加算の中の加算を、親の加算にまとめる。
  */
-export function* mergeAdd(root : Term){
+export function* resolveAddAll(root : Term){
     addHtml("加算の整理をする。");
 
     // すべての加算のリスト
@@ -579,24 +568,15 @@ export function* mergeAdd(root : Term){
 
         while(true){
             // 加算の引数の中の加算を探す。
-            const add2 = add.args.find(x => x.isAdd()) as App;
-            if(add2 == undefined){
+            const add_child = add.args.find(x => x.isAdd()) as App;
+            if(add_child == undefined){
                 // ない場合
 
                 break;
             }
 
-            // 引数の中の加算の位置
-            const idx = add.args.indexOf(add2);
-
-            // 引数の中の加算を削除する。
-            add2.remArg();
-
-            // 引数の中の加算の引数に係数をかける。
-            add2.args.forEach(x => x.value.setmul(add2.value));
-
-            // 引数の中の加算の引数を元の加算の引数に入れる。
-            add.insArgs(add2.args, idx);
+            // 加算の中の加算を、親の加算にまとめる。
+            resolveAdd(add, add_child);
 
             showRoot(root);
             yield;

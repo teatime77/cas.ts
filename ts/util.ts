@@ -83,8 +83,9 @@ export function render(ele: HTMLElement, tex_text: string){
                 span.addEventListener("keypress", (ev : KeyboardEvent)=>{
                     ev.stopPropagation();
                     if(ev.key == " "){
-                        matchFormulas(trm);
+                        searchCandidate(trm);
                     }
+                    msg(`key press :${ev.key}`);
                 });
             }
         }

@@ -23,21 +23,81 @@ export function splitAddMul(app: App, cnt : number){
     app.addArgs( [app1, app2] );
 }
 
-export class Transformation {
+export abstract class Transformation {
+    commandName : string;
     focus : Term;
+
+    constructor(command_name : string, focus : Term){
+        this.commandName     = command_name;
+        this.focus           = focus;
+    }
+
+    abstract result() : App;
+    abstract getCommand(focus_path : Path) : App;
+
+    showCandidate(){
+        const div = document.createElement("div");
+        div.className = "candidate";
+    
+        const btn = document.createElement("button");
+        btn.innerText = "apply";
+        btn.addEventListener("click", this.onClick.bind(this));
+    
+        const tex_div = document.createElement("div");
+    
+        render(tex_div, this.result().tex());
+    
+        div.appendChild(btn);
+        div.appendChild(tex_div);
+        $div("candidate-div").appendChild(div);
+    }
+
+    onClick(ev : MouseEvent){
+        // 候補リストを削除する。
+        setTimeout(()=>{ $("candidate-div").innerHTML = ""; }, 1);
+
+        // 既存のspanはフォーカスできないようにする。
+        const all_spans = mathDivRoot.getElementsByTagName("span");
+        const tab_spans = Array.from(all_spans).filter(x => x.getAttribute("data-tabidx") != null);
+        tab_spans.forEach(x => x.tabIndex = -1);
+
+        const focus_path = this.focus.getPath();
+        const focus_root = this.focus.getRoot();
+        assert(focus_path.getTerm(focus_root) == this.focus);
+
+        const cmd = this.getCommand(focus_path);
+
+        doCommand(cmd);
+    }
+}
+
+export class ApplyFormula extends Transformation {
     formulaId : number;
     formula_root_cp : App;
     sideIdx : number;
     dic : Map<string, Term>;
 
     constructor(focus : Term, formula_id : number , formula_root_cp : App, sideIdx : number, dic : Map<string, Term>){
-        this.focus           = focus;
+        super("@apply_formula", focus);
         this.formulaId       = formula_id;
         this.formula_root_cp = formula_root_cp;
         this.sideIdx         = sideIdx;
         this.dic             = dic;
     }
 
+    result() : App {
+        return this.formula_root_cp;
+    }
+
+    getCommand(focus_path : Path) : App {
+        const formula_id = new ConstNum(this.formulaId);
+        const formula_side_idx         = new ConstNum(this.sideIdx);
+        const formula_another_side_idx = new ConstNum(this.sideIdx == 0 ? 1 : 0);
+
+        const cmd = new App(actionRef(this.commandName), [ focus_path, formula_id, formula_side_idx, formula_another_side_idx]);
+
+        return cmd;
+    }
 
     matchTerm(dic : Map<string, Term>, trm1 : Term, trm2 : Term){
         if(trm2 instanceof RefVar){
@@ -106,43 +166,41 @@ export class Transformation {
             assert(false);
         }
     }
+}
+
+export class BasicTransformation extends Transformation {
+    static fromCommand(cmd : App){
+        assert(cmd.args.length == 1);
+        assert(cmd.args[0] instanceof Path);
     
-    showCandidate(candidate_div : HTMLDivElement){
-        const div = document.createElement("div");
-        div.className = "candidate";
-    
-        const btn = document.createElement("button");
-        btn.innerText = "apply";
-        btn.addEventListener("click", this.onClick.bind(this));
-    
-        const tex_div = document.createElement("div");
-    
-        render(tex_div, this.formula_root_cp.tex());
-    
-        div.appendChild(btn);
-        div.appendChild(tex_div);
-        candidate_div.appendChild(div);
+        const focus_path = cmd.args[0] as Path;
+        const focus = focus_path.getTerm(Alg.root!);
+
+        const trans = new BasicTransformation(focus);
+        return trans.result();
     }
 
-    onClick(ev : MouseEvent){
-        // 候補リストを削除する。
-        setTimeout(()=>{ document.getElementById("candidate-div")!.innerHTML = ""; }, 1);
+    constructor(focus : Term){
+        super("@resolveAddMul", focus);
+    }
 
-        // 既存のspanはフォーカスできないようにする。
-        const all_spans = mathDivRoot.getElementsByTagName("span");
-        const tab_spans = Array.from(all_spans).filter(x => x.getAttribute("data-tabidx") != null);
-        tab_spans.forEach(x => x.tabIndex = -1);
+    result() : App {
+        const [root_cp, focus_cp] = this.focus.cloneRoot() as [App, App];
 
-        const focus_path = this.focus.getPath();
-        const formula_id = new ConstNum(this.formulaId);
-        const formula_side_idx         = new ConstNum(this.sideIdx);
-        const formula_another_side_idx = new ConstNum(this.sideIdx == 0 ? 1 : 0);
+        if(focus_cp.isAdd()){
 
-        const focus_root = this.focus.getRoot();
-        assert(focus_path.getTerm(focus_root) == this.focus);
+            resolveAdd(focus_cp.parent as App, focus_cp);
+        }
+        else{
 
-        const cmd = new App(actionRef("@apply_formula"), [ focus_path, formula_id, formula_side_idx, formula_another_side_idx]);
-        doCommand(cmd);
+            assert(false);
+        }
+
+        return root_cp;
+    }
+
+    getCommand(focus_path : Path) : App {
+        return new App(actionRef(this.commandName), [focus_path]);
     }
 }
 
@@ -151,11 +209,8 @@ export function substByDic(dic : Map<string, Term>, root : App){
     refs.forEach(x => x.replace(dic.get(x.name)!.clone()));
 }
 
-export function matchFormulas(focus : Term){
+function matchFormulas(focus : Term){
     msg(`run: id:${focus.id} ${focus.constructor.name}`);
-
-    const candidate_div = document.getElementById("candidate-div") as HTMLDivElement;
-    candidate_div.innerHTML = "";
 
     for(const index of Indexes.filter(x => x != curIndex)){
         const form = index.assertion;
@@ -168,13 +223,13 @@ export function matchFormulas(focus : Term){
 
                     const dic = new Map<string, Term>();
                     try{
-                        const trans = new Transformation(focus, index.id, formula_root_cp, side_idx, dic);
+                        const trans = new ApplyFormula(focus, index.id, formula_root_cp, side_idx, dic);
                         trans.matchTerm(dic, focus, side_cp);
 
                         substByDic(dic, formula_root_cp);
                         msg(`form : OK ${focus.str()} F:${formula_root_cp.str()}`);
 
-                        trans.showCandidate(candidate_div);
+                        trans.showCandidate();
                     }
                     catch(e){
                         if(e instanceof FormulaError){
@@ -189,6 +244,23 @@ export function matchFormulas(focus : Term){
             }
         }
     }
+}
+
+function elementaryAlgebra(focus : Term){
+    if(focus.parent != null){
+
+        if(focus.isAdd() && focus.parent.isAdd() || focus.isMul() && focus.parent.isMul()){
+            const trans = new BasicTransformation(focus);
+            trans.showCandidate();
+        }
+    }
+}
+
+export function searchCandidate(focus : Term){
+    $div("candidate-div").innerHTML = "";
+
+    matchFormulas(focus);
+    elementaryAlgebra(focus);
 }
 
 }

@@ -68,10 +68,6 @@ function* gen(texts : string){
                 assert(alg.root != null, "gen");
 
                 switch(app.refVar!.name){
-                // case "@cancel":
-                //     yield* cancelOLD(app, alg.root);
-                //     break;
-
                 case "@subst":
                     yield* subst(app, alg.root);
                     break;
@@ -176,7 +172,7 @@ function* gen(texts : string){
                     break;
 
                 case "@trimadd":
-                    yield* mergeAdd(alg.root);
+                    yield* resolveAddAll(alg.root);
                     break;
 
                 case "@trimmul":

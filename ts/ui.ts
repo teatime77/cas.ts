@@ -13,6 +13,10 @@ export function $(id : string) : HTMLElement {
     return ele;
 }
 
+export function $div(id : string) : HTMLDivElement {
+    return $(id) as HTMLDivElement;
+}
+
 export function $h(id : string) : HTMLHeadElement {
     return $(id) as HTMLHeadElement;
 }
