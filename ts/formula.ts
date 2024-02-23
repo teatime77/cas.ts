@@ -253,6 +253,10 @@ function elementaryAlgebra(focus : Term){
             const trans = new BasicTransformation(focus);
             trans.showCandidate();
         }
+        if(1 <= focus.index() && (focus.parent.isAdd() || focus.parent.isMul()) && 3 <= focus.parent.args.length){
+            const trans = new SplitAddMul(focus);
+            trans.showCandidate();
+        }
     }
 }
 
@@ -315,6 +319,55 @@ export class ChangeOrder extends Transformation {
 }
 
 
+export class SplitAddMul extends Transformation {
+    static fromCommand(cmd : App){
+        assert(cmd.args.length == 1);
+        assert(cmd.args[0] instanceof Path);
+    
+        const focus_path = cmd.args[0] as Path;
+        const focus = focus_path.getTerm(Alg.root!);
+
+        const trans = new SplitAddMul(focus);
+        return trans.result();
+    }
+
+    constructor(focus : Term){
+        super("@split_add_mul", focus);
+    }
+
+    result() : App {
+        const [root_cp, focus_cp] = this.focus.cloneRoot() as [App, App];
+
+        const idx = focus_cp.index();
+        assert(1 <= idx);
+
+        const parent = focus_cp.parent!;
+        const args = parent.args.slice();
+        args.forEach(x => x.remArg());
+
+        if(idx == 1){
+            parent.addArg(args[0]);
+        }
+        else{
+            const app1 = new App(parent.fnc.clone(), args.slice(0, idx));
+            parent.addArg(app1);
+        }
+
+        if(idx == parent.args.length - 1){
+            parent.addArg(last(args));
+        }
+        else{
+            const app2 = new App(parent.fnc.clone(), args.slice(idx));
+            parent.addArg(app2);
+        }
+        
+        return root_cp;
+    }
+
+    getCommand(focus_path : Path) : App {
+        return new App(actionRef(this.commandName), [focus_path]);
+    }
+}
 
 
 }

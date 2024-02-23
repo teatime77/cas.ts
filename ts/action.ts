@@ -117,6 +117,10 @@ export function doCommand(cmd : App){
         expr = ChangeOrder.fromCommand(cmd);
         break;
 
+    case "@split_add_mul":
+        expr = SplitAddMul.fromCommand(cmd);
+        break;
+
     default:
         throw new MyError("do command");
     }
