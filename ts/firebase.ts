@@ -393,6 +393,8 @@ export async function initFirebase(page : string){
     }
 
     Indexes = await readIndexes();
+    
+    Indexes.forEach(x => x.assertion.setStrVal());
 
     const sections_indexes = (Sections as DbItem[]).concat(Indexes);
 

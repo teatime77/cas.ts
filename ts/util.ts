@@ -30,6 +30,10 @@ export function getAncestors(index : Index) : DbItem[] {
     return path;
 }
 
+export function range(n: number) : number[]{
+    return [...Array(n).keys()];
+}
+
 export function last<T>(v : Array<T>) : T {
     return v[v.length - 1];
 }

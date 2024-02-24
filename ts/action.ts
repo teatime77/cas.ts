@@ -69,11 +69,12 @@ function applyFormula(cmd : App) : App {
     const [formula_root_cp, side_cp] = side.cloneRoot() as [App, App];
 
     const dic = new Map<string, Term>();
+    const fdic = new Map<string, [App, Term]>();
     try{
         const trans = new ApplyFormula(focus, formula_id, formula_root_cp, formula_side_idx, dic);
-        trans.matchTerm(dic, focus, side_cp);
+        trans.matchTerm(dic, fdic, focus, side_cp);
 
-        substByDic(dic, formula_root_cp);
+        substByDic(dic, fdic, formula_root_cp);
     }
     catch(e){
         assert(false);

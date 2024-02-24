@@ -99,27 +99,46 @@ export class ApplyFormula extends Transformation {
         return cmd;
     }
 
-    matchTerm(dic : Map<string, Term>, trm1 : Term, trm2 : Term){
+    /**
+     * 
+     * @param dic 変換辞書
+     * @param trm1 フォーカス側の項
+     * @param trm2 公式側の項
+     */
+    matchTerm(dic : Map<string, Term>, fdic : Map<string, [App, Term]>, trm1 : Term, trm2 : Term){
         if(trm2 instanceof RefVar){
-            // 変数参照の場合
+            // 公式側が変数参照の場合
     
-            // 変換値
-            const conv = dic.get(trm2.name);
-    
-            if(conv == undefined){
-                // 変換値が未定の場合
-    
-                // 新しい変換値をセットする。
-                const trm1_cp = trm1.clone();
-                dic.set(trm2.name, trm1_cp);
+            if(! isLetter(trm2.name[0])){
+                // 公式側が演算子の場合
+
+                if(! trm1.eq(trm2)){
+                    // 等しくない場合
+
+                    throw new FormulaError();
+                }
             }
             else{
-                // 変換値が既定の場合
-    
-                if(! trm1.eq(conv)){
-                    // 変換値と等しくない場合
-    
-                    throw new FormulaError();
+                // 公式側が変数の場合
+
+                // 変換値
+                const conv = dic.get(trm2.name);
+        
+                if(conv == undefined){
+                    // 変換値が未定の場合
+        
+                    // 新しい変換値をセットする。
+                    const trm1_cp = trm1.clone();
+                    dic.set(trm2.name, trm1_cp);
+                }
+                else{
+                    // 変換値が既定の場合
+        
+                    if(! trm1.eq(conv)){
+                        // 変換値と等しくない場合
+        
+                        throw new FormulaError();
+                    }
                 }
             }
         }
@@ -133,27 +152,65 @@ export class ApplyFormula extends Transformation {
             }
         }
         else if(trm2 instanceof App){
-            // 関数呼び出しの場合
+            // 公式側が関数呼び出しの場合
     
             if(trm1 instanceof App){
-                // 関数呼び出しの場合
-    
-                // 関数をマッチさせる。
-                this.matchTerm(dic, trm1.fnc, trm2.fnc);
-    
-                if(trm1.args.length != trm2.args.length){
-                    // 引数の数が等しくない場合
-    
-                    throw new FormulaError();
-                }
-    
-                // それぞれの引数をマッチさせる。
-                for(const [i, t] of Array.from(trm2.args).entries()){
-                    this.matchTerm(dic, trm1.args[i], t);
-                }
+                // フォーカス側が関数呼び出しの場合
 
-                if(! trm1.value.eq(trm2.value) && trm1 != this.focus){
-                    throw new FormulaError();
+                if(trm2.fnc instanceof RefVar && trm2.fnc.isNamedFnc() && trm1.fnc.isOprFnc()){
+                    // 公式側の関数が変数で、フォーカス側の関数が演算子の場合
+
+                    // 変換値
+                    const conv = fdic.get(trm2.fnc.name);
+                    if(conv == undefined){
+                        // 変換値が未定の場合
+            
+                        // 新しい変換値をセットする。
+                        const trm1_cp = trm1.clone();
+                        fdic.set(trm2.fnc.name, [trm2.clone(), trm1_cp]);
+                    }
+                    else{
+                        // 変換値が既定の場合
+
+                        // 公式側の関数呼び出しの文字表記と、変換値を得る。
+                        const [trm2_cp, trm1_conv] = conv;
+
+                        if(trm2.eq(trm2_cp)){
+                            // 公式側の関数の引数が一致する場合
+
+                            if(! trm1.eq(trm1_conv)){
+                                // 変換値と等しくない場合
+                
+                                throw new FormulaError();
+                            }        
+                        }
+                        else{
+                            // 公式側の関数の引数が違う場合
+            
+                            // 未実装としてエラーにする。
+                            throw new FormulaError();
+                        }
+                    }
+                }
+                else{
+
+                    // 関数をマッチさせる。
+                    this.matchTerm(dic, fdic, trm1.fnc, trm2.fnc);
+        
+                    if(trm1.args.length != trm2.args.length){
+                        // 引数の数が等しくない場合
+        
+                        throw new FormulaError();
+                    }
+        
+                    // それぞれの引数をマッチさせる。
+                    for(const [i, t] of Array.from(trm2.args).entries()){
+                        this.matchTerm(dic, fdic, trm1.args[i], t);
+                    }
+
+                    if(! trm1.value.eq(trm2.value) && trm1 != this.focus){
+                        throw new FormulaError();
+                    }
                 }
             }
             else{
@@ -204,8 +261,26 @@ export class BasicTransformation extends Transformation {
     }
 }
 
-export function substByDic(dic : Map<string, Term>, root : App){
-    const refs = allTerms(root).filter(x => x instanceof RefVar && dic.has(x.name)) as RefVar[];
+export function substByDic(dic : Map<string, Term>, fdic : Map<string, [App, Term]>, root : App){
+    const all_terms = allTerms(root);
+
+    const apps = all_terms.filter(x => x instanceof App && fdic.has(x.fncName)) as App[];
+    for(const trm2 of apps){
+        const [trm2_cp, trm1_conv] = fdic.get(trm2.fncName)!;
+        if(trm2.equal(trm2_cp)){
+            // 公式側の関数呼び出しと一致する場合
+
+            trm2.replace(trm1_conv.clone());
+        }
+        else{
+            // 公式側の関数呼び出し違う場合
+
+            // 未実装としてエラーにする。
+            throw new FormulaError();
+        }
+    }
+
+    const refs = all_terms.filter(x => x instanceof RefVar && dic.has(x.name)) as RefVar[];
     refs.forEach(x => x.replace(dic.get(x.name)!.clone()));
 }
 
@@ -222,11 +297,12 @@ function matchFormulas(focus : Term){
                     const [formula_root_cp, side_cp] = side.cloneRoot() as [App, App];
 
                     const dic = new Map<string, Term>();
+                    const fdic = new Map<string, [App, Term]>();
                     try{
                         const trans = new ApplyFormula(focus, index.id, formula_root_cp, side_idx, dic);
-                        trans.matchTerm(dic, focus, side_cp);
+                        trans.matchTerm(dic, fdic, focus, side_cp);
 
-                        substByDic(dic, formula_root_cp);
+                        substByDic(dic, fdic, formula_root_cp);
                         msg(`form : OK ${focus.str()} F:${formula_root_cp.str()}`);
 
                         trans.showCandidate();

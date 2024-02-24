@@ -163,6 +163,10 @@ export abstract class Term {
         return this.strval == trm.strval;
     }
 
+    equal(trm : Term) : boolean {
+        return this.value.eq(trm.value);
+    }
+
     copy(dst : Term){
         dst.value  = this.value.clone();
         dst.cancel = this.cancel;
@@ -355,6 +359,14 @@ export abstract class Term {
         return this instanceof App && this.precedence() != -1;
     }
 
+    isNamedFnc() : boolean {
+        return this instanceof RefVar && isLetter(this.name[0]);
+    }
+
+    isOprFnc() : boolean {
+        return this instanceof RefVar && ! isLetter(this.name[0]);
+    }
+
     isEq() : boolean {
         return this instanceof App && (this.fncName == "==" || this.fncName == "=");
     }
@@ -408,6 +420,10 @@ export class Path extends Term {
         this.indexes = indexes.slice();
     }
 
+    equal(trm : Term) : boolean {
+        return super.equal(trm) && trm instanceof Path && range(this.indexes.length).every(i => this.indexes[i] == trm.indexes[i]);
+    }
+
     str() : string {
         return `#${this.indexes.join(pathSep)}`;
     }
@@ -456,6 +472,10 @@ export class RefVar extends Term{
         this.name = name;
     }
 
+    equal(trm : Term) : boolean {
+        return super.equal(trm) && trm instanceof RefVar && this.name == trm.name;
+    }
+
     clone() : RefVar {
         const ref = new RefVar(this.name);
         this.copy(ref);
@@ -478,6 +498,10 @@ export class ConstNum extends Term{
     constructor(numerator : number, denominator : number = 1){
         super();
         this.value = new Rational(numerator, denominator);
+    }
+
+    equal(trm : Term) : boolean {
+        return super.equal(trm);
     }
 
     static fromRational(r : Rational) : ConstNum {
@@ -542,6 +566,18 @@ export class App extends Term{
         this.args   = args.slice();
 
         this.args.forEach(x => x.parent = this);
+    }
+
+    equal(trm : Term) : boolean {
+        if(super.equal(trm) && trm instanceof App){
+            if(this.fnc.equal(trm.fnc)){
+                if(this.args.length == trm.args.length){
+                    return range(this.args.length).every(i => this.args[i].equal(trm.args[i]));
+                }
+            }
+        }
+
+        return false;
     }
 
     clone() : App {
