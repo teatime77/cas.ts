@@ -122,6 +122,10 @@ export function doCommand(cmd : App){
         expr = SplitAddMul.fromCommand(cmd);
         break;
 
+    case "@unify_value":
+        expr = UnifyValue.fromCommand(cmd);
+        break;
+
     default:
         throw new MyError("do command");
     }

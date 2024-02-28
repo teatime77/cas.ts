@@ -129,6 +129,10 @@ export class ApplyFormula extends Transformation {
         
                     // 新しい変換値をセットする。
                     const trm1_cp = trm1.clone();
+
+                    // 変換値を変数参照の係数で割る。
+                    trm1_cp.value.setdiv(trm2.value);
+
                     dic.set(trm2.name, trm1_cp);
                 }
                 else{
@@ -281,7 +285,15 @@ export function substByDic(dic : Map<string, Term>, fdic : Map<string, [App, Ter
     }
 
     const refs = all_terms.filter(x => x instanceof RefVar && dic.has(x.name)) as RefVar[];
-    refs.forEach(x => x.replace(dic.get(x.name)!.clone()));
+    for(const ref of refs){
+        const trm = dic.get(ref.name)!.clone();
+
+        // 変換値に変数参照の係数をかける。
+        trm.value.setmul(ref.value);
+
+        // 変数参照を変換値で置き換える。
+        ref.replace(trm);
+    }
 }
 
 function matchFormulas(focus : Term){
@@ -331,6 +343,13 @@ function elementaryAlgebra(focus : Term){
         }
         if(1 <= focus.index() && (focus.parent.isAdd() || focus.parent.isMul()) && 3 <= focus.parent.args.length){
             const trans = new SplitAddMul(focus);
+            trans.showCandidate();
+        }
+        
+        const value = unifyValue(focus, new Rational(1), true, false);
+        if(! value.is(1)){
+
+            const trans = new UnifyValue(focus);
             trans.showCandidate();
         }
     }
@@ -442,6 +461,63 @@ export class SplitAddMul extends Transformation {
 
     getCommand(focus_path : Path) : App {
         return new App(actionRef(this.commandName), [focus_path]);
+    }
+}
+
+function unifyValue(trm : Term, value: Rational, is_mul : boolean, change_value : boolean) : Rational {
+    if(is_mul){
+        value.setmul(trm.value);
+    }
+    else{
+        value.setdiv(trm.value);
+    }
+
+    if(change_value){
+
+        trm.value.set(1);
+    }
+
+    if(trm instanceof App){
+
+        if(trm.isMul()){
+            trm.args.forEach(x => unifyValue(x, value, is_mul, change_value));
+        }
+        else if(trm.isDiv()){
+            unifyValue(trm.args[0], value, is_mul, change_value);
+            unifyValue(trm.args[1], value, ! is_mul, change_value);
+        }
+    }
+
+    return value;
+}
+
+export class UnifyValue extends Transformation {
+
+    static fromCommand(cmd : App){
+        assert(cmd.args.length == 1);
+        assert(cmd.args[0] instanceof Path);
+    
+        const focus_path = cmd.args[0] as Path;
+        const focus = focus_path.getTerm(Alg.root!);
+
+        const trans = new UnifyValue(focus);
+        return trans.result();
+    }
+
+    constructor(focus : Term){
+        super("@unify_value", focus);
+    }
+
+    result() : App {
+        const [root_cp, focus_cp] = this.focus.cloneRoot() as [App, App];
+
+        focus_cp.value = unifyValue(focus_cp, new Rational(1), true, true);
+
+        return root_cp;
+    }
+
+    getCommand(focus_path : Path) : App {
+        return new App(actionRef(this.commandName), [ focus_path ]);
     }
 }
 
