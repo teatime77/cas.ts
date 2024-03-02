@@ -107,7 +107,8 @@
     <input id="doc-title" type="text" style="width: 10em;"  />
   
     <span>主張</span>
-    <textarea id="doc-assertion" type="text" cols="100" rows="5"></textarea>
+    <textarea id="doc-assertion" type="text" cols="100" rows="5" oninput="casts.onAssertionInput()"></textarea><br/>
+    <div id="index-tex"></div>
   </div>
   <button id="index-ok">OK</button>
 </dialog>

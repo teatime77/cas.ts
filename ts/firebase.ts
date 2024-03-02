@@ -49,6 +49,16 @@ async function inputIndex(title : string = "", assertion : string = "") : Promis
     return [title, assertion];
 }
 
+export function onAssertionInput(){
+    const text = $("doc-assertion") as HTMLTextAreaElement;
+    try{
+        const expr = parseMath(text.value.trim());
+        render($("index-tex"), expr.tex());
+    }
+    catch(e){        
+    }
+}
+
 export async function writeDB(table_name : string, id : number, data : any) : Promise<void> {
     await db.collection('users').doc(loginUid!).collection(table_name).doc(`${id}`).set(data);
 }
