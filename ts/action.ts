@@ -126,6 +126,11 @@ export function doCommand(cmd : App){
         expr = UnifyValue.fromCommand(cmd);
         break;
 
+    case "@linear_split":
+    case "@linear_join":
+        expr = LinearTransformation.fromCommand(cmd);
+        break;
+    
     default:
         throw new MyError("do command");
     }

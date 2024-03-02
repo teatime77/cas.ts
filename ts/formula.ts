@@ -353,6 +353,11 @@ function elementaryAlgebra(focus : Term){
             trans.showCandidate();
         }
     }
+
+    if(focus instanceof App){
+
+        matchLinear(focus)
+    }
 }
 
 export function searchCandidate(focus : Term){
@@ -521,5 +526,137 @@ export class UnifyValue extends Transformation {
     }
 }
 
+export abstract class LinearTransformation extends Transformation {
+    static linearFunctions : [string, number][] = [
+        [ "/", 0],
+        [ "limit", 0],
+        [ "diff", 0]
+    ];
 
+    static fromCommand(cmd : App){
+        assert(cmd.args.length == 1);
+        assert(cmd.args[0] instanceof Path);
+    
+        const focus_path = cmd.args[0] as Path;
+        const focus = focus_path.getTerm(Alg.root!);
+
+        let trans : LinearTransformation;
+        if(cmd.fncName == "@linear_split"){
+            trans = new LinearSplit(focus)            
+        }
+        else{
+            trans = new LinearJoin(focus)            
+        }
+        return trans.result();
+    }
+
+    getCommand(focus_path : Path) : App {
+        return new App(actionRef(this.commandName), [focus_path]);
+    }
+}
+
+class LinearSplit extends LinearTransformation {
+    constructor(focus : Term){
+        super("@linear_split", focus);
+    }
+
+    result() : App {
+        const [root_cp, focus_cp] = this.focus.cloneRoot() as [App, App];
+
+        const add = new App(operator("+"), []);
+
+        const idx = 0;
+        const add2 = focus_cp.args[idx] as App
+        assert(add2.isAdd());
+        for(const trm of add2.args){
+            const focus_cp2 = focus_cp.clone();
+            focus_cp2.setArg(trm.clone(), idx);
+            add.addArg(focus_cp2);
+        }
+
+        if(root_cp == focus_cp){
+            return add;
+        }
+
+        focus_cp.replace(add);
+        return root_cp;
+    }
+
+}
+
+class LinearJoin extends LinearTransformation {
+    constructor(focus : Term){
+        super("@linear_join", focus);
+    }    
+
+    result() : App {
+        const [root_cp, focus_cp] = this.focus.cloneRoot() as [App, App];
+        assert(focus_cp.isAdd());
+
+        const add = new App(operator("+"), []);
+
+        const idx = 0;
+        for(const fnc of focus_cp.args as App[]){
+            const trm = fnc.args[idx].clone();
+            trm.value.setmul(fnc.value);
+            add.addArg(trm);
+        }
+
+        const joint_fnc = focus_cp.args[0].clone() as App;
+        joint_fnc.value.set(1);
+        joint_fnc.setArg(add, idx);
+
+        if(root_cp == focus_cp){
+            return joint_fnc;
+        }
+
+        focus_cp.replace(joint_fnc);
+        return root_cp;
+
+    }
+}
+
+function matchLinear(focus : App) {
+    for(const [name, idx] of LinearTransformation.linearFunctions){
+        if(focus.fncName == name && focus.args[idx].isAdd()){
+
+            const trans = new LinearSplit(focus);
+            trans.showCandidate();    
+        }
+
+        if(focus.isAdd() && focus.args.every(x => x instanceof App && x.fncName == name)){
+            // フォーカス側が加算で、加算内の引数がすべて関数呼び出しで、関数が同じ場合
+
+            // 加算の最初の関数呼び出し
+            const fnc0 = focus.args[0] as App;
+
+            L : for(const fnci of focus.args.slice(1) as App[]){
+                // 加算の中の2番目以降の関数呼び出しに対し
+
+                if(fnc0.args.length != fnci.args.length){
+                    // 引数の数が一致しない場合
+
+                    break L;
+                }
+
+                for(const [i, trm] of fnci.args.entries()){
+                    if(i != idx){
+                        // idx番目以外の引数の場合
+
+                        if(! fnc0.args[i].equal(fnci.args[i])){
+                            // 引数が一致しない場合
+
+                            break L;
+                        }
+                    }
+                }
+
+                // idx番目以外の引数が同じ場合
+                const trans = new LinearJoin(focus);
+                trans.showCandidate();    
+            }
+
+        }
+    }
+}
 }

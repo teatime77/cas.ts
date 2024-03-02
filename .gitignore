@@ -21,3 +21,4 @@ tmp
 .firebase/hosting.*.cache
 **/*.log
 export
+run.bat

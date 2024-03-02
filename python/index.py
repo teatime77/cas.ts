@@ -16,7 +16,7 @@ def enumDir(parent_dir, path):
             enumDir(child_dir, path_obj)
 
         elif os.path.isfile(path_obj):
-            file_path = str(path_obj).replace('\\', '/').replace('web/data/', '')
+            file_path = str(path_obj).replace('\\', '/').replace('public/data/', '')
             print(f"file:{file_path}")
             if(file_path.endswith(".json")):
                 continue
@@ -40,11 +40,11 @@ def enumDir(parent_dir, path):
 
 def main():
     dir_obj = { 'title' : "", 'dirs':[], 'files':[] }
-    path = Path("web/data")
+    path = Path("public/data")
     enumDir(dir_obj, path)
 
-    with open('web/data/index.json', 'w') as file:
-        json.dump(dir_obj, file, indent=4)    
+    with open('public/data/index.json', 'w', encoding="utf-8") as file:
+        json.dump(dir_obj, file, indent=4, ensure_ascii=False)    
 
 if __name__ == '__main__':
     main()
