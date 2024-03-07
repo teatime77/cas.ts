@@ -402,6 +402,10 @@ async function main(page : string) {
     }
     await initFirebase(page);
 
+    if(page == "edit"){
+        showContents();
+    }
+
     const index_text = await fetchText(`../data/index.json`);
     const index = JSON.parse(index_text);
 

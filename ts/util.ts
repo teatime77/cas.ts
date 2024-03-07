@@ -38,6 +38,12 @@ export function last<T>(v : Array<T>) : T {
     return v[v.length - 1];
 }
 
+export function remove<T>(v : Array<T>, x : T){
+    const idx = v.indexOf(x);
+    assert(idx != undefined);
+    v.splice(idx, 1);
+}
+
 export async function doGenerator(iterator : Generator, timeout : number){
     return new Promise((resolve)=>{
         const timer_id = setInterval(()=>{

@@ -2,7 +2,6 @@ namespace casts {
 
 let title_inp : HTMLInputElement;
 let assertionInput : HTMLTextAreaElement;
-let contentsDlg : HTMLDialogElement;
 let sectionMenuDlg : HTMLDialogElement;
 let indexMenuDlg : HTMLDialogElement;
 
@@ -17,10 +16,28 @@ let guestUid = defaultUid;
 let Sections : Section[];
 export let Indexes : Index[];
 
+export function getRoot() : Section {
+    let root : Section;
+
+    root = Sections.find(x => x.parentId == null)!;
+    assert(root != undefined && root.id == 0);
+
+    return root
+}
+
 function getMaxId() : number {
     const dbitems = (Sections as DbItem[]).concat(Indexes);
 
     return dbitems.map(x => x.id).reduce((acc,cur)=> Math.max(acc, cur), 0);
+}
+
+function getDbItemFromId(id : number) : DbItem {
+    const dbitems = (Sections as DbItem[]).concat(Indexes);
+
+    const item = dbitems.find(x => x.id == id);
+    assert(item != undefined);
+
+    return item!;
 }
 
 async function inputIndex(title : string = "", assertion : string = "") : Promise<[string, string] | null> {
@@ -75,13 +92,67 @@ export abstract class DbItem {
 
     abstract data()  : any;
     abstract table() : string;
-    abstract makeContents(parent_ul : HTMLUListElement | HTMLDivElement) : void;
 
     constructor(id : number, parent_id : number | null, order : number, title : string){
         this.id = id;
         this.parentId = parent_id;
         this.order    = order;
         this.title    = title;
+    }
+
+    fullName() : string {
+        let full_name = this.title;
+        for(let parent = this.parent; parent != null; parent = parent.parent){
+            full_name = `${parent.title}-${full_name}`;
+        }
+
+        return full_name;
+    }
+
+    makeContents(parent_ul : HTMLUListElement | HTMLDivElement){
+        this.li = document.createElement("li");
+        this.li.style.cursor = "pointer";
+        this.li.style.listStyleType = (this instanceof Section ? "disc" : "circle");
+        this.li.innerText = translate(this.title);
+        this.li.draggable = true;
+        this.li.addEventListener("dragstart", this.onDragStart.bind(this));
+        this.li.addEventListener("dragenter", this.onDragEnter.bind(this));
+        this.li.addEventListener("dragover", this.onDragOver.bind(this));
+        this.li.addEventListener("dragleave", this.onDragLeave.bind(this));
+        this.li.addEventListener("drop", this.onDrop.bind(this));
+
+        parent_ul.appendChild(this.li);
+    }
+
+    onDragStart(ev : DragEvent){
+        ev.dataTransfer!.setData("text/plain", `${this.id}`);
+        msg(`drag start : ${this.title}`);
+    }
+
+    onDragOver(ev : DragEvent){
+        ev.preventDefault();
+        ev.dataTransfer!.dropEffect = "move";
+    }
+
+    onDragEnter(){
+        this.li!.style.color = "blue";
+        msg(`drag enter : ${this.title}`);
+    }
+
+    onDragLeave(ev : DragEvent){
+        ev.preventDefault();
+        this.li!.style.color = "black";
+    }
+
+    onDrop(ev : DragEvent){
+        ev.preventDefault();
+        this.li!.style.color = "black";
+        const drag_id_str = ev.dataTransfer!.getData("text/plain");
+        const drag_id = parseInt(drag_id_str);
+        const drag_item = getDbItemFromId(drag_id);
+        
+        const drag_drop = new DragDrop(this, drag_item);
+        drag_drop.show();
     }
 
     async putDB(fnc : (()=>void) | null = null) : Promise<void> {
@@ -111,9 +182,39 @@ export abstract class DbItem {
             fnc();
         }
     }
+
+    moveBefore(item : DbItem){
+        this.parent!.move(item);
+
+        const idx = this.parent!.children.indexOf(this);
+        assert(idx != undefined);
+        this.parent!.children.splice(idx, 0, item);
+    }
+
+    moveAfter(item : DbItem){
+        this.parent!.move(item);
+
+        const idx = this.parent!.children.indexOf(this);
+        assert(idx != undefined);
+        this.parent!.children.splice(idx + 1, 0, item);
+    }
+
+    correctDbData(parent_id : number | null, order : number, changed : DbItem[]){
+        if(this.parentId != parent_id || this.order != order){
+            this.parentId = parent_id;
+            this.order    = order;
+            changed.push(this);
+        }
+
+        if(this instanceof Section){
+            for(const [i,x] of this.children.entries()){
+                x.correctDbData(this.id, i, changed);
+            }
+        }
+    }
 }
 
-class Section extends DbItem {
+export class Section extends DbItem {
     children  : DbItem[] = [];
 
     static fromData(id : number, data : any) : Section {
@@ -137,10 +238,9 @@ class Section extends DbItem {
     }
 
     makeContents(parent_ul : HTMLUListElement | HTMLDivElement){
-        this.li = document.createElement("li");
-        this.li.style.cursor = "pointer";
-        this.li.innerText = translate(this.title);
-        this.li.addEventListener("contextmenu", (ev : MouseEvent)=>{
+        super.makeContents(parent_ul);
+
+        this.li!.addEventListener("contextmenu", (ev : MouseEvent)=>{
             ev.preventDefault();
 
             bindClick("add-section", this.addChildSection.bind(this));
@@ -148,7 +248,6 @@ class Section extends DbItem {
             showDlg(ev, "section-menu-dlg");
         });
 
-        parent_ul.appendChild(this.li);
 
         this.ul = document.createElement("ul");
     
@@ -192,6 +291,17 @@ class Section extends DbItem {
         await index.putDB();
         index.makeContents(this.ul!);
     }
+
+    move(item : DbItem){
+        remove(item.parent!.children, item);
+
+        item.parent   = this;
+    }
+
+    moveChild(item : DbItem){
+        this.move(item);
+        this.children.push(item);        
+    }
 }
 
 export class Index extends DbItem {
@@ -225,16 +335,14 @@ export class Index extends DbItem {
         return `id:${this.id} title:${this.title}`;
     }
 
-    makeContents(parent_ul : HTMLUListElement | HTMLDivElement) : void {
-        this.li = document.createElement("li");
-        this.li.style.cursor = "pointer";
-        this.li.innerText = translate(this.title);
+    makeContents(parent_ul : HTMLUListElement | HTMLDivElement){
+        super.makeContents(parent_ul);
 
-        this.li.addEventListener("click", (ev : MouseEvent)=>{
+        this.li!.addEventListener("click", (ev : MouseEvent)=>{
             render($("assertion-tex"), this.assertion.tex());
         });
 
-        this.li.addEventListener("contextmenu", (ev : MouseEvent)=>{
+        this.li!.addEventListener("contextmenu", (ev : MouseEvent)=>{
             ev.preventDefault();
 
             bindClick("index-menu-edit", this.edit.bind(this));
@@ -243,7 +351,6 @@ export class Index extends DbItem {
             showDlg(ev, "index-menu-dlg");
         });
 
-        parent_ul.appendChild(this.li);
     }
 
     async edit(){
@@ -263,20 +370,18 @@ export class Index extends DbItem {
         this.li!.innerText = translate(this.title);
 
         await this.updateDB();
-
-        // contentsDlg.close();
     }
 
     delete(){
         msg("delete start");
         indexMenuDlg.close();
-        contentsDlg.close();
+        $dlg("contents-dlg").close();
     }
 
     proof(){
         msg("proof start");
         indexMenuDlg.close();
-        contentsDlg.close();
+        $dlg("contents-dlg").close();
 
         startProof(this);
     }
@@ -338,7 +443,6 @@ export async function initFirebase(page : string){
 
         title_inp      = document.getElementById("doc-title") as HTMLInputElement;
         assertionInput = document.getElementById("doc-assertion") as HTMLTextAreaElement;
-        contentsDlg    = document.getElementById("contents-dlg") as HTMLDialogElement;
         sectionMenuDlg = document.getElementById("section-menu-dlg") as HTMLDialogElement;
         indexMenuDlg   = document.getElementById("index-menu-dlg") as HTMLDialogElement;
     }
@@ -391,15 +495,10 @@ export async function initFirebase(page : string){
 
     Sections = await readSections();
 
-    let root : Section;
     if(Sections.length == 0){
 
-        root = new Section(0, null, 0, "目次");
+        const root = new Section(0, null, 0, "目次");
         await root.putDB();
-    }
-    else{
-        root = Sections.find(x => x.parentId == null)!;
-        assert(root != undefined && root.id == 0);
     }
 
     Indexes = await readIndexes();
@@ -428,14 +527,16 @@ export async function initFirebase(page : string){
             section.children.sort((a,b) => a.order - b.order);
         }
     }
-
-    if(page == "edit"){
-        const div = document.getElementById("contents-div") as HTMLDivElement;
-        root.makeContents(div);
-
-        contentsDlg.showModal();
-    }
-    
 }
 
+export async function updateContents(){
+    const root = getRoot();
+    const changed : DbItem[] = [];
+    root.correctDbData(null, 0, changed);
+
+    for(const item of changed){
+        msg(`changed ${item.fullName()}`);
+        await item.updateDB();
+    }
+}
 }
