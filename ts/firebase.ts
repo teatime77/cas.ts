@@ -87,8 +87,8 @@ export abstract class DbItem {
     order    : number = 0;
     title    : string;
     fnc      : (()=>void) | null = null;
-    li       : HTMLLIElement | null = null;
-    ul       : HTMLUListElement | null = null;    
+    span     : HTMLSpanElement | null = null;
+    tex      : HTMLSpanElement | null = null;
 
     abstract data()  : any;
     abstract table() : string;
@@ -109,19 +109,34 @@ export abstract class DbItem {
         return full_name;
     }
 
-    makeContents(parent_ul : HTMLUListElement | HTMLDivElement){
-        this.li = document.createElement("li");
-        this.li.style.cursor = "pointer";
-        this.li.style.listStyleType = (this instanceof Section ? "disc" : "circle");
-        this.li.innerText = translate(this.title);
-        this.li.draggable = true;
-        this.li.addEventListener("dragstart", this.onDragStart.bind(this));
-        this.li.addEventListener("dragenter", this.onDragEnter.bind(this));
-        this.li.addEventListener("dragover", this.onDragOver.bind(this));
-        this.li.addEventListener("dragleave", this.onDragLeave.bind(this));
-        this.li.addEventListener("drop", this.onDrop.bind(this));
+    nest() : number {
+        let n = 0;
+        
+        for(let parent = this.parent; parent != null; parent = parent.parent){
+            n++;
+        }
 
-        parent_ul.appendChild(this.li);
+        return n;
+    }
+
+    makeContents(){
+        this.span = document.createElement("span");
+        this.span.style.cursor = "pointer";
+        this.span.style.marginLeft = `${this.nest() * 40}px`;
+        this.span.style.alignContent = "center";
+        const marker = (this instanceof Section ? "・ " : "  ");
+        this.span.innerText = marker + translate(this.title);
+        this.span.draggable = true;
+        this.span.addEventListener("dragstart", this.onDragStart.bind(this));
+        this.span.addEventListener("dragenter", this.onDragEnter.bind(this));
+        this.span.addEventListener("dragover", this.onDragOver.bind(this));
+        this.span.addEventListener("dragleave", this.onDragLeave.bind(this));
+        this.span.addEventListener("drop", this.onDrop.bind(this));
+
+        $("contents-div").appendChild(this.span);
+
+        this.tex  = document.createElement("span");
+        $("contents-div").appendChild(this.tex);
     }
 
     onDragStart(ev : DragEvent){
@@ -135,18 +150,18 @@ export abstract class DbItem {
     }
 
     onDragEnter(){
-        this.li!.style.color = "blue";
+        this.span!.style.color = "blue";
         msg(`drag enter : ${this.title}`);
     }
 
     onDragLeave(ev : DragEvent){
         ev.preventDefault();
-        this.li!.style.color = "black";
+        this.span!.style.color = "black";
     }
 
     onDrop(ev : DragEvent){
         ev.preventDefault();
-        this.li!.style.color = "black";
+        this.span!.style.color = "black";
         const drag_id_str = ev.dataTransfer!.getData("text/plain");
         const drag_id = parseInt(drag_id_str);
         const drag_item = getDbItemFromId(drag_id);
@@ -237,10 +252,10 @@ export class Section extends DbItem {
         }
     }
 
-    makeContents(parent_ul : HTMLUListElement | HTMLDivElement){
-        super.makeContents(parent_ul);
+    makeContents(){
+        super.makeContents();
 
-        this.li!.addEventListener("contextmenu", (ev : MouseEvent)=>{
+        this.span!.addEventListener("contextmenu", (ev : MouseEvent)=>{
             ev.preventDefault();
 
             bindClick("add-section", this.addChildSection.bind(this));
@@ -248,14 +263,11 @@ export class Section extends DbItem {
             showDlg(ev, "section-menu-dlg");
         });
 
-
-        this.ul = document.createElement("ul");
     
         for(const item of this.children){
-            item.makeContents(this.ul);
+            item.makeContents();
         }
         
-        parent_ul.appendChild(this.ul);
     }
 
     async addChildSection(){
@@ -272,7 +284,8 @@ export class Section extends DbItem {
         this.children.push(section);
 
         await section.putDB();
-        section.makeContents(this.ul!);
+
+        showContents();
     }
 
     async addIndex(){
@@ -289,7 +302,8 @@ export class Section extends DbItem {
         this.children.push(index);
 
         await index.putDB();
-        index.makeContents(this.ul!);
+
+        showContents();        
     }
 
     move(item : DbItem){
@@ -335,14 +349,16 @@ export class Index extends DbItem {
         return `id:${this.id} title:${this.title}`;
     }
 
-    makeContents(parent_ul : HTMLUListElement | HTMLDivElement){
-        super.makeContents(parent_ul);
+    makeContents(){
+        super.makeContents();
 
-        this.li!.addEventListener("click", (ev : MouseEvent)=>{
+        render(this.tex!, this.assertion.tex());
+
+        this.span!.addEventListener("click", (ev : MouseEvent)=>{
             render($("assertion-tex"), this.assertion.tex());
         });
 
-        this.li!.addEventListener("contextmenu", (ev : MouseEvent)=>{
+        this.span!.addEventListener("contextmenu", (ev : MouseEvent)=>{
             ev.preventDefault();
 
             bindClick("index-menu-edit", this.edit.bind(this));
@@ -367,7 +383,7 @@ export class Index extends DbItem {
         [this.title, assertion_str] = res;
         this.assertion = parseMath(assertion_str) as App;
 
-        this.li!.innerText = translate(this.title);
+        this.span!.innerText = translate(this.title);
 
         await this.updateDB();
     }

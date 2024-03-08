@@ -348,7 +348,7 @@ export class DragDrop {
 export function showContents(){
     const root = getRoot();
     $div("contents-div").innerHTML = "";
-    root.makeContents($div("contents-div"));
+    root.makeContents();
 
     $dlg("contents-dlg").showModal();
 }
