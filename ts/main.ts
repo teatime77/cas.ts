@@ -434,6 +434,12 @@ async function main(page : string) {
         makeIndex(div, index)
         document.body.appendChild(div);
     }
+
+    if(page == "shape"){
+        initShape();
+    }
+
+
 }
 
 export function bodyOnLoad(page : string){

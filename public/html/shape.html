@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<!-- KaTeX requires the use of the HTML5 doctype. Without it, KaTeX may not render properly -->
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Cache-Control" content="no-cache">
+    <meta http-equiv="Expires" content="0"> 
+    
+  <title>初等幾何</title>
+
+  <script defer src="/__/firebase/10.8.0/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/10.8.0/firebase-auth-compat.js"></script>
+  <script defer src="/__/firebase/10.8.0/firebase-firestore-compat.js"></script>
+  <script defer src="/__/firebase/init.js?useEmulator=true"></script>
+
+    <link rel="stylesheet" href="../katex/katex.min.css" integrity="sha384-GvrOXuhMATgEsSwCs4smul74iXGOixntILdUW9XmUC6+HX0sLNAK3q71HotJqlAn" crossorigin="anonymous">
+
+    <!-- The loading of KaTeX is deferred to speed up page rendering -->
+    <script defer src="../katex/katex.min.js" integrity="sha384-cpW21h6RZv/phavutF+AuVYrr+dA8xD9zs6FwLpaCct6O9ctzYFfFr4dgmgccOTx" crossorigin="anonymous"></script>
+
+    <!-- To automatically render math in text elements, include the auto-render extension: -->
+    <script defer src="../katex/contrib/auto-render.min.js" integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
+
+    <script type="text/javascript" src="../js/main.js?ver=0"></script>
+
+<script>
+</script>
+
+<script>
+  function getUserMacros(){
+    return {
+        "\\dif" : "\\frac{d #1}{d #2}",
+        "\\pdiff" : "\\frac{\\partial #1}{\\partial #2}",
+        "\\pddif" : "\\frac{\\partial^2 #1}{\\partial {#2}^2}",
+        "\\b" : "\\boldsymbol{#1}"
+    };
+  }
+  document.addEventListener("DOMContentLoaded", function() {
+      renderMathInElement(document.body, {
+        // customised options
+        // • auto-render specific keys, e.g.:
+        delimiters: [
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false},
+            {left: '\\(', right: '\\)', display: false},
+            {left: '\\[', right: '\\]', display: true}
+        ],
+        // • rendering keys, e.g.:
+        throwOnError : false
+      });
+  });
+</script>
+</head>
+<body onload="casts.bodyOnLoad('shape')">
+
+  <svg version="1.1"
+  id="main-svg"
+  baseProfile="full"
+  width="300" height="200"
+  xmlns="http://www.w3.org/2000/svg">
+
+<rect width="100%" height="100%" fill="red" />
+
+<circle cx="150" cy="100" r="80" fill="green" />
+
+<text x="150" y="125" font-size="60" text-anchor="middle" fill="white">SVG</text>
+
+</svg>
+
+<div>
+  <input type="radio" name="tool-type" value="select" checked />選択
+  <input type="radio" name="tool-type" value="Point" />点
+  <input type="radio" name="tool-type" value="LineSegment" />線分
+  <input type="radio" name="tool-type" value="BSpline" />曲線
+  <input type="radio" name="tool-type" value="Rect.1" />長方形
+  <input type="radio" name="tool-type" value="Rect.2" />正方形
+  <input type="radio" name="tool-type" value="Circle.1" />円1
+  <input type="radio" name="tool-type" value="Circle.2" />円2
+  <input type="radio" name="tool-type" value="Arc" />弧
+  <input type="radio" name="tool-type" value="Triangle" />三角形
+  <input type="radio" name="tool-type" value="Midpoint" />中点
+  <input type="radio" name="tool-type" value="Perpendicular" />垂線
+  <input type="radio" name="tool-type" value="ParallelLine" />平行線
+  <input type="radio" name="tool-type" value="Intersection" />交点
+  <input type="radio" name="tool-type" value="Angle" />角度
+  <input type="radio" name="tool-type" value="Image" />画像
+  <input type="radio" name="tool-type" value="DimensionLine" />寸法線
+  <input type="radio" name="tool-type" value="FuncLine" />曲線
+  <input type="radio" name="tool-type" value="Surface" />曲面
+</div>
+
+<div id="board" style="overflow: scroll; border-style:inset; border-width: 3px;" >
+</div>
+
+</body>
+</html>
