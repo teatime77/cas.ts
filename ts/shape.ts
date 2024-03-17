@@ -7,7 +7,8 @@ const angleStrokeWidth = 2;
 const angleRadius = 40;
 const rightAngleLength = 20;
 const gridLineWidth = 1;
-const fgColor = "white";
+const bgColor = "white";
+const fgColor = "black";
 const selColor = "orange";
 
 declare let MathJax:any;
@@ -21,33 +22,65 @@ let loginUid : string | null = null;
 let guestUid = defaultUid;
 let firebase: any;
 
-let glb_toolType : string;
-let glb_eventPos : Vec2;
-let glb_view : View;
-let glb_widgets : Widget[] = [];
-let glb_refMap = new Map<number, Widget>();
-let glb_board : HTMLDivElement;
+class Glb {
+    toolType : string = "";
+    eventPos! : Vec2;
+    view: View | null = null;
+    refMap = new Map<number, Widget>();
+    timeline : HTMLInputElement | null = null;
+    selSummary : HTMLSelectElement;
+    board : HTMLDivElement;
+
+    constructor(){
+        this.selSummary = $("sel-summary") as HTMLSelectElement;
+        this.board      = $div("board");
+    }
+}
+
+let glb : Glb;
+
 
 export function initShape(){
-    glb_board = $div("board");
+    glb = new Glb();
 
-    setToolTypeEventListener();
+    setEventListener();
 
-    glb_view = new View().make({ Width: 1290, Height: 675, ViewBox: "-3.8 -2 7.6 4" });
+    glb.view = new View().make({ Width: 1290, Height: 675, ViewBox: "-3.8 -2 7.6 4" });
 
-    glb_widgets.push(glb_view);
+    glb.view.widgets.push(glb.view);
 }
 
 
-/**
- * tool-typeのクリック
- */
-function setToolTypeEventListener(){
+function setEventListener(){
+    /**
+     * tool-typeのクリック
+     */
     const toolTypes = document.getElementsByName("tool-type");
     for(let x of toolTypes){
         x.addEventListener("click", setToolType);
     }    
+
+    // 保存ボタン
+    $("put-doc")!.addEventListener("click", (ev: MouseEvent)=>{
+    });
+
 }
+
+
+function getTimelinePos(){
+    if(glb.timeline != null){
+        return glb.timeline.valueAsNumber;
+    }
+    else if(glb.selSummary != null){
+        return glb.selSummary.selectedIndex - 1;
+    }
+    else{
+        console.assert(false);
+        return 0;
+    }
+}
+
+
 
 
 export function parseObject(obj: any) : any {
@@ -62,7 +95,7 @@ export function parseObject(obj: any) : any {
 
     if(obj.ref != undefined){
         let id = parseInt(obj.ref);
-        let o = glb_refMap.get(id);
+        let o = glb.refMap.get(id);
         console.assert(o != undefined);
         return o;
     }
@@ -150,14 +183,6 @@ export function parseObject(obj: any) : any {
         console.assert(false);
         return null as any as Widget;
     }
-}
-
-export function getAll() : Widget[] {
-    let v: Widget[] = [];
-
-    glb_widgets.forEach(x => x.all(v));
-
-    return v;
 }
 
 function getImgRef(fileName: string, mode:string){
@@ -304,7 +329,7 @@ function calcFootOfPerpendicular(pos:Vec2, line: LineSegment) : Vec2 {
 
 
 export function setToolType(){
-    glb_toolType = (document.querySelector('input[name="tool-type"]:checked') as HTMLInputElement).value;
+    glb.toolType = (document.querySelector('input[name="tool-type"]:checked') as HTMLInputElement).value;
 }
 
 function makeToolByType(toolType: string): Shape|undefined {
@@ -407,7 +432,7 @@ export class Widget{
     make(obj: any) : Widget {
         if(obj.id != undefined){
             let id = parseInt(obj.id);
-            glb_refMap.set(id, this);
+            glb.refMap.set(id, this);
         }
         for(let [k, v] of Object.entries(obj)){
             if(k == "listeners" || k == "bindTo"){
@@ -476,10 +501,6 @@ export class Widget{
             typeName: this.typeName
         };
     }
-
-    toObj(){
-        return this.makeObj();
-    }
 }
 
 export class View extends Widget {
@@ -513,6 +534,7 @@ export class View extends Widget {
     BackgroundColor : string = "";
 
     xyAxis : (LineSegment|null)[] = [ null, null];
+    widgets : Widget[] = [];
 
     constructor(){
         super();
@@ -523,7 +545,7 @@ export class View extends Widget {
         this.div.style.padding = "0px";
         this.div.style.zIndex = "1";
         this.div.style.cssFloat = "right";
-        this.div.style.backgroundColor = "black";
+        this.div.style.backgroundColor = bgColor;
 
         this.canvas = document.createElement("canvas");
         this.canvas.style.position = "absolute";
@@ -546,7 +568,7 @@ export class View extends Widget {
 
         this.svg.setAttribute("preserveAspectRatio", "none");
         //---------- 
-        glb_board.appendChild(this.div);
+        glb.board.appendChild(this.div);
         this.div.appendChild(this.svg);
 
         this.div2 = document.createElement("div");
@@ -626,7 +648,7 @@ export class View extends Widget {
             "FlipY"     : this.FlipY,
             "ShowXAxis" : this.ShowXAxis,
             "ShowYAxis" : this.ShowYAxis,
-            "xyAxis"    : this.xyAxis.map(x => (x == null ? null : x.toObj()))
+            "xyAxis"    : this.xyAxis.map(x => (x == null ? null : x.makeObj()))
         });
 
         if(this.BackgroundColor != ""){
@@ -996,7 +1018,7 @@ export class View extends Widget {
             return;
         }
     
-        if(ev.ctrlKey || glb_toolType == "select"){
+        if(ev.ctrlKey || glb.toolType == "select"){
     
             // for(let ele = ev.srcElement; obj; obj = ob)
             let clicked_shape : Shape|null = null;
@@ -1023,8 +1045,8 @@ export class View extends Widget {
         const pt = this.getSvgPoint(ev, null);
     
         if(this.tool == null){
-            this.tool = makeToolByType(glb_toolType)!;
-            console.assert(this.tool.getTypeName() == glb_toolType.split('.')[0]);
+            this.tool = makeToolByType(glb.toolType)!;
+            console.assert(this.tool.getTypeName() == glb.toolType.split('.')[0]);
         }
     
         if(this.tool != null){
@@ -1087,13 +1109,42 @@ export class View extends Widget {
         }
     }
 
+
+    addWidget(act: Widget){
+        let selIdx = getTimelinePos();
+    
+        this.widgets.splice(selIdx + 1, 0, act);
+    
+        // 要約を表示する。
+        let opt = document.createElement("option");
+        opt.innerHTML = act.summary();
+        glb.selSummary.add(opt, 1 + selIdx + 1);
+    
+        opt.selected = true;
+    
+    /*    
+        setTimePosMax( glb.widgets.length - 1 );
+        this.updateTimePos(selIdx + 1);
+        this.textArea.focus();
+    */
+    }
+    
+
+    getAll() : Widget[] {
+        let v: Widget[] = [];
+    
+        this.widgets.forEach(x => x.all(v));
+    
+        return v;
+    }
+    
     allShapes() : Shape[] {
-        return getAll().filter(x => x instanceof Shape && x.parentView == this) as Shape[];
+        return this.getAll().filter(x => x instanceof Shape && x.parentView == this) as Shape[];
     }
 }
 
 export abstract class Shape extends Widget {
-    parentView : View = glb_view;
+    parentView : View = glb.view!;
     selected: boolean = false;
     EndTime: number | undefined = undefined;
     Color: string = fgColor;
@@ -1156,7 +1207,7 @@ export abstract class Shape extends Widget {
 
     makeObj() : any {
         let obj = Object.assign(super.makeObj(), {
-            parentView : this.parentView.toObj()
+            parentView : this.parentView.makeObj()
         });
 
         if(this.Color != undefined && this.Color != fgColor){
@@ -1238,6 +1289,7 @@ export abstract class Shape extends Widget {
         selected_shapes.forEach(x => x.select(false));
     
         console.assert(this.parentView.tool != null);
+        this.parentView.addWidget(this.parentView.tool!);
         this.parentView.tool = null;
     }
 
@@ -1282,23 +1334,23 @@ export abstract class Shape extends Widget {
 
 
     namePointerdown =(ev: PointerEvent)=>{
-        if(glb_toolType != "select"){
+        if(glb.toolType != "select"){
             return;
         }
 
-        glb_eventPos = this.parentView.DomToSvgPos(ev.offsetX, ev.offsetY);
+        glb.eventPos = this.parentView.DomToSvgPos(ev.offsetX, ev.offsetY);
         this.parentView.capture = this;
         this.svgName!.setPointerCapture(ev.pointerId);
     }
 
     namePointermove =(ev: PointerEvent)=>{
-        if(glb_toolType != "select" || this.parentView.capture != this){
+        if(glb.toolType != "select" || this.parentView.capture != this){
             return;
         }
     }
 
     namePointerup =(ev: PointerEvent)=>{
-        if(glb_toolType != "select"){
+        if(glb.toolType != "select"){
             return;
         }
 
@@ -1361,7 +1413,7 @@ export abstract class CompositeShape extends Shape {
 
     makeObj() : any {
         return Object.assign(super.makeObj() , {
-            handles : this.handles.map(x => x.toObj())
+            handles : this.handles.map(x => x.makeObj())
         });
     }
 
@@ -1632,7 +1684,7 @@ export class Point extends Shape {
     }
 
     pointerdown =(ev: PointerEvent)=>{
-        if(glb_toolType != "select"){
+        if(glb.toolType != "select"){
             return;
         }
 
@@ -1641,7 +1693,7 @@ export class Point extends Shape {
     }
 
     pointermove =(ev: PointerEvent)=>{
-        if(glb_toolType != "select"){
+        if(glb.toolType != "select"){
             return;
         }
 
@@ -1655,7 +1707,7 @@ export class Point extends Shape {
     }
 
     pointerup =(ev: PointerEvent)=>{
-        if(glb_toolType != "select"){
+        if(glb.toolType != "select"){
             return;
         }
 
@@ -2129,7 +2181,7 @@ export class Rect extends Polygon {
     makeObj() : any {
         return Object.assign(super.makeObj(), {
             isSquare: this.isSquare,
-            lines: this.lines.map(x => x.toObj())
+            lines: this.lines.map(x => x.makeObj())
         });
     }
 
@@ -2646,7 +2698,7 @@ export class DimensionLine extends CompositeShape {
 export class Triangle extends Polygon {
     makeObj() : any {
         return Object.assign(super.makeObj(), {
-            lines: this.lines.map(x => x.toObj()) 
+            lines: this.lines.map(x => x.makeObj()) 
         });
     }
 
@@ -2696,7 +2748,7 @@ export class Midpoint extends CompositeShape {
 
     makeObj() : any {
         return Object.assign(super.makeObj(), {
-            midpoint: this.midpoint!.toObj()
+            midpoint: this.midpoint!.makeObj()
         });
     }
 
@@ -2754,9 +2806,9 @@ export class Perpendicular extends CompositeShape {
     
     makeObj() : any {
         return Object.assign(super.makeObj(), {
-            line: this.line!.toObj(),
-            foot: this.foot!.toObj(),
-            perpendicular: this.perpendicular!.toObj()
+            line: this.line!.makeObj(),
+            foot: this.foot!.makeObj(),
+            perpendicular: this.perpendicular!.makeObj()
         });
     }
 
@@ -2838,8 +2890,8 @@ export class ParallelLine extends CompositeShape {
     
     makeObj() : any {
         return Object.assign(super.makeObj(), {
-            line1: this.line1!.toObj(),
-            line2: this.line2!.toObj(),
+            line1: this.line1!.makeObj(),
+            line2: this.line2!.makeObj(),
         });
     }
 
@@ -2913,9 +2965,9 @@ export class Intersection extends Shape {
 
     makeObj() : any {
         let obj = Object.assign(super.makeObj(), {
-            lines: this.lines.map(x => x.toObj()),
-            arcs : this.arcs.map(x => x.toObj()),
-            intersections: this.intersections.map(x => x.toObj())
+            lines: this.lines.map(x => x.makeObj()),
+            arcs : this.arcs.map(x => x.makeObj()),
+            intersections: this.intersections.map(x => x.makeObj())
         });
 
         return obj;
@@ -3199,7 +3251,7 @@ export class Angle extends Shape {
     
     makeObj() : any {
         return Object.assign(super.makeObj(), {
-            lines: this.lines.map(x => x.toObj()),
+            lines: this.lines.map(x => x.makeObj()),
             Mark : this.Mark,
             handleIdx: Array.from(this.handleIdx)
         });
