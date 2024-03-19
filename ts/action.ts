@@ -6,11 +6,18 @@ export let Alg : Algebra;
 
 export class Action {
     command : App;
+
+    constructor(command : App){
+        this.command = command;
+    }
+}
+
+export class FormulaAction extends Action {
     expr    : App;
     div  : HTMLDivElement;
 
     constructor(command : App, expr : App, div : HTMLDivElement){
-        this.command = command;
+        super(command);
         this.expr    = expr;
         this.div  = div;
     }
@@ -98,6 +105,10 @@ function applyFormula(cmd : App) : App {
     return focus_root;
 }
 
+export function addAction(act : Action){
+    actions.push(act);
+}
+
 export function doCommand(cmd : App){
     let expr : App;
     
@@ -138,11 +149,12 @@ export function doCommand(cmd : App){
     expr.setParent(null);
     Alg.setRoot(expr);
 
-    const act = new Action(cmd, expr, mathDiv);
+    const act = new FormulaAction(cmd, expr, mathDiv);
 
     $("eq-action-delete").onclick = act.delete.bind(act);
     mathDiv.addEventListener("contextmenu", onContextmenu);
-    actions.push(act);
+
+    addAction(act);
 }
 
 function* generateActions(){

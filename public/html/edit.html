@@ -90,13 +90,45 @@
 
 数式処理を使って数学や物理の式の導出をしています。<br/>
 
+<button onclick="casts.initShape()">図形</button>
 <button onclick="casts.writeProof()">書き込み</button>
 <strong id="ancestor-titles"></strong><br/>
 
 <h2 id="index-title"></h2>
 <div id="assertion-tex"></div>
 
-<div id="math-div-root"></div>
+<div id="main-grid" style="display: grid; grid-template-columns: 150px 1fr 1fr 100px;">
+  <select id="sel-summary" style="font-family: 'Segoe UI Emoji';" size="10">
+    <option selected >先頭</option>
+  </select>
+
+  <div id="math-div-root" style="border-style:inset; border-width: 3px;"></div>
+
+  <div id="board" style="overflow: scroll; border-style:inset; border-width: 3px;" ></div>
+
+  <div id="shape-tool" style="display:grid; grid-template-columns: 1fr 1fr;" >
+    <input type="radio" name="tool-type" value="select" checked />選択
+    <input type="radio" name="tool-type" value="Distance" />距離
+    <input type="radio" name="tool-type" value="Point" />点
+    <input type="radio" name="tool-type" value="LineSegment" />線分
+    <input type="radio" name="tool-type" value="BSpline" />曲線
+    <input type="radio" name="tool-type" value="Rect.1" />長方形
+    <input type="radio" name="tool-type" value="Rect.2" />正方形
+    <input type="radio" name="tool-type" value="Circle.1" />円1
+    <input type="radio" name="tool-type" value="Circle.2" />円2
+    <input type="radio" name="tool-type" value="Arc" />弧
+    <input type="radio" name="tool-type" value="Triangle" />三角形
+    <input type="radio" name="tool-type" value="Midpoint" />中点
+    <input type="radio" name="tool-type" value="Perpendicular" />垂線
+    <input type="radio" name="tool-type" value="ParallelLine" />平行線
+    <input type="radio" name="tool-type" value="Intersection" />交点
+    <input type="radio" name="tool-type" value="Angle" />角度
+    <input type="radio" name="tool-type" value="Image" />画像
+    <input type="radio" name="tool-type" value="DimensionLine" />寸法線
+    <input type="radio" name="tool-type" value="FuncLine" />曲線
+    <input type="radio" name="tool-type" value="Surface" />曲面
+  </div>
+</div>
 <div id="candidate-div" class="container" ></div>
 <p style="height: 30px;"></p>
 

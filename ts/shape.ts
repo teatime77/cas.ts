@@ -26,16 +26,25 @@ class Glb {
     toolType : string = "";
     eventPos! : Vec2;
     view: View | null = null;
+    views : View[] = [];
     refMap = new Map<number, Widget>();
     timeline : HTMLInputElement | null = null;
     selSummary : HTMLSelectElement;
     board : HTMLDivElement;
+    dicName = new Map<string, Shape>();
 
     constructor(){
         this.selSummary = $("sel-summary") as HTMLSelectElement;
         this.board      = $div("board");
     }
 }
+
+export class WidgetAction extends Action {
+    constructor(command : App){
+        super(command);
+    }
+}
+
 
 let glb : Glb;
 
@@ -59,11 +68,6 @@ function setEventListener(){
     for(let x of toolTypes){
         x.addEventListener("click", setToolType);
     }    
-
-    // 保存ボタン
-    $("put-doc")!.addEventListener("click", (ev: MouseEvent)=>{
-    });
-
 }
 
 
@@ -338,6 +342,7 @@ function makeToolByType(toolType: string): Shape|undefined {
     const arg = v.length == 2 ? v[1] : null;
 
     switch(typeName){
+        case "Distance":      return new Distance();
         case "Point":         return new Point({pos:new Vec2(0,0)});
         case "LineSegment":   return new LineSegment();
         case "BSpline":       return new BSpline();
@@ -419,7 +424,7 @@ export class EventQueue {
     }
 }
 
-export class Widget{
+export abstract class Widget{
     static count: number = 0;
     id: number;
     typeName: string;
@@ -428,6 +433,8 @@ export class Widget{
         this.id = Widget.count++;
         this.typeName = this.getTypeName();
     }
+
+    abstract makeAction() : WidgetAction;
 
     make(obj: any) : Widget {
         if(obj.id != undefined){
@@ -539,6 +546,8 @@ export class View extends Widget {
     constructor(){
         super();
 
+        glb.views.push(this);
+
         this.div = document.createElement("div");
 
         this.div.style.position = "relative";
@@ -593,6 +602,11 @@ export class View extends Widget {
         this.svg.appendChild(this.G0);
         this.svg.appendChild(this.G1);
         this.svg.appendChild(this.G2);
+    }
+
+    makeAction() : WidgetAction{
+        const app = new App(actionRef("@make_view"), [])
+        return new WidgetAction(app);
     }
 
     /**
@@ -1149,7 +1163,7 @@ export abstract class Shape extends Widget {
     EndTime: number | undefined = undefined;
     Color: string = fgColor;
 
-    Name: string = "";
+    Name: string;
     namePos = new Vec2(0,0);
     svgName: SVGTextElement | null = null;
 
@@ -1161,6 +1175,15 @@ export abstract class Shape extends Widget {
 
     processEvent(sources: Shape[]){}
     listeners:Shape[] = [];     //!!! リネーム注意 !!!
+
+    abstract app() : App;
+
+    makeAction() : WidgetAction {
+        const command = this.app();
+
+        const eq = new App(operator("="), [ new RefVar(this.Name), command ])
+        return new WidgetAction(eq);        
+    }
 
     select(selected: boolean){
         this.selected = selected;
@@ -1201,6 +1224,25 @@ export abstract class Shape extends Widget {
 
     constructor(){
         super();
+
+        let letters : string;
+        if(this instanceof Point){
+            letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        }
+        else if(this instanceof Angle){
+            letters = "αβγδεζηθικλμνξοπρστυφχψω";
+        }
+        else{
+
+            letters = "abcdefghijklmnopqrstuvwxyz";
+        }
+
+        const unused_letter = letters.split('').find(c => ! glb.dicName.has(c))!;
+        assert(unused_letter != undefined);
+
+        glb.dicName.set(unused_letter, this);
+
+        this.Name = unused_letter;
 
         this.parentView.shapes.push(this);
     }
@@ -1291,6 +1333,9 @@ export abstract class Shape extends Widget {
         console.assert(this.parentView.tool != null);
         this.parentView.addWidget(this.parentView.tool!);
         this.parentView.tool = null;
+
+        const act = this.makeAction();
+        addAction(act);
     }
 
     addListener(shape: Shape){
@@ -1329,10 +1374,6 @@ export abstract class Shape extends Widget {
         }
     }
 
-
-
-
-
     namePointerdown =(ev: PointerEvent)=>{
         if(glb.toolType != "select"){
             return;
@@ -1356,8 +1397,6 @@ export abstract class Shape extends Widget {
 
         this.svgName!.releasePointerCapture(ev.pointerId);
     }
-
-
 
     getCenterXY() : Vec2{
         throw new Error();
@@ -1391,6 +1430,33 @@ export abstract class Shape extends Widget {
 
     validEndTime(){
         return this.EndTime != undefined && 0 < this.EndTime;
+    }
+}
+
+class Distance extends Shape {
+    p1 : Point | null = null;
+    p2 : Point | null = null;
+
+    app() : App {
+        assert(this.p1 != null && this.p2 != null);
+        return new App(actionRef("@distance"), [this.p1!.app(), this.p2!.app()]);
+    }
+
+    click =(ev: MouseEvent, pt:Vec2): void => {
+        let point = this.parentView.getPoint(ev);
+        if(point == null){
+            return;
+        }
+
+        if(this.p1 == null){
+            this.p1 = point;
+            this.p1.select(true);
+        }
+        else{
+            this.p2 = point;
+
+            this.finishTool();
+        }
     }
 }
 
@@ -1510,6 +1576,10 @@ export class Point extends Shape {
         this.parentView.G2.appendChild(this.circle);
 
         return this;
+    }
+
+    app() : App {
+        return new App(actionRef("@point"), [this.pos.app()]);
     }
 
     /**
@@ -1747,6 +1817,10 @@ export class LineSegment extends CompositeShape {
         this.updateRatio();
 
         this.parentView.G0.appendChild(this.line);
+    }
+
+    app() : App{
+        return new App(actionRef("@line_segment"), [this.p1.app(), this.p2.app()]);
     }
 
     makeObj() : any {
@@ -2047,6 +2121,11 @@ export class BSpline extends CompositeShape {
         };
     }
 
+    app() : App{
+        assert(false);
+        return new App(actionRef("@bspline"), []);
+    }
+
     click =(ev: MouseEvent, pt:Vec2): void => {
         this.addHandle(this.clickHandle(ev, pt));
 
@@ -2158,6 +2237,11 @@ export class BSpline extends CompositeShape {
 export class Polygon extends CompositeShape {
     lines : Array<LineSegment> = [];
 
+
+    app() : App{
+        return new App(actionRef("@polygon"), this.lines.map(x => x.app()));
+    }
+
     all(v: Widget[]){
         super.all(v);
         this.lines.forEach(x => x.all(v));
@@ -2176,6 +2260,17 @@ export class Rect extends Polygon {
 
     constructor(){
         super();
+    }
+
+    app() : App{
+        if(this.isSquare){
+
+            return new App(actionRef("@square"), this.lines.map(x => x.app()));
+        }
+        else{
+
+            return new App(actionRef("@rect"), this.lines.map(x => x.app()));
+        }
     }
 
     makeObj() : any {
@@ -2376,7 +2471,7 @@ export class Rect extends Polygon {
     }
 }
 
-class CircleArc extends CompositeShape {
+abstract class CircleArc extends CompositeShape {
 
     getRadius(){
         return NaN;
@@ -2408,6 +2503,10 @@ export class Circle extends CircleArc {
         this.updateRatio();
         
         this.parentView.G0.appendChild(this.circle);    
+    }
+
+    app() : App{
+        return new App(actionRef("@circle"), [ this.handles[0].app() ]);        
     }
 
     summary() : string {
@@ -2588,6 +2687,11 @@ export class DimensionLine extends CompositeShape {
         this.updateRatio();
     }
 
+    app() : App{
+        assert(false);
+        return new App(actionRef("@dimension_line"), []);        
+    }
+
     summary() : string {
         return "寸法線";
     }
@@ -2702,6 +2806,11 @@ export class Triangle extends Polygon {
         });
     }
 
+    app() : App{
+        assert(false);
+        return new App(actionRef("@triangle"), []);                
+    }
+
     summary() : string {
         return "三角形";
     }
@@ -2745,6 +2854,11 @@ export class Triangle extends Polygon {
 
 export class Midpoint extends CompositeShape {
     midpoint : Point | null = null;
+
+    app() : App{
+        assert(false);
+        return new App(actionRef("@"), []);        
+    }
 
     makeObj() : any {
         return Object.assign(super.makeObj(), {
@@ -2803,6 +2917,11 @@ export class Perpendicular extends CompositeShape {
     foot : Point | null = null;
     perpendicular : LineSegment | null = null;
     inHandleMove: boolean = false;
+
+    app() : App{
+        assert(false);
+        return new App(actionRef("@"), []);        
+    }
     
     makeObj() : any {
         return Object.assign(super.makeObj(), {
@@ -2881,6 +3000,11 @@ export class Perpendicular extends CompositeShape {
 export class ParallelLine extends CompositeShape {
     line1 : LineSegment | null = null;
     line2 : LineSegment | null = null;
+
+    app() : App{
+        assert(false);
+        return new App(actionRef("@"), []);        
+    }
 
     all(v: Widget[]){
         super.all(v);
@@ -2962,6 +3086,11 @@ export class Intersection extends Shape {
     lines : LineSegment[] = [];
     arcs    : CircleArc[] = [];
     intersections : Point[] = [];
+
+    app() : App{
+        assert(false);
+        return new App(actionRef("@"), []);        
+    }
 
     makeObj() : any {
         let obj = Object.assign(super.makeObj(), {
@@ -3115,6 +3244,11 @@ export class Arc extends CircleArc {
         this.parentView.G0.appendChild(this.arc);
     }
 
+    app() : App{
+        assert(false);
+        return new App(actionRef("@"), []);        
+    }
+
     make(obj: any) : Widget {
         super.make(obj);
         this.drawArc(null);
@@ -3247,6 +3381,11 @@ export class Angle extends Shape {
 
     constructor(){
         super();
+    }
+
+    app() : App{
+        assert(false);
+        return new App(actionRef("@"), []);        
     }
     
     makeObj() : any {
@@ -3523,6 +3662,11 @@ export class Image extends CompositeShape {
         this.parentView.G0.appendChild(this.image);
     }
 
+    app() : App{
+        assert(false);
+        return new App(actionRef("@"), []);        
+    }
+
     makeObj() : any {
         return Object.assign(super.makeObj(), {
             fileName: this.fileName
@@ -3657,6 +3801,11 @@ export class FuncLine extends Shape {
         this.parentView.G0.appendChild(this.path);
     }
 
+    app() : App{
+        assert(false);
+        return new App(actionRef("@"), []);        
+    }
+
     makeObj() : any {
         return Object.assign(super.makeObj(), {
             Script: this.Script
@@ -3689,6 +3838,27 @@ export class FuncLine extends Shape {
 }
 
 
+function addPoint(v : Vec2){
+    
+}
 
+function addLineSegment(p1 : Point, p2 : Point){
+
+}
+
+
+function addHalfLine(p1 : Point, p2 : Point){
+    
+}
+
+function addCircle(p : Point, radius : number){
+}
+
+function addAngle(){
+}
+
+function setLength(p1 : Point, p2 : Point){
+
+}
 
 }

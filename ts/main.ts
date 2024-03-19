@@ -435,7 +435,7 @@ async function main(page : string) {
         document.body.appendChild(div);
     }
 
-    if(page == "shape"){
+    if(page == "edit" || page == "shape"){
         initShape();
     }
 

@@ -10,6 +10,10 @@ export class Vec2 {
         this.y = y;
     }
 
+    app() : App {
+        return new App(operator("vec"), [new ConstNum(this.x), new ConstNum(this.y)]);
+    }
+
     copy(){
         return new Vec2(this.x, this.y);
     }
