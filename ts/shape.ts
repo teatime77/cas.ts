@@ -118,6 +118,12 @@ export function parseObject(obj: any) : any {
     case LineSegment.name:
         return new LineSegment().make(obj);
 
+    case StraightLine.name:
+        return new StraightLine().make(obj);
+
+    case HalfLine.name:
+        return new HalfLine().make(obj);
+        
     case Rect.name:
         return new Rect().make(obj);
 
@@ -345,6 +351,8 @@ function makeToolByType(toolType: string): Shape|undefined {
         case "Distance":      return new Distance();
         case "Point":         return new Point({pos:new Vec2(0,0)});
         case "LineSegment":   return new LineSegment();
+        case "StraightLine":  return new StraightLine();
+        case "HalfLine":      return new HalfLine();
         case "BSpline":       return new BSpline();
         case "Rect":          return new Rect().make({isSquare:(arg == "2")}) as Shape;
         case "Circle":        return new Circle(arg == "2");
@@ -358,7 +366,8 @@ function makeToolByType(toolType: string): Shape|undefined {
         case "Angle":         return new Angle();
         case "Image":         return new Image({fileName:"./img/teatime77.png"});
         case "FuncLine":      return new FuncLine();
-    } 
+    }
+    assert(false);
 }
 
 
@@ -1798,7 +1807,7 @@ export class Point extends Shape {
     }
 }
 
-export class LineSegment extends CompositeShape {    
+export abstract class AbstractStraightLine extends CompositeShape {    
     line : SVGLineElement;
     p1: Vec2 = new Vec2(0,0);
     p2: Vec2 = new Vec2(0,0);
@@ -1817,10 +1826,6 @@ export class LineSegment extends CompositeShape {
         this.updateRatio();
 
         this.parentView.G0.appendChild(this.line);
-    }
-
-    app() : App{
-        return new App(actionRef("@line_segment"), [this.p1.app(), this.p2.app()]);
     }
 
     makeObj() : any {
@@ -1977,21 +1982,38 @@ export class LineSegment extends CompositeShape {
     }
 
     updateLinePos(){
-        this.line.setAttribute("x1", "" + this.handles[0].pos.x);
-        this.line.setAttribute("y1", "" + this.handles[0].pos.y);
+        let pos1 : Vec2, pos2 : Vec2;
 
         if(this.handles.length == 1){
-
-            this.line.setAttribute("x2", "" + this.handles[0].pos.x);
-            this.line.setAttribute("y2", "" + this.handles[0].pos.y);
+            pos1 = this.handles[0].pos;
+            pos2 = this.handles[0].pos;
         }
         else{
 
-            this.line.setAttribute("x2", "" + this.handles[1].pos.x);
-            this.line.setAttribute("y2", "" + this.handles[1].pos.y);
-
             this.setVecs();
+
+            if(this instanceof LineSegment){
+                pos1 = this.p1;
+                pos2 = this.p2;
+            }
+            else if(this instanceof StraightLine){
+                pos1 = this.p1.sub(this.p12.mul(10000));
+                pos2 = this.p1.add(this.p12.mul(10000));                
+            }
+            else if(this instanceof HalfLine){
+                pos1 = this.p1;
+                pos2 = this.p1.add(this.p12.mul(10000));
+            }
+            else{
+                throw new MyError();
+            }
         }
+
+        this.line.setAttribute("x1", "" + pos1.x);
+        this.line.setAttribute("y1", "" + pos1.y);
+
+        this.line.setAttribute("x2", "" + pos2.x);
+        this.line.setAttribute("y2", "" + pos2.y);
     }
 
     processEvent =(sources: Shape[])=>{
@@ -2031,7 +2053,8 @@ export class LineSegment extends CompositeShape {
         }
         else{
             this.line.style.cursor = "move";
-            this.setVecs();
+
+            this.updateLinePos();
 
             this.finishTool();
         }    
@@ -2073,6 +2096,30 @@ export class LineSegment extends CompositeShape {
     color(){
         return this.Color == undefined ? fgColor : this.Color;
     }
+}
+
+export class LineSegment extends AbstractStraightLine {
+
+    app() : App{
+        return new App(actionRef("@line_segment"), [this.p1.app(), this.p2.app()]);
+    }
+
+}
+
+export class StraightLine extends AbstractStraightLine {
+
+    app() : App{
+        return new App(actionRef("@straight_line"), [this.p1.app(), this.p2.app()]);
+    }
+
+}
+
+export class HalfLine extends AbstractStraightLine {
+
+    app() : App{
+        return new App(actionRef("@half_line"), [this.p1.app(), this.p2.app()]);
+    }
+
 }
 
 export class BSpline extends CompositeShape {  
