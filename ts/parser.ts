@@ -34,11 +34,14 @@ function texName(text : string){
     case "<="     : return "\\ge";
     case ">="     : return "\\le";
     case "*"      : return "\\cdot";
+    case "=>"     : return "\\implies";
+    case "&&"     : return "\\land";
     case "hbar"   : return "\\hbar";
     case "nabla"  : return "\\nabla";
     case "nabla2" : return "\\nabla^2";
     case "sin"  :
     case "cos"  :
+    case "in"   :
         return `\\${text}`;
     }
 
@@ -353,6 +356,10 @@ export abstract class Term {
     tex() : string {
         const text = this.tex2();
         return this.htmldata(this.putValue(text));
+    }
+
+    isApp(fnc_name : string) : boolean {
+        return this instanceof App && this.fncName == fnc_name;
     }
 
     isOperator() : boolean {
@@ -675,6 +682,17 @@ export class App extends Term{
         else if(this.fncName == "lim"){
             text = `\\lim_{${args[1]} \\to ${args[2]}} ${args[0]}`;
         }
+        else if(this.fncName == "in"){
+            let ids : string;
+            if(this.args[0].isApp(",")){
+
+                ids = (this.args[0] as App).args.map(x => x.tex()).join(" , ");
+            }
+            else{
+                ids = args[0];
+            }
+            text = `${ids} \\in ${args[1]}`;
+        }
         else if(this.isDiff()){
             const n = (this.args.length == 3 ? `^{${args[2]}}`:``);
 
@@ -813,6 +831,7 @@ export class App extends Term{
 
 export class Parser {
     tokens: Token[];
+    tokens_cp: Token[];
     token!: Token;
 
     constructor(text: string){
@@ -820,6 +839,7 @@ export class Parser {
         if(this.tokens.length == 0){
             
         }
+        this.tokens_cp = this.tokens.slice();
 
         this.next();
     }
@@ -835,8 +855,17 @@ export class Parser {
         }
     }
 
+    showError(text : string){
+        const i = this.tokens_cp.length - this.tokens.length;
+        const words = this.tokens_cp.map(x => x.text);
+
+        words.splice(i, 0, `<<${text}>>`);
+        msg(`token err:${words.join(" ")}`);
+    }
+
     nextToken(text : string){
         if(this.token.text != text){
+            this.showError(text);
             throw new Error();
         }
 
@@ -847,11 +876,15 @@ export class Parser {
         return this.token.text;
     }
 
+    peek() : Token | null {
+        return this.tokens.length == 0 ? null : this.tokens[0];
+    }
+
     readArgs(app : App){
         this.nextToken("(");
 
         while(true){
-            const trm = this.Expression();
+            const trm = this.RelationalExpression();
             app.args.push(trm);
 
             if(this.token.text == ","){
@@ -910,7 +943,7 @@ export class Parser {
         else if(this.token.text == '('){
 
             this.next();
-            trm = this.Expression();
+            trm = this.RelationalExpression();
 
             if(this.current() != ')'){
                 throw new Error();
@@ -1050,14 +1083,51 @@ export class Parser {
         return trm1;
     }
 
-    RelationalExpression() : Term {
-        let trm1 = this.AdditiveExpression();
-        while([ "==", "=", "!=", "<", "<=", ].includes(this.token.text)){
+    ArithmeticExpression() : Term {
+        return this.AdditiveExpression();
+    }
+
+    VariableDeclaration() : App {
+        const ref_vars : RefVar[] = [];
+
+        while(true){
+            const id = this.token;
+            assert(id.typeTkn == TokenType.identifier);
+
+            this.next();
+
+            ref_vars.push(new RefVar(id.text));
+
+            if(this.token.text == ","){
+                this.nextToken(",");
+            }
+            else{
+                break;
+            }
+        }
+
+        const id_list = new App(operator(","), ref_vars);
+
+        this.nextToken("in");
+
+        const set = this.ArithmeticExpression();
+
+        return new App(operator("in"), [id_list, set]);
+    }
+
+    RelationalExpression(in_and : boolean = false) : Term {
+        const next_token = this.peek();
+        if(in_and && this.token.typeTkn == TokenType.identifier && next_token != null && next_token.text == ","){
+            return this.VariableDeclaration();
+        }
+
+        let trm1 = this.ArithmeticExpression();
+        while([ "==", "=", "!=", "<", "<=", "in" ].includes(this.token.text)){
             let app = new App(operator(this.token.text), [trm1]);
             this.next();
 
             while(true){
-                let trm2 = this.AdditiveExpression();
+                let trm2 = this.ArithmeticExpression();
                 app.args.push(trm2);
                 
                 if(this.token.text == app.fncName){
@@ -1073,15 +1143,39 @@ export class Parser {
         return trm1;
     }
 
-    Expression() : Term {
-        return this.RelationalExpression();
-        // const trm1 = this.RelationalExpression();
+    AndExpression() : Term {
+        const trm1 = this.RelationalExpression(true);
 
-        // if(this.token.typeTkn != TokenType.eot){
+        if(! [";", "&&"].includes(this.token.text)){
 
-        // }
+            return trm1;
+        }
+
+        const app = new App(operator("&&"), [trm1]);
+
+        while( [";", "&&"].includes(this.token.text) ){
+            this.next();
+
+            const trm2 = this.RelationalExpression(true);
+            app.addArg(trm2);
+        }
+
+        return app;
     }
-    
+
+    LogicalExpression(){
+        const trm1 = this.AndExpression();
+
+        if(this.token.text != "=>"){
+            
+            return trm1;
+        }
+
+        this.next();
+
+        let trm2 = this.AndExpression();
+        return new App(operator("=>"), [trm1, trm2]);
+    }
 }
 
 export function operator(opr : string) : RefVar {

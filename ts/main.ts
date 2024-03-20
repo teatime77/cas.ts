@@ -8,7 +8,7 @@ const theLang : string = "ja";
 
 export function parseMath(text: string) : Term {
     let parser = new Parser(text);
-    let trm = parser.Expression();
+    let trm = parser.LogicalExpression();
     if(parser.token.typeTkn != TokenType.eot){
         throw new Error();
     }
