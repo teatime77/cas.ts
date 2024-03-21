@@ -396,6 +396,8 @@ async function main(page : string) {
     const translation_text = await fetchText(`../data/translation.json`);
     translation = JSON.parse(translation_text);
 
+    initSpeech();
+    
     if(page == "edit"){
 
         initAction();

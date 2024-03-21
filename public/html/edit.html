@@ -90,6 +90,18 @@
 
 数式処理を使って数学や物理の式の導出をしています。<br/>
 
+
+速度 : <input type="number" min="0.1" max="100" step="0.1" value="1" id="speech-rate" />
+<select id="voice-lang-select" ></select>
+<select id="voice-name-select" ></select>
+<button onclick="casts.speakTest()" >Speak</button>
+<button onclick="casts.cancelSpeech()" >Stop</button>
+<br/>
+<textarea id="text-data" cols="160" rows="2">
+In theoretical physics, quantum field theory (QFT) is a theoretical framework that combines classical field theory, special relativity, and quantum mechanics.  
+</textarea>
+
+
 <button onclick="casts.initShape()">図形</button>
 <button onclick="casts.writeProof()">書き込み</button>
 <strong id="ancestor-titles"></strong><br/>

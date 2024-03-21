@@ -21,6 +21,10 @@ export function $dlg(id : string) : HTMLDialogElement {
     return $(id) as HTMLDialogElement;
 }
 
+export function $sel(id : string) : HTMLSelectElement {
+    return $(id) as HTMLSelectElement;
+}
+
 export function $h(id : string) : HTMLHeadElement {
     return $(id) as HTMLHeadElement;
 }
