@@ -52,24 +52,12 @@ let glb : Glb;
 export function initShape(){
     glb = new Glb();
 
-    setEventListener();
+    setToolTypeEventListener();
 
     glb.view = new View().make({ Width: 1290, Height: 675, ViewBox: "-3.8 -2 7.6 4" });
 
     glb.view.widgets.push(glb.view);
 }
-
-
-function setEventListener(){
-    /**
-     * tool-typeのクリック
-     */
-    const toolTypes = document.getElementsByName("tool-type");
-    for(let x of toolTypes){
-        x.addEventListener("click", setToolType);
-    }    
-}
-
 
 function getTimelinePos(){
     if(glb.timeline != null){
@@ -83,9 +71,6 @@ function getTimelinePos(){
         return 0;
     }
 }
-
-
-
 
 export function parseObject(obj: any) : any {
     if(obj == undefined || obj == null || typeof obj != "object"){
@@ -618,14 +603,6 @@ export class View extends Widget {
         return new WidgetAction(app);
     }
 
-    /**
-     * Viewのイベント処理
-     */
-    setViewEventListener(){
-        this.svg.addEventListener("click", this.svgClick);
-        this.svg.addEventListener("pointermove", this.svgPointerMove);  
-    }
-
     make(obj: any) : View {
         console.assert(obj.Width != undefined && obj.Height != undefined && obj.ViewBox != undefined);
         super.make(obj);
@@ -643,7 +620,7 @@ export class View extends Widget {
 
         this.xyAxis.forEach(x => { if(x != null){ x.updateRatio(); }});
     
-        this.setViewEventListener();
+        setViewEventListener(this);
 
         return this;
     }
@@ -1383,6 +1360,56 @@ export abstract class Shape extends Widget {
         }
     }
 
+    setName(text: string){
+        this.Name = text;
+        this.updateName();
+    }
+
+    setCaption(text: string){
+        this.Caption = text;
+        // this.updateCaption();
+    }
+
+    setFontSize(value: any){
+        this.FontSize = value;
+        // this.updateCaption();
+    }
+
+    updateName(){
+        if(this.Name == ""){
+            if(this.svgName != null){
+
+                this.svgName.removeEventListener("pointerdown", this.namePointerdown);
+                this.svgName.removeEventListener("pointermove", this.namePointermove);
+                this.svgName.removeEventListener("pointerup"  , this.namePointerup);
+
+                this.svgName.parentElement!.removeChild(this.svgName);
+                this.svgName = null;
+            }
+        }
+        else{
+            if(this.svgName == null){
+
+                this.svgName = document.createElementNS("http://www.w3.org/2000/svg","text");
+                this.svgName.setAttribute("stroke", this.Color);
+                this.svgName.setAttribute("fill", this.Color);
+                this.svgName.style.cursor = "pointer";
+                this.parentView.G0.appendChild(this.svgName);
+
+                if(this.parentView.FlipY){            
+                    this.svgName.setAttribute("transform", `matrix(1, 0, 0, -1, 0, 0)`);
+                }
+
+                this.updateNamePos();
+                this.updateRatio();
+        
+                setNameEventListener(this);
+            }
+
+            this.svgName.textContent = this.Name;
+        }
+    }
+
     namePointerdown =(ev: PointerEvent)=>{
         if(glb.toolType != "select"){
             return;
@@ -1574,8 +1601,9 @@ export class Point extends Shape {
         super.make(obj);
         console.assert(! isNaN(this.pos.x));
 
-        this.setPointEventListener();
+        setPointEventListener(this);
 
+        this.updateName();
         this.updateColor();
 
         this.updateRatio();
@@ -1589,15 +1617,6 @@ export class Point extends Shape {
 
     app() : App {
         return new App(actionRef("@point"), [this.pos.app()]);
-    }
-
-    /**
-     * Pointのイベント処理
-     */
-    setPointEventListener(){
-        this.circle.addEventListener("pointerdown", this.pointerdown);
-        this.circle.addEventListener("pointermove", this.pointermove);
-        this.circle.addEventListener("pointerup"  , this.pointerup);
     }
 
     setEnable(enable: boolean){

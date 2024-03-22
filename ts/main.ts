@@ -390,7 +390,19 @@ function mergeJson(js1 : any, js2 : any){
     }
 }
 
+async function includeDialog(){
+    const dialog_html = await fetchText("./dialog.html");
+    $div("dlg-list").innerHTML = dialog_html;
+    // const dlgs = Array.from($div("dlg-list").childNodes);
+    // for(const dlg of dlgs){
+    //     $div("dlg-list").removeChild(dlg);
+    //     document.body.appendChild(dlg);
+    // }
+}
+
 async function main(page : string) {    
+    await includeDialog();
+
     mathDivRoot = document.getElementById("math-div-root") as HTMLDivElement;
 
     const translation_text = await fetchText(`../data/translation.json`);

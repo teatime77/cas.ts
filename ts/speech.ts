@@ -17,6 +17,10 @@ export class Phrase {
     }
 }
 
+export function showSpeech(){
+    $dlg("speech-dlg").showModal();
+}
+
 export function speakTest(){
     const text_area = $("text-data") as HTMLTextAreaElement;
     speak(text_area.value.trim());
