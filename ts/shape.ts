@@ -54,7 +54,7 @@ export function initShape(){
 
     setToolTypeEventListener();
 
-    glb.view = new View().make({ Width: 1290, Height: 675, ViewBox: "-3.8 -2 7.6 4" });
+    glb.view = new View().make({ Width: 640, Height: 640, ViewBox: "-5 -5 10 10" });
 
     glb.view.widgets.push(glb.view);
 }
@@ -525,7 +525,6 @@ export class View extends Widget {
     GridWidth : number = 1;
     GridHeight : number = 1;
     SnapToGrid: boolean = false;
-    FlipY : boolean = true;
 
     Width      : number = 0;
     Height     : number = 0;
@@ -570,6 +569,7 @@ export class View extends Widget {
         this.svg.style.margin = "0px";
 
         this.svg.setAttribute("preserveAspectRatio", "none");
+        this.svg.setAttribute("transform", "scale(1, -1)");
         //---------- 
         glb.board.appendChild(this.div);
         this.div.appendChild(this.svg);
@@ -630,13 +630,8 @@ export class View extends Widget {
         this.xyAxis.filter(x => x != null).forEach(x => x!.all(v));
     }
 
-    getTransform(){
-        const f = 2 * this.svg.viewBox.baseVal.y + this.svg.viewBox.baseVal.height;
-        return `matrix(1, 0, 0, -1, 0, ${f})`;
-    }
-
     propertyNames() : string[] {
-        return [ "Width", "Height", "AutoHeight", "ViewBox", "ShowGrid", "GridWidth", "GridHeight", "SnapToGrid", "FlipY", "ShowXAxis", "ShowYAxis", "BackgroundColor" ];
+        return [ "Width", "Height", "AutoHeight", "ViewBox", "ShowGrid", "GridWidth", "GridHeight", "SnapToGrid", "ShowXAxis", "ShowYAxis", "BackgroundColor" ];
     }
 
     makeObj() : any {
@@ -645,7 +640,6 @@ export class View extends Widget {
             "Height"    : this.Height,
             "AutoHeight": this.AutoHeight,
             "ViewBox"   : this.svg.getAttribute("viewBox"),
-            "FlipY"     : this.FlipY,
             "ShowXAxis" : this.ShowXAxis,
             "ShowYAxis" : this.ShowYAxis,
             "xyAxis"    : this.xyAxis.map(x => (x == null ? null : x.makeObj()))
@@ -781,14 +775,6 @@ export class View extends Widget {
 
         this.setCTMInv();
 
-        if(this.FlipY){
-            
-            const transform = this.getTransform();
-            this.G0.setAttribute("transform", transform);
-            this.G1.setAttribute("transform", transform);
-            this.G2.setAttribute("transform", transform);
-        }
-
         this.setGridPattern();
         if(! this.ShowGrid){
             this.gridBg.setAttribute("fill", "transparent");
@@ -825,10 +811,6 @@ export class View extends Widget {
 
     setSnapToGrid(value: boolean){
         this.SnapToGrid = value;
-    }
-
-    setFlipY(value: boolean){
-        this.FlipY = value;
     }
 
     setShowXAxis(value: boolean){
@@ -944,61 +926,22 @@ export class View extends Widget {
         this.gridBg.setAttribute("fill", `url(#${patternId})`);
     }
 
-    DomToSvgPos(x1: number, y1: number) : Vec2 {
-        const rc1 = this.svg.getBoundingClientRect() as DOMRect;
-        const rc2 = this.div.getBoundingClientRect() as DOMRect;
-    
-        console.assert(rc1.x == rc2.x && rc1.y == rc2.y && rc1.width == rc2.width && rc1.height == rc2.height);
-    
-        if(this.FlipY){
-    
-            y1 = rc2.height - y1;
-        }
+    DomToSvgPos(ev : MouseEvent) : Vec2 {
+        var pt = this.svg.createSVGPoint();
 
-        const x = this.svg.viewBox.baseVal.x + this.svg.viewBox.baseVal.width  * x1 / rc1.width;
-        const y = this.svg.viewBox.baseVal.y + this.svg.viewBox.baseVal.height * y1 / rc1.height;
-    
-        let p2 = new Vec2(x, y);
+        pt.x = ev.clientX; 
+        pt.y = ev.clientY;
 
-        if(this.CTMInv != null){
+        const mat = this.svg.getScreenCTM()!.inverse();
+        const loc : DOMPoint = pt.matrixTransform(mat);
+        msg(`loc:${loc.x} ${loc.y}`);
 
-            const point = this.svg.createSVGPoint();
-
-            //画面上の座標を取得する．
-            point.x = x1;
-            point.y = y1;
-
-            //座標に逆行列を適用する．
-            const p3 = point.matrixTransform(this.CTMInv);
-
-            // console.assert(Math.abs(p2.x - p3.x) < 0.01 && Math.abs(p2.y - p3.y) < 0.01)
-        }
-            
-        return p2;
+        return new Vec2(loc.x, loc.y);
     }
-    
-    SvgToDomPos(pt: Vec2) : Vec2 {
-        const rc1 = this.svg.getBoundingClientRect() as DOMRect;
-        const rc2 = this.div.getBoundingClientRect() as DOMRect;
-
-        console.assert(rc1.x == rc2.x && rc1.y == rc2.y && rc1.width == rc2.width && rc1.height == rc2.height);
-
-        const x = rc2.width  * (pt.x - this.svg.viewBox.baseVal.x) / this.svg.viewBox.baseVal.width;
-        let   y = rc2.height * (pt.y - this.svg.viewBox.baseVal.y) / this.svg.viewBox.baseVal.height;
-
-        if(this.FlipY){
-    
-            y = rc2.height - y;
-        }
-
-
-        return new Vec2(x, y);
-    }
-
 
     getSvgPoint(ev: MouseEvent | PointerEvent, draggedPoint: Point|null){
 
-        const p = this.DomToSvgPos(ev.offsetX, ev.offsetY);
+        const p = this.DomToSvgPos(ev);
     
         if(this.SnapToGrid){
     
@@ -1391,14 +1334,11 @@ export abstract class Shape extends Widget {
             if(this.svgName == null){
 
                 this.svgName = document.createElementNS("http://www.w3.org/2000/svg","text");
+                this.svgName.setAttribute("transform", "scale(1, -1)");
                 this.svgName.setAttribute("stroke", this.Color);
                 this.svgName.setAttribute("fill", this.Color);
                 this.svgName.style.cursor = "pointer";
                 this.parentView.G0.appendChild(this.svgName);
-
-                if(this.parentView.FlipY){            
-                    this.svgName.setAttribute("transform", `matrix(1, 0, 0, -1, 0, 0)`);
-                }
 
                 this.updateNamePos();
                 this.updateRatio();
@@ -1415,7 +1355,7 @@ export abstract class Shape extends Widget {
             return;
         }
 
-        glb.eventPos = this.parentView.DomToSvgPos(ev.offsetX, ev.offsetY);
+        glb.eventPos = this.parentView.DomToSvgPos(ev);
         this.parentView.capture = this;
         this.svgName!.setPointerCapture(ev.pointerId);
     }
@@ -1441,8 +1381,8 @@ export abstract class Shape extends Widget {
     getNameXY(){
         const p = this.getCenterXY();
 
-        let x = p.x + this.namePos.x;
-        let y = p.y + this.namePos.y;
+        let x =  p.x + this.namePos.x;
+        let y = -p.y + this.namePos.y;
 
         return [x, y];
     }
@@ -3717,10 +3657,6 @@ export class Image extends CompositeShape {
 
         this.image = document.createElementNS("http://www.w3.org/2000/svg", "image") as SVGImageElement;
 
-        if(this.parentView.FlipY){
-            
-            this.image.setAttribute("transform", `matrix(1, 0, 0, -1, 0, 0)`);
-        }
         this.image.setAttribute("preserveAspectRatio", "none");
         // setSvgImg(this.image, this.fileName);
         this.image.setAttributeNS('http://www.w3.org/1999/xlink','href', this.fileName);
@@ -3789,13 +3725,7 @@ export class Image extends CompositeShape {
     }
 
     getY() : number {
-        if(this.parentView.FlipY){
-            return - this.handles[0].pos.y;
-        }
-        else{
-
-            return   this.handles[0].pos.y;
-        }
+        return   this.handles[0].pos.y;
     } 
 
     processEvent =(sources: Shape[])=>{
