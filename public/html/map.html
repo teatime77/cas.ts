@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<!-- KaTeX requires the use of the HTML5 doctype. Without it, KaTeX may not render properly -->
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Cache-Control" content="no-cache">
+    <meta http-equiv="Expires" content="0">    
+
+    <title>マップ</title>
+
+    <link rel="stylesheet" href="../katex/katex.min.css" integrity="sha384-GvrOXuhMATgEsSwCs4smul74iXGOixntILdUW9XmUC6+HX0sLNAK3q71HotJqlAn" crossorigin="anonymous">
+
+    <!-- The loading of KaTeX is deferred to speed up page rendering -->
+    <script defer src="../katex/katex.min.js" integrity="sha384-cpW21h6RZv/phavutF+AuVYrr+dA8xD9zs6FwLpaCct6O9ctzYFfFr4dgmgccOTx" crossorigin="anonymous"></script>
+
+    <!-- To automatically render math in text elements, include the auto-render extension: -->
+    <script defer src="../katex/contrib/auto-render.min.js" integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
+
+    <script type="text/javascript" src="../js/main.js?ver=2"></script>
+
+<script>
+</script>
+
+<script>
+  function getUserMacros(){
+    return {
+        "\\dif" : "\\frac{d #1}{d #2}",
+        "\\pdiff" : "\\frac{\\partial #1}{\\partial #2}",
+        "\\pddif" : "\\frac{\\partial^2 #1}{\\partial {#2}^2}",
+        "\\b" : "\\boldsymbol{#1}"
+    };
+  }
+  document.addEventListener("DOMContentLoaded", function() {
+      renderMathInElement(document.body, {
+        // customised options
+        // • auto-render specific keys, e.g.:
+        delimiters: [
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false},
+            {left: '\\(', right: '\\)', display: false},
+            {left: '\\[', right: '\\]', display: true}
+        ],
+        // • rendering keys, e.g.:
+        throwOnError : false
+      });
+  });
+</script>
+</head>
+<body onload="casts.bodyOnLoadMap()">
+<svg id="map-svg" style="border-style: ridge; border-width: 5px; width: 100%; height:auto" viewBox="-50 -50 800 800" xmlns="http://www.w3.org/2000/svg">
+
+</svg>
+
+<!-- $$
+\int_0^\pi
+$$ -->
+
+</body>
+</html>

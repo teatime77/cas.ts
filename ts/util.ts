@@ -65,6 +65,11 @@ export async function fetchText(fileURL: string) {
     return text;
 }
 
+export async function fetchJson(fileURL: string) {
+    const text = await fetchText(fileURL);
+    return JSON.parse(text);
+}
+
 export function render(ele: HTMLElement, tex_text: string){
     try{
         ele.innerHTML = "";
@@ -143,6 +148,10 @@ export function mulR(... rs : Rational[]) : Rational {
     const denominator = rs.reduce((acc, cur) => acc * cur.denominator, 1);
 
     return new Rational(numerator, denominator);
+}
+
+export function sum(v : number[]) : number {
+    return v.reduce((acc, cur) => acc + cur, 0);
 }
 
 
