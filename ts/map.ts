@@ -3,71 +3,31 @@ namespace casts {
 const margin = 20;
 const textMargin = 5;
 
-
 class MapSVG {
     svg : SVGSVGElement;
-    // g : SVGGElement;
-    // g : SVGGElement;
     root : Region;
 
     constructor(obj : any){
         this.svg = $("map-svg") as any as SVGSVGElement;
 
-        // this.g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-        // this.svg.appendChild(this.g);
-
         this.root = new Region(this, obj);
         // this.svg.setAttribute("transform", "scale(1, -1)");
-
-        const box = this.drawText(0, 0, "こんにちは");
-        this.drawRect(box.x, box.y, box.width, box.height);
-    }
-
-    drawRect(x : number, y : number, width : number, height : number){
-        const rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
-        rect.setAttribute("x", `${x}`);
-        rect.setAttribute("y", `${y}`);
-        rect.setAttribute("width", `${width}`);
-        rect.setAttribute("height", `${height}`);
-        rect.setAttribute("fill", "transparent");
-        rect.setAttribute("stroke", "black");
-        rect.setAttribute("stroke-width", `1`);
-
-        this.svg.appendChild(rect);
-    }
-
-    drawText(x : number, y : number, str : string) : DOMRect {
-        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        text.setAttribute("x", `${x}`);
-        text.setAttribute("y", `${y}`);
-        // text.setAttribute("width", `50`);
-        // text.setAttribute("height", `20`);
-        // text.setAttribute("fill", "transparent");
-        text.setAttribute("stroke", "black");
-        text.setAttribute("stroke-width", `1`);
-        text.setAttribute("font-size", "10");
-        text.textContent = str;
-        // text.setAttribute("transform", "scale(1, -1)");
-
-        this.svg.appendChild(text);
-
-        const box = text.getBBox();
-        return box;
+        // this.g.setAttribute("transform", `translate(${x} ${y})`);
     }
 }
 
 abstract class MapItem {
-    title : string;
+    title! : string;
 
-    text : SVGTextElement;
-    rect : SVGRectElement;
-    textBox : DOMRect;
+    text! : SVGTextElement;
+    rect! : SVGRectElement;
+    textBox! : DOMRect;
     left  : number = 0;
     top   : number = 0;
     width!  : number;
     height! : number;
 
-    constructor(parent : Region | MapSVG, obj : any){
+    init(parent : Region | MapSVG, obj : any){
         this.title = obj["title"];
 
         this.text = document.createElementNS("http://www.w3.org/2000/svg", "text");
@@ -79,12 +39,21 @@ abstract class MapItem {
         this.text.textContent = this.title;
 
         this.rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        this.rect.setAttribute("fill", "transparent");
         this.rect.setAttribute("stroke", "black");
         this.rect.setAttribute("stroke-width", `1`);
-        this.rect.setAttribute("fill-opacity", `0`);      
+        // this.rect.setAttribute("fill-opacity", `0`);      
 
-        parent.svg.appendChild(this.text);
-        parent.svg.appendChild(this.rect);
+        if(this instanceof Region){
+
+            this.svg.appendChild(this.text);
+            this.svg.appendChild(this.rect);
+        }
+        else{
+
+            parent.svg.appendChild(this.text);
+            parent.svg.appendChild(this.rect);
+        }
 
         this.textBox = this.text.getBBox();
 
@@ -130,7 +99,8 @@ abstract class MapItem {
 
 class TextMap extends MapItem {
     constructor(parent : Region | MapSVG, obj : any){
-        super(parent, obj);
+        super();
+        this.init(parent, obj);
     }
 }
 
@@ -140,17 +110,10 @@ class Region extends MapItem {
     children : MapItem[];
 
     constructor(parent : Region | MapSVG, obj : any){
-        super(parent, obj);
+        super();
         this.svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-
-        if(parent instanceof Region){
-
-            parent.svg.appendChild(this.svg);
-        }
-        else{
-
-            parent.svg.appendChild(this.svg);
-        }
+        parent.svg.appendChild(this.svg);
+        this.init(parent, obj);
 
         let files : MapItem[] = [];
         let dirs     : MapItem[] = [];
@@ -211,7 +174,6 @@ class Region extends MapItem {
 
         this.svg.setAttribute("x", `${x}`);
         this.svg.setAttribute("y", `${y}`);
-        // this.g.setAttribute("transform", `translate(${x} ${y})`);
 
         this.text.setAttribute("x", `${margin}`);
         this.text.setAttribute("y", `${margin}`);
