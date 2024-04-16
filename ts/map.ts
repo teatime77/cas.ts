@@ -2,17 +2,123 @@ namespace casts {
 //
 const margin = 20;
 const textMargin = 5;
+const border_width = 3;
 
-class MapSVG {
+export class MapSVG {
     svg : SVGSVGElement;
     root : Region;
+    scale : number = 1;
+    downX : number = NaN;
+    downY : number = NaN;
+
+    minX : number = 0;
+    minY : number = 0;
+    viewWidth : number;
+    viewHeight : number;
 
     constructor(obj : any){
         this.svg = $("map-svg") as any as SVGSVGElement;
 
+        this.viewWidth = document.documentElement.clientWidth   - 2 * border_width;
+        this.viewHeight = document.documentElement.clientHeight - 2 * border_width;
+
+        this.svg.style.width = `${this.viewWidth}px`;
+        this.svg.style.height = `${this.viewHeight}px`;
+
+        this.updateViewBox(0, 0);
+
         this.root = new Region(this, obj);
-        // this.svg.setAttribute("transform", "scale(1, -1)");
-        // this.g.setAttribute("transform", `translate(${x} ${y})`);
+    }
+
+    getViewBox(dx : number, dy : number) : [number, number, number, number] {
+        const x = this.minX + dx * this.scale;
+        const y = this.minY + dy * this.scale;
+        const w = this.viewWidth  * this.scale;
+        const h = this.viewHeight * this.scale;
+
+        return [x, y, w, h];
+    }
+
+    updateViewBox(dx : number, dy : number){
+        const [x, y, w, h] = this.getViewBox(dx, dy);
+        this.svg.setAttribute("viewBox", `${x.toFixed()} ${y.toFixed()} ${w.toFixed()} ${h.toFixed()}`);         
+    }
+
+    onPointerDown(ev: PointerEvent){
+        ev.preventDefault(); 
+
+        if(ev.button == 0){
+
+            this.downX = ev.offsetX;
+            this.downY = ev.offsetY;
+        }
+        else{
+
+            this.downX = NaN;
+            this.downY = NaN;
+        }
+    }
+
+    onPointerUp(ev: PointerEvent){
+        ev.preventDefault(); 
+
+        if(isNaN(this.downX)){
+            return;
+        }
+
+        this.minX -= (ev.offsetX - this.downX) * this.scale;
+        this.minY -= (ev.offsetY - this.downY) * this.scale;
+
+        this.updateViewBox(0, 0);
+
+        this.downX = NaN;
+        this.downY = NaN;
+    }
+
+    onPointerMove(ev: PointerEvent){
+        // タッチによる画面スクロールを止める
+        ev.preventDefault(); 
+
+        if(isNaN(this.downX)){
+            return;
+        }
+
+        const client_dx = ev.offsetX - this.downX;
+        const client_dy = ev.offsetY - this.downY;
+
+        this.updateViewBox(-(ev.offsetX - this.downX), -(ev.offsetY - this.downY));
+    }
+
+    onWheel(ev: WheelEvent){
+        const [min_x, min_y, view_w, view_h] = this.getViewBox(0, 0);
+
+        const rx = ev.offsetX / this.viewWidth;
+        const ry = ev.offsetY / this.viewHeight;
+
+        const x = min_x + rx * view_w;
+        const y = min_y + ry * view_h;
+
+        if(0 < ev.deltaY){
+            this.scale *= 1.05;
+        }
+        else{
+            this.scale /= 1.05;
+        }
+
+        const [min_x2, min_y2, view_w2, view_h2] = this.getViewBox(0, 0);
+
+        this.minX = x - rx * view_w2;
+        this.minY = y - ry * view_h2;
+
+        if(view_w2 < this.viewWidth){
+            this.minX = 0;
+        }
+        if(view_h2 < this.viewHeight){
+            this.minY = 0;
+        }
+
+        this.updateViewBox(0, 0);
+
     }
 }
 
@@ -72,8 +178,6 @@ abstract class MapItem {
 
         this.rect.setAttribute("x", `${x}`);
         this.rect.setAttribute("y", `${y}`);
-
-        msg(`item ${x} ${y} ${this.title}`);
     }
 
     setWH(width : number, height : number){        
@@ -115,16 +219,7 @@ class Region extends MapItem {
         parent.svg.appendChild(this.svg);
         this.init(parent, obj);
 
-        let files : MapItem[] = [];
-        let dirs     : MapItem[] = [];
-        if(obj["files"] != undefined){
-            files = Array.from(obj["files"]).map(x => makeMap(this, x));
-        }
-        if(obj["dirs"] != undefined){
-            dirs = Array.from(obj["dirs"]).map(x => makeMap(this, x));
-        }
-
-        this.children = files.concat(dirs);
+        this.children = Array.from(obj["children"]).map(x => makeMap(this, x));
     }
 
     calcSize(){
@@ -177,8 +272,6 @@ class Region extends MapItem {
 
         this.text.setAttribute("x", `${margin}`);
         this.text.setAttribute("y", `${margin}`);
-
-        msg(`group ${x} ${y} ${this.title}`);
     }
 
     dmp(nest : string){
@@ -191,7 +284,7 @@ class Region extends MapItem {
 }
 
 function makeMap(parent : Region | MapSVG, obj : any){
-    if(obj["dirs"] == undefined){
+    if(obj["children"] == undefined){
         return new TextMap(parent, obj);
     }
     else{
@@ -203,7 +296,6 @@ let mapSVG : MapSVG;
 
 export async function bodyOnLoadMap(){
     const map = await fetchJson(`../data/map.json`);
-    msg(`map : ${map}`);
     mapSVG = new MapSVG(map);
 
     mapSVG.root.calcSize();
@@ -211,25 +303,8 @@ export async function bodyOnLoadMap(){
 
     mapSVG.root.dmp("");
 
-    dmpSvg(mapSVG.root.svg, "");
+    setMapEventListener(mapSVG);
 }
 
-function dmpSvg(item : SVGElement, nest : string){
-    const x = parseFloat(item.getAttribute("x")!).toFixed();
-    const y = parseFloat(item.getAttribute("y")!).toFixed();
-    
-    if(item instanceof SVGTextElement){
-
-        msg(`${nest}${item.textContent} ${x} ${y}`);
-    }
-    else{
-        msg(`${nest}${item.tagName} ${x} ${y}`);
-    }
-
-    nest += "    ";
-    for(const c of item.children){
-        dmpSvg(c as SVGElement, nest);
-    }
-}
 
 }
