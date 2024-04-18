@@ -1,8 +1,13 @@
 namespace casts {
 //
-const margin = 20;
-const textMargin = 5;
-const border_width = 3;
+const scale = 0.2;
+const margin = scale * 20;
+const textMargin = scale * 5;
+const strokeWidth = scale * 1;
+const fontSize = scale * 10;
+const rowWidthLimit = scale * 500;
+
+const borderWidth = 3;
 
 export class MapSVG {
     svg : SVGSVGElement;
@@ -19,29 +24,13 @@ export class MapSVG {
     constructor(obj : any){
         this.svg = $("map-svg") as any as SVGSVGElement;
 
-        this.viewWidth = document.documentElement.clientWidth   - 2 * border_width;
-        this.viewHeight = document.documentElement.clientHeight - 2 * border_width;
+        this.viewWidth  = document.documentElement.clientWidth  - 2 * borderWidth;
+        this.viewHeight = document.documentElement.clientHeight - 2 * borderWidth;
 
         this.svg.style.width = `${this.viewWidth}px`;
         this.svg.style.height = `${this.viewHeight}px`;
 
-        this.updateViewBox(0, 0);
-
         this.root = new Region(this, obj);
-    }
-
-    getViewBox(dx : number, dy : number) : [number, number, number, number] {
-        const x = this.minX + dx * this.scale;
-        const y = this.minY + dy * this.scale;
-        const w = this.viewWidth  * this.scale;
-        const h = this.viewHeight * this.scale;
-
-        return [x, y, w, h];
-    }
-
-    updateViewBox(dx : number, dy : number){
-        const [x, y, w, h] = this.getViewBox(dx, dy);
-        this.svg.setAttribute("viewBox", `${x.toFixed()} ${y.toFixed()} ${w.toFixed()} ${h.toFixed()}`);         
     }
 
     onPointerDown(ev: PointerEvent){
@@ -66,10 +55,11 @@ export class MapSVG {
             return;
         }
 
-        this.minX -= (ev.offsetX - this.downX) * this.scale;
-        this.minY -= (ev.offsetY - this.downY) * this.scale;
+        this.minX += ev.offsetX - this.downX;
+        this.minY += ev.offsetY - this.downY;
 
-        this.updateViewBox(0, 0);
+        this.root.svg.setAttribute("x", `${this.minX}`);
+        this.root.svg.setAttribute("y", `${this.minY}`);
 
         this.downX = NaN;
         this.downY = NaN;
@@ -83,20 +73,42 @@ export class MapSVG {
             return;
         }
 
-        const client_dx = ev.offsetX - this.downX;
-        const client_dy = ev.offsetY - this.downY;
+        const x = this.minX + ev.offsetX - this.downX;
+        const y = this.minY + ev.offsetY - this.downY;
 
-        this.updateViewBox(-(ev.offsetX - this.downX), -(ev.offsetY - this.downY));
+        this.root.svg.setAttribute("x", `${x}`);
+        this.root.svg.setAttribute("y", `${y}`);
+    }
+
+    BoundingFromScale(scale : number) : [number, number]{
+        const bnd_x = 0.5 * (this.viewWidth  + 6) * (1.0 - scale);
+        const bnd_y = 0.5 * (this.viewHeight + 6) * (1.0 - scale);
+
+        return [bnd_x, bnd_y]
     }
 
     onWheel(ev: WheelEvent){
-        const [min_x, min_y, view_w, view_h] = this.getViewBox(0, 0);
+        const border = 3;
 
-        const rx = ev.offsetX / this.viewWidth;
-        const ry = ev.offsetY / this.viewHeight;
+        const offsetX = ev.offsetX;
+        const offsetY = ev.offsetY;
+        msg("");
+        msg(`offset:${offsetX.toFixed()} ${offsetY.toFixed()} min:${this.minX.toFixed()} ${this.minY.toFixed()} scale:${(100 * this.scale).toFixed(1)} view:${this.viewWidth} ${this.viewHeight}`);
 
-        const x = min_x + rx * view_w;
-        const y = min_y + ry * view_h;
+        const bnd = this.svg.getBoundingClientRect();
+        const bnd_x = 0.5 * (this.viewWidth  + 6) * (1.0 - this.scale);
+        const bnd_y = 0.5 * (this.viewHeight + 6) * (1.0 - this.scale);
+        msg(`bound:${bnd.x.toFixed()} ${bnd.y.toFixed()} ${bnd.width.toFixed()} ${bnd.height.toFixed()} bound-diff:${(bnd_x - bnd.x).toFixed()} ${(bnd_y - bnd.y).toFixed()}`);
+
+        const cli_x = bnd.x + (border + offsetX) * this.scale;
+        const cli_y = bnd.y + (border + offsetY) * this.scale;
+        const cli_x_diff = (cli_x - ev.clientX).toFixed();
+        const cli_y_diff = (cli_y - ev.clientY).toFixed();
+        msg(`client:${ev.clientX.toFixed()} ${ev.clientY.toFixed()} client-diff:${cli_x_diff} ${cli_y_diff}`);
+
+        // client = bound + (border + offset) * scale
+        // offset = (client - bound) / scale - border
+        // bound = 0.5 * (view + 2 * border) * (1 - scale)
 
         if(0 < ev.deltaY){
             this.scale *= 1.05;
@@ -105,20 +117,23 @@ export class MapSVG {
             this.scale /= 1.05;
         }
 
-        const [min_x2, min_y2, view_w2, view_h2] = this.getViewBox(0, 0);
+        const Cx = offsetX - this.minX;
+        const Cy = offsetY - this.minY;
 
-        this.minX = x - rx * view_w2;
-        this.minY = y - ry * view_h2;
+        const [bnd_x2, bnd_y2] = this.BoundingFromScale(this.scale);
 
-        if(view_w2 < this.viewWidth){
-            this.minX = 0;
-        }
-        if(view_h2 < this.viewHeight){
-            this.minY = 0;
-        }
+        const offset_x2 = (ev.clientX - bnd_x2) / this.scale - border;
+        const offset_y2 = (ev.clientY - bnd_y2) / this.scale - border;
 
-        this.updateViewBox(0, 0);
+        this.minX = offset_x2 - Cx;
+        this.minY = offset_y2 - Cy;
+        
+        this.svg.setAttribute("transform", `scale(${this.scale}, ${this.scale})`);
 
+        this.root.svg.setAttribute("x", `${this.minX}`);
+        this.root.svg.setAttribute("y", `${this.minY}`);
+
+        msg(`bnd2:${bnd_x2.toFixed()} ${bnd_y2.toFixed()} offset2:${offset_x2.toFixed()} ${offset_y2.toFixed()}`)
     }
 }
 
@@ -140,14 +155,14 @@ abstract class MapItem {
         this.text.setAttribute("x", `10000`);
         this.text.setAttribute("y", `10000`);
         this.text.setAttribute("stroke", "black");
-        this.text.setAttribute("stroke-width", `1`);
-        this.text.setAttribute("font-size", "10");
+        this.text.setAttribute("stroke-width", `${strokeWidth}`);
+        this.text.setAttribute("font-size", `${fontSize}`);
         this.text.textContent = this.title;
 
         this.rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
         this.rect.setAttribute("fill", "transparent");
         this.rect.setAttribute("stroke", "black");
-        this.rect.setAttribute("stroke-width", `1`);
+        this.rect.setAttribute("stroke-width", `${strokeWidth}`);
         // this.rect.setAttribute("fill-opacity", `0`);      
 
         if(this instanceof Region){
@@ -209,7 +224,6 @@ class TextMap extends MapItem {
 }
 
 class Region extends MapItem {
-    // g : SVGGElement;
     svg : SVGSVGElement;
     children : MapItem[];
 
@@ -223,7 +237,6 @@ class Region extends MapItem {
     }
 
     calcSize(){
-        const row_width_limit = 500;
         this.children.forEach(x => x.calcSize());
 
         let row_top = margin + this.textBox.height + margin;
@@ -238,7 +251,7 @@ class Region extends MapItem {
             while(pending.length != 0){
                 const item = pending.shift()!;
 
-                if(row.length != 0 && row_width_limit < row_left + item.width + margin){
+                if(row.length != 0 && rowWidthLimit < row_left + item.width + margin){
                     pending.unshift(item);
                     break;
                 }
