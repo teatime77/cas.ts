@@ -5,12 +5,17 @@ const margin = scale * 20;
 const textMargin = scale * 5;
 const strokeWidth = scale * 1;
 const fontSize = scale * 16;
-const rowWidthLimit = scale * 500;
 
 const borderWidth = 3;
 
-function F(x : number) : string {
-    return x.toFixed();
+class Size {
+    width : number;
+    height : number;
+
+    constructor(width : number, height : number){
+        this.width  = width;
+        this.height = height;
+    }
 }
 
 enum Display {
@@ -78,11 +83,12 @@ export class MapSVG {
             return;
         }
 
-        this.minX += ev.offsetX - this.downX;
-        this.minY += ev.offsetY - this.downY;
+        this.minX -= ev.offsetX - this.downX;
+        this.minY -= ev.offsetY - this.downY;
 
-        this.root.svg.setAttribute("x", `${this.minX}`);
-        this.root.svg.setAttribute("y", `${this.minY}`);
+        this.setViewBox(this.minX, this.minY);
+        // this.root.svg.setAttribute("x", `${this.minX}`);
+        // this.root.svg.setAttribute("y", `${this.minY}`);
 
         this.downX = NaN;
         this.downY = NaN;
@@ -96,11 +102,12 @@ export class MapSVG {
             return;
         }
 
-        const x = this.minX + ev.offsetX - this.downX;
-        const y = this.minY + ev.offsetY - this.downY;
+        const x = this.minX - (ev.offsetX - this.downX);
+        const y = this.minY - (ev.offsetY - this.downY);
 
-        this.root.svg.setAttribute("x", `${x}`);
-        this.root.svg.setAttribute("y", `${y}`);
+        this.setViewBox(x, y);
+        // this.root.svg.setAttribute("x", `${x}`);
+        // this.root.svg.setAttribute("y", `${y}`);
     }
 
     BoundingFromScale(scale : number) : [number, number]{
@@ -112,24 +119,29 @@ export class MapSVG {
 
     onWheel(ev: WheelEvent){
         if(0 < ev.deltaY){
-            this.scale *= 1.01;
+            this.scale *= 1.02;
         }
         else{
-            this.scale /= 1.01;
+            this.scale /= 1.02;
         }
 
         this.update();
     }
 
-    update(){
-        this.root.clearSize();
-        this.root.getWidth();
-        this.root.getHeight();
-        this.root.setAppearance();
-        this.root.setXY(this.minX, this.minY);
-        this.root.dmp("");
+    setViewBox(x : number, y : number){
+        const w = this.viewWidth ;// / this.scale;
+        const h = this.viewHeight;// / this.scale 
+        this.svg.setAttribute("viewBox", `${x} ${y} ${w} ${h}`);
     }
 
+    update(){
+        this.root.clearSize();
+        this.root.setWH();
+        this.root.setAppearance();
+        this.setViewBox(this.minX, this.minY);
+        this.root.setXY(0, 0);
+        this.root.dmp("");
+    }
 }
 
 let itemId = 0;
@@ -152,8 +164,6 @@ abstract class MapItem {
     width  : number = NaN;
     height : number = NaN;
 
-    abstract getWidth() : number;
-    abstract getHeight() : number;
     abstract setXY(x : number, y : number) : void;
 
     constructor(){
@@ -164,18 +174,17 @@ abstract class MapItem {
         let ret : [Display, number];
 
         const depth = this.level - mapSVG.scale;
-        if(3 < depth){
+        if(2 < depth){
             ret = [Display.hide, 0];
         }
         else if(1 < depth){
-            // 1 < depth <= 3
-            const r = 0.5 * (depth - 1);
-            ret = [Display.title, 1 - r];
+            // 1 < depth <= 2
+            ret = [Display.title, 2 - depth];
         }
         else{
             if(this instanceof TextMap){
 
-                ret = [Display.full, 1];
+                ret = [Display.title, 1];
             }
             else{
 
@@ -189,17 +198,17 @@ abstract class MapItem {
             }
         }
         assert(0 <= ret[1] && ret[1] <= 1);
-
-        if(ret[1] == 0){
-
-            this.visible = false;
-        }
-        else{
-
-            this.visible = (this.parent instanceof MapSVG || this.parent.visible);
-        }
-
         [this.display, this.ratio] = ret;
+
+        this.visible = (this.display != Display.hide);
+        // if(this.display == Display.hide){
+
+        //     this.visible = false;
+        // }
+        // else{
+
+        //     this.visible = (this.parent instanceof MapSVG || this.parent.visible);
+        // }
     }
 
     titleRatio() : number {
@@ -267,7 +276,7 @@ abstract class MapItem {
 
     setAppearance(){
         if(this.visible){
-            assert(this.ratio != 0 && !isNaN(this.width) && !isNaN(this.height));
+            assert(!isNaN(this.width) && !isNaN(this.height));
 
             if(this.display == Display.title){
 
@@ -316,20 +325,48 @@ abstract class MapItem {
             this.svg.setAttribute("visibility", "hidden");
 
             this.children.forEach(x => x.clearSize());
-
-            if(this.display == Display.partial || this.display == Display.full){
-
-                this.visibleRows = this.rows.map(row => row.filter(item => item.visible));
-                this.visibleRows = this.visibleRows.filter(row => row.length != 0);
-            }
-            else{
-                this.visibleRows = [];
-            }
         }
     }
 
-    margin() : number {
-        return this.ratio * margin;
+    setWH() : Size {
+        assert(this.visible);
+
+        if(isNaN(this.width)){
+
+            const title_width = this.titleWidth();
+            const title_height = this.titleHeight();
+
+            switch(this.display){
+            case Display.hide:
+                throw new Error();
+            
+            case Display.title:
+                this.width  = title_width;
+                this.height = title_height;
+                break;
+            
+            case Display.partial:
+            case Display.full:
+                if(this instanceof Region){
+                    const ratio_margin = this.ratio * margin;
+
+                    const sizes = this.rows.map(row => row.map(item => item.setWH()));
+
+                    const row_heights = sizes.map(row => Math.max(... row.map(item => item.height)));
+                    const row_widths = sizes.map(row => sum(row.map(item => item.width)) + ratio_margin * (row.length + 1));
+
+                    this.height = title_height + sum(row_heights) + ratio_margin * (row_heights.length + 1);
+                    this.width  = Math.max(title_width, Math.max(... row_widths));
+                }
+                break;
+
+            default:
+                throw new Error();
+            }
+        }
+        assert(!isNaN(this.width) && !isNaN(this.height));
+
+        return new Size(this.width, this.height);
     }
 
     setXYAttribute(x : number, y : number){
@@ -355,11 +392,14 @@ abstract class MapItem {
         msg(`${nest}${t} lvl:${this.level} id:${this.id} xywh:${x} ${y} ${w} ${h} ${this.title} ${displayText(this.display)} ${this.ratio.toFixed(2)}`);
 
         if(this instanceof Region){
-            nest += "    ";
+            if(this.display == Display.partial || this.display == Display.full){
 
-            for(const row of this.visibleRows){
-                for(const item of row){
-                    item.dmp(nest);
+                nest += "    ";
+
+                for(const row of this.rows){
+                    for(const item of row){
+                        item.dmp(nest);
+                    }
                 }
             }
         }
@@ -372,30 +412,6 @@ class TextMap extends MapItem {
         this.init(parent, obj);
     }
 
-    getWidth() : number {
-        assert(this.visible);
-
-        if(isNaN(this.width)){
-
-            this.width = this.titleWidth();
-        }
-
-        assert(!isNaN(this.width));
-        return this.width;
-    }
-
-    getHeight() : number {
-        assert(this.visible);
-
-        if(isNaN(this.height)){
-
-            this.height = this.titleHeight();
-        }
-
-        assert(!isNaN(this.height));
-        return this.height;
-    }
-
     setXY(x : number, y : number) : void {
         assert(this.visible);
         this.left = x;
@@ -403,14 +419,12 @@ class TextMap extends MapItem {
 
         this.setXYAttribute(x, y);
     }
-
 }
 
 class Region extends MapItem {
     svg : SVGSVGElement;
     children : MapItem[];
     rows : MapItem[][] = [];
-    visibleRows! : MapItem[][];
 
     constructor(parent : Region | MapSVG, obj : any){
         super();
@@ -425,79 +439,6 @@ class Region extends MapItem {
         }
     }
 
-    getWidth() : number {
-        assert(this.visible);
-
-        if(isNaN(this.width)){
-
-            let title_width = this.titleWidth();
-
-            switch(this.display){
-            case Display.title:
-                this.width = title_width;
-                break;
-
-            case Display.partial:
-            case Display.full:
-                if(this.visibleRows.length == 0){
-
-                    this.width = title_width;
-                }
-                else{
-
-                    let row_widths = this.visibleRows.map(row => sum(row.map(item => item.getWidth())) + margin * this.ratio * (row.length + 1));
-                    row_widths.unshift(title_width);
-
-                    this.width = Math.max(... row_widths);
-                }
-                break;
-
-            default:
-                assert(false);
-                break;
-            }
-        }
-
-        assert(!isNaN(this.width));
-        return this.width;
-    }
-
-    getHeight() : number {
-        assert(this.visible);
-
-        if(isNaN(this.height)){
-
-            let title_height = this.titleHeight();
-
-            switch(this.display){
-            case Display.title:
-                this.height = title_height;
-                break;
-
-            case Display.partial:
-            case Display.full:
-                if(this.visibleRows.length == 0){
-
-                    this.height = title_height;
-                }
-                else{
-
-                    const row_heights = this.visibleRows.map(row => Math.max(... row.map(item => item.getHeight())));
-                    const row_heights_sum = sum(row_heights);
-                    this.height = title_height + row_heights_sum + this.ratio * margin * (this.visibleRows.length + 1);
-                }
-                break;
-
-            default:
-                assert(false);
-                break;
-            }
-        }
-
-        assert(!isNaN(this.height));
-        return this.height;
-    }
-
     setXY(x : number, y : number) : void {
         assert(this.visible);
         this.left = x;
@@ -506,25 +447,23 @@ class Region extends MapItem {
         this.svg.setAttribute("x", `${x}`);
         this.svg.setAttribute("y", `${y}`);
 
-        assert(this.ratio != 0);
-        const r_margin = this.ratio * margin;
-
         this.setXYAttribute(0, 0);
 
         if(this.display == Display.partial || this.display == Display.full){
+            const ratio_margin = this.ratio * margin;
 
-            let offset_y = this.titleHeight() + r_margin;
+            let offset_y = this.titleHeight() + ratio_margin;
 
-            for(const row of this.visibleRows){
-                let offset_x = r_margin;
+            for(const row of this.rows){
+                let offset_x = ratio_margin;
                 for(const item of row){
                     item.setXY(offset_x, offset_y);
 
-                    offset_x += item.width + r_margin;
+                    offset_x += item.width + ratio_margin;
                 }
 
                 const max_height = Math.max(... row.map(item => item.height));
-                offset_y += max_height + r_margin;
+                offset_y += max_height + ratio_margin;
             }
         }
     }
