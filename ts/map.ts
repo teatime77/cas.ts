@@ -83,12 +83,10 @@ export class MapSVG {
             return;
         }
 
-        this.minX -= ev.offsetX - this.downX;
-        this.minY -= ev.offsetY - this.downY;
+        this.minX += ev.offsetX - this.downX;
+        this.minY += ev.offsetY - this.downY;
 
-        this.setViewBox(this.minX, this.minY);
-        // this.root.svg.setAttribute("x", `${this.minX}`);
-        // this.root.svg.setAttribute("y", `${this.minY}`);
+        this.root.setXY(this.minX, this.minY);
 
         this.downX = NaN;
         this.downY = NaN;
@@ -102,12 +100,10 @@ export class MapSVG {
             return;
         }
 
-        const x = this.minX - (ev.offsetX - this.downX);
-        const y = this.minY - (ev.offsetY - this.downY);
+        const x = this.minX + (ev.offsetX - this.downX);
+        const y = this.minY + (ev.offsetY - this.downY);
 
-        this.setViewBox(x, y);
-        // this.root.svg.setAttribute("x", `${x}`);
-        // this.root.svg.setAttribute("y", `${y}`);
+        this.root.setXY(x, y);
     }
 
     BoundingFromScale(scale : number) : [number, number]{
@@ -128,18 +124,11 @@ export class MapSVG {
         this.update();
     }
 
-    setViewBox(x : number, y : number){
-        const w = this.viewWidth ;// / this.scale;
-        const h = this.viewHeight;// / this.scale 
-        this.svg.setAttribute("viewBox", `${x} ${y} ${w} ${h}`);
-    }
-
     update(){
         this.root.clearSize();
         this.root.setWH();
         this.root.setAppearance();
-        this.setViewBox(this.minX, this.minY);
-        this.root.setXY(0, 0);
+        this.root.setXY(this.minX, this.minY);
         this.root.dmp("");
     }
 }
@@ -201,14 +190,6 @@ abstract class MapItem {
         [this.display, this.ratio] = ret;
 
         this.visible = (this.display != Display.hide);
-        // if(this.display == Display.hide){
-
-        //     this.visible = false;
-        // }
-        // else{
-
-        //     this.visible = (this.parent instanceof MapSVG || this.parent.visible);
-        // }
     }
 
     titleRatio() : number {
@@ -246,7 +227,6 @@ abstract class MapItem {
         this.rect.setAttribute("fill", "transparent");
         this.rect.setAttribute("stroke", "black");
         this.rect.setAttribute("stroke-width", `${strokeWidth}`);
-        // this.rect.setAttribute("fill-opacity", `0`);      
         this.rect.setAttribute("visibility", "hidden");
         this.rect.setAttribute("width" , `10000`);
         this.rect.setAttribute("height", `10000`);
@@ -444,18 +424,15 @@ class Region extends MapItem {
         this.left = x;
         this.top  = y;
 
-        this.svg.setAttribute("x", `${x}`);
-        this.svg.setAttribute("y", `${y}`);
-
-        this.setXYAttribute(0, 0);
+        this.setXYAttribute(x, y);
 
         if(this.display == Display.partial || this.display == Display.full){
             const ratio_margin = this.ratio * margin;
 
-            let offset_y = this.titleHeight() + ratio_margin;
+            let offset_y = y + this.titleHeight() + ratio_margin;
 
             for(const row of this.rows){
-                let offset_x = ratio_margin;
+                let offset_x = x + ratio_margin;
                 for(const item of row){
                     item.setXY(offset_x, offset_y);
 
