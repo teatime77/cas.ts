@@ -46,23 +46,42 @@ export class MapSVG {
 
     minX : number = 0;
     minY : number = 0;
-    viewWidth : number;
-    viewHeight : number;
+    viewWidth!  : number;
+    viewHeight! : number;
 
     constructor(obj : any){
         this.svg = $("map-svg") as any as SVGSVGElement;
+        this.setViewSize();
 
+        window.addEventListener("resize", this.onWindowResize.bind(this));
+
+        this.root = new Region(this, obj);
+    }
+
+    setViewSize(){
         this.viewWidth  = document.documentElement.clientWidth  - 2 * borderWidth;
         this.viewHeight = document.documentElement.clientHeight - 2 * borderWidth;
 
         this.svg.style.width = `${this.viewWidth}px`;
         this.svg.style.height = `${this.viewHeight}px`;
+    }
 
-        this.root = new Region(this, obj);
+    onWindowResize(ev : UIEvent){
+        this.setViewSize();
+        this.update();
     }
 
     onPointerDown(ev: PointerEvent){
         ev.preventDefault(); 
+        const x0 = (ev.offsetX - this.minX).toFixed();
+        const y0 = (ev.offsetY - this.minY).toFixed();
+        const x1 = ((ev.offsetX - this.minX)/this.scale).toFixed();
+        const y1 = ((ev.offsetY - this.minY)/this.scale).toFixed();
+        const x2 = ev.offsetX.toFixed();
+        const y2 = ev.offsetY.toFixed();
+
+
+        msg(`down scale:${mapSVG.scale.toFixed(2)} (${x0} ${y0}) (${x1} ${y1}) offset:(${x2} ${y2}) view:${this.viewWidth} ${this.viewHeight}`);
 
         if(ev.button == 0){
 
@@ -113,23 +132,12 @@ export class MapSVG {
         return [bnd_x, bnd_y]
     }
 
-    onWheel(ev: WheelEvent){
-        if(0 < ev.deltaY){
-            this.scale *= 1.02;
-        }
-        else{
-            this.scale /= 1.02;
-        }
-
-        this.update();
-    }
-
     update(){
         this.root.clearSize();
         this.root.setWH();
         this.root.setAppearance();
         this.root.setXY(this.minX, this.minY);
-        this.root.dmp("");
+        // this.root.dmp("");
     }
 }
 
@@ -417,6 +425,74 @@ class Region extends MapItem {
         for(let i = 0; i < this.children.length; i += 3){
             this.rows.push(this.children.slice(i, i + 3));
         }
+
+        this.svg.addEventListener("wheel", this.onWheel.bind(this) );
+    }
+
+    onWheel(ev: WheelEvent){
+        ev.stopPropagation();
+
+        if(! this.visible){
+            msg("wheel:svg0 hide");
+            return;
+        }
+
+        const ox = ev.offsetX;
+        const oy = ev.offsetY;
+        const [x1, y1, w1, h1] = [this.left, this.top, this.width, this.height];
+        if(w1 == 0 || h1 == 0){
+            msg("wheel:svg1 hide");
+            return;
+        }
+
+        const rx1 = ((ox - x1)/w1).toFixed(2);
+        const ry1 = ((oy - y1)/h1).toFixed(2);
+        assert(!isNaN((ox - x1)/w1) && !isNaN((oy - y1)/h1));
+
+        if(0 < ev.deltaY){
+            mapSVG.scale *= 1.02;
+        }
+        else{
+            mapSVG.scale /= 1.02;
+        }
+
+        mapSVG.update();
+        if(! this.visible){
+            msg("wheel:svg2 hide");
+            return;
+        }
+
+        const [x2, y2, w2, h2] = [this.left, this.top, this.width, this.height];
+        if(w2 == 0 || h2 == 0){
+            msg("wheel:svg3 hide");
+            return;
+        }
+
+        // (ox - x1)/w1 = (ox - x2)/w2
+        // (ox - x1)w2/w1 = ox - x2
+        //    x2 = ox - (ox - x1)   w2 / w1
+        const X2 = ox - (ox - x1) * w2 / w1;
+
+        // (oy - y1)/h1 = (oy - y2)/h2
+        // (oy - y1)h2/h1 = oy - y2
+        //    y2 = oy - (oy - y1)   h2 / h1
+        const Y2 = oy - (oy - y1) * h2 / h1;
+
+        // const rx2 = (ox - X2)/w2;
+        // const ry2 = (oy - y2)/h2;
+
+        mapSVG.minX += X2 - x2;
+        mapSVG.minY += Y2 - y2;
+        mapSVG.root.setXY(mapSVG.minX, mapSVG.minY);
+
+        const [x3, y3, w3, h3] = [this.left, this.top, this.width, this.height];
+        assert(w3 != 0 && h3 != 0);
+
+        const rx3 = ((ox - x3)/w3).toFixed(2);
+        const ry3 = ((oy - y3)/h3).toFixed(2);
+        assert(!isNaN((ox - x3)/w3) && !isNaN((oy - y3)/h3));
+
+        msg(`wheel rxy1:${rx1} ${ry1} rxy3:${rx3} ${ry3} ${this.title}`)
     }
 
     setXY(x : number, y : number) : void {

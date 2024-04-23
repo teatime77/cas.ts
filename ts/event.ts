@@ -45,7 +45,7 @@ export function setMapEventListener(map : MapSVG){
     map.svg.addEventListener("pointerdown", map.onPointerDown.bind(map));
     map.svg.addEventListener("pointerup"  , map.onPointerUp.bind(map));
     map.svg.addEventListener("pointermove", map.onPointerMove.bind(map));
-    map.svg.addEventListener("wheel"      , map.onWheel.bind(map));
+    // map.svg.addEventListener("wheel"      , map.onWheel.bind(map));
 }
 
 
