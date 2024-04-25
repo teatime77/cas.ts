@@ -1,10 +1,10 @@
 namespace casts {
 //
 const scale = 1;
-const margin = scale * 20;
+const margin = scale * 10;
 const textMargin = scale * 5;
 const strokeWidth = scale * 1;
-const fontSize = scale * 16;
+const fontSize = scale * 10;
 
 const borderWidth = 3;
 
@@ -233,11 +233,14 @@ abstract class MapItem {
 
         this.rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
         this.rect.setAttribute("fill", "transparent");
-        this.rect.setAttribute("stroke", "black");
         this.rect.setAttribute("stroke-width", `${strokeWidth}`);
         this.rect.setAttribute("visibility", "hidden");
         this.rect.setAttribute("width" , `10000`);
         this.rect.setAttribute("height", `10000`);
+        this.rect.setAttribute("rx", `10`);
+        this.rect.setAttribute("ry", `10`);
+        const color = (this instanceof Region ? "blue" : "black");
+        this.rect.setAttribute("stroke", color);
 
         if(parent instanceof MapSVG){
 
@@ -392,6 +395,13 @@ abstract class MapItem {
             }
         }
     }
+    lines(nest : string){
+        msg(`${nest}${this.title}`);
+        if(this instanceof Region){
+            nest += "  ";
+            this.children.forEach(x => x.lines(nest));
+        }
+    }
 }
 
 class TextMap extends MapItem {
@@ -533,10 +543,55 @@ function makeMap(parent : Region | MapSVG, obj : any){
 
 let mapSVG : MapSVG;
 
+function lineToNestTitle(line : string) : [number, string] {
+    if(line[0] != ' '){
+        return [0, line];
+    }
+
+    const k = line.split('').findIndex(x => x != ' ');
+    assert(k % 4 == 0);
+    return [k / 4, line.substring(k)];
+}
+
+function lineToObj(nest_titles:[number, string][]) : [number, any] {
+    const [nest, title] = nest_titles.shift()!;
+    let obj : any = { "title" : title };
+
+    while(nest_titles.length != 0 && nest < nest_titles[0][0]){
+        const [nest2, obj2] = lineToObj(nest_titles);
+        assert(nest + 1 == nest2);
+
+        if(obj["children"] == undefined){
+            obj["children"] = [];
+        }
+        obj["children"].push(obj2);
+    }
+
+    return [nest, obj];
+}
+
 export async function bodyOnLoadMap(){
-    const map = await fetchJson(`../data/map.json`);
+    // const map = await fetchJson(`../data/map.json`);
+
+    const text = await fetchText(`../data/map.txt`);
+    const lines = text.split('\r\n');
+    const nest_titles = lines.map(x => lineToNestTitle(x));
+    let map : any = {
+        "title" : "",
+        "children":[]
+    };
+
+    while(nest_titles.length != 0){
+        const [nest, obj] = lineToObj(nest_titles);
+        assert(nest == 0);
+        map["children"].push(obj);
+    }
+
+
     mapSVG = new MapSVG(map);
     mapSVG.update();
+    msg(``);
+    mapSVG.root.lines("");
 
     setMapEventListener(mapSVG);
 }

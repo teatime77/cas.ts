@@ -1,0 +1,328 @@
+namespace casts {
+
+const scale = 1;
+const textMargin = scale * 5;
+const textBase = scale * 2;
+const strokeWidth = scale * 1;
+const fontSize = scale * 9;
+const borderWidth = 3;
+const eyeZ = 5000;
+const levelGap = 100;
+const levelOffset = 200;
+const levelRadius = 600;
+const pathC = 70;
+
+let theTree : Tree;
+
+function toVec2(pos : Vec3, eye : Vec3) : Vec2 {
+    const v = pos.sub(eye);
+    const x = 0.5 * theTree.viewWidth + v.x * eyeZ / -v.z;
+    const y = v.y * eyeZ / -v.z;
+
+    return new Vec2(x, y);
+}
+
+function dsp3(pos : Vec3) : string {
+    const x = pos.x.toFixed();
+    const y = pos.y.toFixed();
+    const z = pos.z.toFixed();
+
+    return `(${x} ${y} ${z})`;
+}
+
+function dsp2(pos : Vec3, eye : Vec3) : string {
+    const pt = toVec2(pos, eye);
+    return `(${pt.x.toFixed()} ${pt.y.toFixed()})`;
+}
+
+class Tree {
+    svg : SVGSVGElement;
+    viewWidth!  : number;
+    viewHeight! : number;
+    docs : Doc[];
+    rows : Doc[][];
+
+    eye = new Vec3(0, 0, eyeZ);
+    downEye! : Vec3;
+    
+    downX : number = NaN;
+    downY : number = NaN;
+
+    constructor(index : any, edges : any){
+        this.svg = $("map-svg") as any as SVGSVGElement;
+        this.setViewSize();
+
+        const doc_map = new Map<number, Doc>();
+
+        for(const obj of index["docs"]){
+            const id    = obj["id"];
+            const title = obj["title"];
+    
+            const doc = new Doc(id, title);
+            doc_map.set(id, doc);
+            msg(`${id} ${title}`);
+        }
+        msg("edge --------------------------------");
+        for(const obj of edges){
+            const src_id = obj["srcId"];
+            const dst_id = obj["dstId"];
+    
+            const src_doc = doc_map.get(src_id);
+            const dst_doc = doc_map.get(dst_id);
+            if(src_doc != undefined && dst_doc != undefined){
+                src_doc.dsts.push(dst_doc);
+                dst_doc.srcs.push(src_doc);
+    
+                msg(`${src_doc.title} => ${dst_doc.title}`);
+            }
+        }
+    
+        this.docs = Array.from(doc_map.values());
+        this.docs = this.docs.filter(x => x.srcs.length != 0 || x.dsts.length != 0);
+        this.docs.forEach(doc => doc.init(this));
+    
+        const roots = this.docs.filter(x => x.srcs.length == 0);
+        do{
+            levelChanged = false;
+            roots.forEach(x => setDocLevel(x));
+        } while(levelChanged);
+
+        for(const doc of roots){
+            const min_dst_level = Math.min(... doc.dsts.map(x => x.level));
+            doc.level = min_dst_level - 1;
+        }
+    
+        this.docs.sort((a:Doc, b:Doc) => a.level - b.level);
+        for(const doc of this.docs){
+            msg(`${doc.level} ${doc.title}`);
+        }
+    
+        const max_level = last(this.docs).level;
+        this.rows = [];
+        range(max_level + 1).forEach(x => this.rows.push([]));
+        this.docs.forEach(doc => this.rows[doc.level].push(doc));
+
+
+        for(const [i, row] of this.rows.entries()){
+            for(const [j, doc] of row.entries()){
+                const theta = 2 * Math.PI * j / row.length;
+                const z = levelRadius * Math.cos(theta);
+                const x = levelRadius * Math.sin(theta);
+
+                const y = levelOffset + (max_level - doc.level) * levelGap;
+
+                doc.setPos(x, y, z);
+            }
+        }
+
+        this.docs.forEach(doc => doc.makeLines(this));
+
+        this.setEventListener();
+    }
+
+    setEventListener(){
+        window.addEventListener("resize", this.onWindowResize.bind(this));
+        this.svg.addEventListener("pointerdown", this.onPointerDown.bind(this));
+        this.svg.addEventListener("pointerup"  , this.onPointerUp.bind(this));
+        this.svg.addEventListener("pointermove", this.onPointerMove.bind(this));
+    }
+
+    setViewSize(){
+        this.viewWidth  = document.documentElement.clientWidth  - 2 * borderWidth;
+        this.viewHeight = document.documentElement.clientHeight - 2 * borderWidth;
+
+        this.svg.style.width = `${this.viewWidth}px`;
+        this.svg.style.height = `${this.viewHeight}px`;
+    }
+
+    onWindowResize(ev : UIEvent){
+        this.setViewSize();
+    }
+
+    onPointerDown(ev: PointerEvent){
+        ev.preventDefault(); 
+
+        if(ev.button == 0){
+
+            this.downEye = this.eye.copy();
+            this.downX = ev.offsetX;
+            this.downY = ev.offsetY;
+        }
+        else{
+            if(ev.button == 2){
+                this.dmp();
+            }
+
+            this.downX = NaN;
+            this.downY = NaN;
+        }
+    }
+
+    onPointerUp(ev: PointerEvent){
+        ev.preventDefault(); 
+
+        if(isNaN(this.downX)){
+            return;
+        }
+
+        this.eye.x -= ev.offsetX - this.downX;
+        this.eye.y -= ev.offsetY - this.downY;
+
+        this.update(this.eye);
+        msg(`eye:${dsp3(this.eye)}`);
+
+        this.downX = NaN;
+        this.downY = NaN;
+    }
+
+    onPointerMove(ev: PointerEvent){
+        ev.preventDefault(); 
+
+        if(isNaN(this.downX)){
+            return;
+        }
+
+        const x = this.downEye.x - (ev.offsetX - this.downX);
+        const y = this.downEye.y - (ev.offsetY - this.downY);
+        const eye = new Vec3(x, y, this.downEye.z);
+
+        this.update(eye);
+    }
+
+    update(eye : Vec3){
+        this.docs.forEach(doc => doc.draw(eye));
+        this.docs.forEach(doc => doc.setLinesPos(eye));
+    }
+
+    dmp(){
+        for(const doc of this.docs){
+            msg(`${dsp3(doc.pos)} ${dsp2(doc.pos, this.eye)} level:${doc.level} ${doc.title}`);
+        }
+
+    }
+}
+
+class Doc {
+    id : number;
+    title : string;
+    dsts  : Doc[] = [];
+    srcs  : Doc[] = [];
+    lines : SVGLineElement[] = [];
+    paths : SVGPathElement[] = [];
+    level : number = 0;
+
+    text! : SVGTextElement;
+    rect! : SVGRectElement;
+    textBox! : DOMRect;
+
+    pos    : Vec3 = new Vec3(0, 0, 0);
+    pos2!  : Vec2;
+
+    width  : number = NaN;
+    height : number = NaN;
+
+    constructor(id : number, title : string){
+        this.id    = id;
+        this.title = title;
+    }
+
+    init(tree: Tree){
+        this.rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        this.rect.setAttribute("fill", "white");
+        this.rect.setAttribute("stroke-width", `${strokeWidth}`);
+        this.rect.setAttribute("rx", `10`);
+        this.rect.setAttribute("ry", `10`);
+        this.rect.setAttribute("stroke", "black");
+
+        tree.svg.appendChild(this.rect);
+
+        this.text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        this.text.setAttribute("stroke", "black");
+        this.text.setAttribute("stroke-width", `${strokeWidth}`);
+        this.text.setAttribute("font-size", `${fontSize}pt`);
+        this.text.setAttribute("font-family", "serif");
+        this.text.textContent = this.title;
+
+        tree.svg.appendChild(this.text);
+        this.textBox = this.text.getBBox();
+
+        this.width  = textMargin + this.textBox.width + textMargin;
+        this.height = textMargin + this.textBox.height + textMargin;
+
+        this.rect.setAttribute("width" , `${this.width}`);
+        this.rect.setAttribute("height", `${this.height}`);
+    }
+
+    makeLines(tree : Tree){
+        for(const dst of this.dsts){
+            const path = document.createElementNS("http://www.w3.org/2000/svg","path");
+            path.setAttribute("fill", "transparent");
+            path.setAttribute("stroke", "black");
+
+            tree.svg.insertBefore(path, tree.svg.firstChild);
+            this.paths.push(path);
+        }
+    }
+
+    setLinesPos(eye : Vec3){
+        let pt1 = this.pos2.copy();
+        pt1.x += 0.5 * this.width;
+        for(const [i, dst] of this.dsts.entries()){
+            let pt2 = dst.pos2.copy();
+            pt2.x += 0.5 * dst.width;
+
+            const path = this.paths[i];
+
+            let y1c : number;
+            let y2c : number;
+
+            pt2.y += dst.height;
+
+            y1c = pt1.y - pathC;
+            y2c = pt2.y + pathC;
+
+            const d = `M ${pt1.x} ${pt1.y} C ${pt1.x} ${y1c}, ${pt2.x} ${y2c}, ${pt2.x} ${pt2.y}`;
+            path.setAttribute("d", d);
+        }
+    }
+
+    setPos(x : number, y : number, z : number){
+        this.pos.x = x;
+        this.pos.y = y;
+        this.pos.z = z;
+    }
+
+    draw(eye : Vec3){
+        const pos = this.pos.copy();
+
+        this.pos2 = toVec2(pos, eye);
+
+        this.text.setAttribute("x", `${this.pos2.x + textMargin}`);
+        this.text.setAttribute("y", `${this.pos2.y + textBase + this.textBox.height}`);
+
+        this.rect.setAttribute("x", `${this.pos2.x}`);
+        this.rect.setAttribute("y", `${this.pos2.y}`);
+    }
+}
+
+export async function bodyOnLoadEdge(){
+    const index = await fetchJson(`../data/map-id.json`);
+    const edges = await fetchJson(`../data/map-edge.json`);
+
+    theTree = new Tree(index, edges);
+    theTree.update(theTree.eye);
+}
+
+let levelChanged : boolean;
+
+function setDocLevel(doc : Doc){
+    for(const dst of doc.dsts){
+        if(dst.level < doc.level + 1){
+            dst.level = doc.level + 1;
+            levelChanged = true;
+        }
+    }
+
+    doc.dsts.forEach(x => setDocLevel(x));
+}
+}
