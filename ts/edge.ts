@@ -14,6 +14,16 @@ const pathC = 70;
 
 let theTree : Tree;
 
+let edgeMap = new Map<string, Edge>();
+
+function getEdge(doc1 : Doc, doc2 : Doc) : Edge {
+    const key = `${doc1.id}:${doc2.id}`;
+    const edge = edgeMap.get(key)!;
+
+    assert(edge != undefined);
+    return edge;
+}
+
 function toVec2(pos : Vec3, eye : Vec3) : Vec2 {
     const v = pos.sub(eye);
     const x = 0.5 * theTree.viewWidth + v.x * eyeZ / -v.z;
@@ -33,6 +43,11 @@ function dsp3(pos : Vec3) : string {
 function dsp2(pos : Vec3, eye : Vec3) : string {
     const pt = toVec2(pos, eye);
     return `(${pt.x.toFixed()} ${pt.y.toFixed()})`;
+}
+
+function deselectAll(){
+    theTree.docs.filter(x => x.selected).map(x => x.select(false));
+    Array.from( edgeMap.values() ).map(x => x.select(false));
 }
 
 class Tree {
@@ -60,7 +75,6 @@ class Tree {
     
             const doc = new Doc(id, title);
             doc_map.set(id, doc);
-            msg(`${id} ${title}`);
         }
         msg("edge --------------------------------");
         for(const obj of edges){
@@ -125,6 +139,14 @@ class Tree {
         this.svg.addEventListener("pointerdown", this.onPointerDown.bind(this));
         this.svg.addEventListener("pointerup"  , this.onPointerUp.bind(this));
         this.svg.addEventListener("pointermove", this.onPointerMove.bind(this));
+        
+        document.body.addEventListener("keydown", this.onKeyDown.bind(this));
+    }
+
+    onKeyDown(ev : KeyboardEvent){
+        if(ev.key == "Escape"){
+            deselectAll();
+        }
     }
 
     setViewSize(){
@@ -169,7 +191,6 @@ class Tree {
         this.eye.y -= ev.offsetY - this.downY;
 
         this.update(this.eye);
-        msg(`eye:${dsp3(this.eye)}`);
 
         this.downX = NaN;
         this.downY = NaN;
@@ -198,7 +219,6 @@ class Tree {
         for(const doc of this.docs){
             msg(`${dsp3(doc.pos)} ${dsp2(doc.pos, this.eye)} level:${doc.level} ${doc.title}`);
         }
-
     }
 }
 
@@ -207,9 +227,9 @@ class Doc {
     title : string;
     dsts  : Doc[] = [];
     srcs  : Doc[] = [];
-    lines : SVGLineElement[] = [];
-    paths : SVGPathElement[] = [];
+    // edges : Edge[] = [];
     level : number = 0;
+    selected : boolean = false;
 
     text! : SVGTextElement;
     rect! : SVGRectElement;
@@ -241,6 +261,7 @@ class Doc {
         this.text.setAttribute("stroke-width", `${strokeWidth}`);
         this.text.setAttribute("font-size", `${fontSize}pt`);
         this.text.setAttribute("font-family", "serif");
+        this.text.setAttribute("cursor", "pointer");
         this.text.textContent = this.title;
 
         tree.svg.appendChild(this.text);
@@ -251,16 +272,60 @@ class Doc {
 
         this.rect.setAttribute("width" , `${this.width}`);
         this.rect.setAttribute("height", `${this.height}`);
+
+        this.text.addEventListener("click", this.onClick.bind(this));
+    }
+
+    select(selected : boolean){
+        this.selected = selected;
+        if(this.selected){
+
+            this.text.setAttribute("stroke", "red");
+            this.rect.setAttribute("stroke", "red");
+        }
+        else{
+
+            this.text.setAttribute("stroke", "black");
+            this.rect.setAttribute("stroke", "black");
+        }
+    }
+
+    selectSrcs(done:Doc[]){
+        if(done.includes(this)){
+            return;
+        }
+        done.push(this);
+        this.select(true);
+        for(const doc of this.srcs){
+            getEdge(doc, this).select(true);
+            doc.selectSrcs(done);
+        }
+    }
+
+    selectDsts(done:Doc[]){
+        if(done.includes(this)){
+            return;
+        }
+        done.push(this);
+        this.select(true);
+        for(const doc of this.dsts){
+            getEdge(this, doc).select(true);
+            doc.selectDsts(done);
+        }
+    }
+
+    onClick(ev : MouseEvent){
+        if(ev.ctrlKey){
+            this.selectSrcs([]);
+            this.selectDsts([]);
+        }
     }
 
     makeLines(tree : Tree){
         for(const dst of this.dsts){
-            const path = document.createElementNS("http://www.w3.org/2000/svg","path");
-            path.setAttribute("fill", "transparent");
-            path.setAttribute("stroke", "black");
-
-            tree.svg.insertBefore(path, tree.svg.firstChild);
-            this.paths.push(path);
+            const edge = new Edge(tree, this, dst);   
+            const key = `${this.id}:${dst.id}`;
+            edgeMap.set(key, edge);
         }
     }
 
@@ -271,7 +336,7 @@ class Doc {
             let pt2 = dst.pos2.copy();
             pt2.x += 0.5 * dst.width;
 
-            const path = this.paths[i];
+            const path = getEdge(this, dst).path;
 
             let y1c : number;
             let y2c : number;
@@ -302,6 +367,36 @@ class Doc {
 
         this.rect.setAttribute("x", `${this.pos2.x}`);
         this.rect.setAttribute("y", `${this.pos2.y}`);
+    }
+}
+
+class Edge {
+    src : Doc;
+    dst : Doc;
+    path : SVGPathElement;
+    selected : boolean = false;
+
+    constructor(tree : Tree, src : Doc, dst : Doc){
+        this.src = src;
+        this.dst = dst;
+
+        this.path = document.createElementNS("http://www.w3.org/2000/svg","path");
+        this.path.setAttribute("fill", "transparent");
+        this.path.setAttribute("stroke", "black");
+
+        tree.svg.insertBefore(this.path, tree.svg.firstChild);
+    }
+
+    select(selected : boolean){
+        this.selected = selected;
+        if(this.selected){
+
+            this.path.setAttribute("stroke", "red");
+        }
+        else{
+
+            this.path.setAttribute("stroke", "black");
+        }
     }
 }
 
