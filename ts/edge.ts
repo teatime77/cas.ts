@@ -11,6 +11,7 @@ const levelGap = 100;
 const levelOffset = 200;
 const levelRadius = 600;
 const pathC = 70;
+const panelHeight = 30;
 
 let theTree : Tree;
 
@@ -63,35 +64,36 @@ class Tree {
     downX : number = NaN;
     downY : number = NaN;
 
-    constructor(index : any, edges : any){
+    constructor(data : any){
         this.svg = $("map-svg") as any as SVGSVGElement;
         this.setViewSize();
 
         const doc_map = new Map<number, Doc>();
-
-        for(const obj of index["docs"]){
-            const id    = obj["id"];
-            const title = obj["title"];
+        for(const obj of data["docs"]){
+            const doc = new Doc(obj["id"], obj["title"]);
+            msg(`${doc.id} ${doc.title}`);
     
-            const doc = new Doc(id, title);
-            doc_map.set(id, doc);
+            doc_map.set(doc.id, doc);
         }
-        msg("edge --------------------------------");
-        for(const obj of edges){
-            const src_id = obj["srcId"];
-            const dst_id = obj["dstId"];
-    
-            const src_doc = doc_map.get(src_id);
-            const dst_doc = doc_map.get(dst_id);
-            if(src_doc != undefined && dst_doc != undefined){
-                src_doc.dsts.push(dst_doc);
-                dst_doc.srcs.push(src_doc);
-    
-                msg(`${src_doc.title} => ${dst_doc.title}`);
-            }
-        }
-    
         this.docs = Array.from(doc_map.values());
+    
+        edgeMap = new Map<string, Edge>();
+        for(const obj of data["edges"]){
+            const src_doc = doc_map.get(obj["src"])!;
+            const dst_doc = doc_map.get(obj["dst"])!;
+    
+            assert(src_doc != undefined && dst_doc != undefined);
+            src_doc.dsts.push(dst_doc);
+            dst_doc.srcs.push(src_doc);
+    
+            const edge = new Edge(this, src_doc, dst_doc);
+            const key = `${src_doc.id}:${dst_doc.id}`;
+            edgeMap.set(key, edge);
+    
+            msg(`${src_doc.title} => ${dst_doc.title}`);
+        }    
+
+        this.docs.filter(x => x.srcs.length == 0 && x.dsts.length == 0).forEach(x => msg(`NG ${x.title}`));
         this.docs = this.docs.filter(x => x.srcs.length != 0 || x.dsts.length != 0);
         this.docs.forEach(doc => doc.init(this));
     
@@ -116,7 +118,6 @@ class Tree {
         range(max_level + 1).forEach(x => this.rows.push([]));
         this.docs.forEach(doc => this.rows[doc.level].push(doc));
 
-
         for(const [i, row] of this.rows.entries()){
             for(const [j, doc] of row.entries()){
                 const theta = 2 * Math.PI * j / row.length;
@@ -128,8 +129,6 @@ class Tree {
                 doc.setPos(x, y, z);
             }
         }
-
-        this.docs.forEach(doc => doc.makeLines(this));
 
         this.setEventListener();
     }
@@ -151,7 +150,7 @@ class Tree {
 
     setViewSize(){
         this.viewWidth  = document.documentElement.clientWidth  - 2 * borderWidth;
-        this.viewHeight = document.documentElement.clientHeight - 2 * borderWidth;
+        this.viewHeight = document.documentElement.clientHeight - 2 * borderWidth - panelHeight;
 
         this.svg.style.width = `${this.viewWidth}px`;
         this.svg.style.height = `${this.viewHeight}px`;
@@ -321,14 +320,6 @@ class Doc {
         }
     }
 
-    makeLines(tree : Tree){
-        for(const dst of this.dsts){
-            const edge = new Edge(tree, this, dst);   
-            const key = `${this.id}:${dst.id}`;
-            edgeMap.set(key, edge);
-        }
-    }
-
     setLinesPos(eye : Vec3){
         let pt1 = this.pos2.copy();
         pt1.x += 0.5 * this.width;
@@ -401,10 +392,9 @@ class Edge {
 }
 
 export async function bodyOnLoadEdge(){
-    const index = await fetchJson(`../data/map-id.json`);
-    const edges = await fetchJson(`../data/map-edge.json`);
+    const data = await fetchJson(`../data/edge.json`);
 
-    theTree = new Tree(index, edges);
+    theTree = new Tree(data);
     theTree.update(theTree.eye);
 }
 
@@ -419,5 +409,37 @@ function setDocLevel(doc : Doc){
     }
 
     doc.dsts.forEach(x => setDocLevel(x));
+}
+
+export function copyMap(){
+    const lines : string[] = [];
+    lines.push(`{`);
+    lines.push(`  "docs" : [`);
+
+    for(const [i,doc] of theTree.docs.entries()){
+        const cm = (i == theTree.docs.length - 1 ? "" : ",");
+        lines.push(`        { "id" : ${doc.id}, "title" : "${doc.title}" }${cm}`);
+    }
+
+    lines.push(`  ]`);
+    lines.push(`  ,`);
+    lines.push(`  "edges" : [`);
+
+    const edges = Array.from(edgeMap.values());
+    for(const [i,edge] of edges.entries()){
+        const cm = (i == edges.length - 1 ? "" : ",");
+        lines.push(`        { "src" : ${edge.src.id}, "dst" : ${edge.dst.id} }${cm}`);
+    }
+
+    lines.push(`  ]`);
+    lines.push(`}`);
+
+    const text = lines.join("\r\n");
+
+    navigator.clipboard.writeText(text)
+    .then(
+        () => { msg("clipboard successfully set"); },
+        () => { msg("clipboard write failed");     },
+    );
 }
 }
