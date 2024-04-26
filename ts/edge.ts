@@ -107,6 +107,8 @@ class Tree {
             const min_dst_level = Math.min(... doc.dsts.map(x => x.level));
             doc.level = min_dst_level - 1;
         }
+
+        updateDocLevels(this.docs);
     
         this.docs.sort((a:Doc, b:Doc) => a.level - b.level);
         for(const doc of this.docs){
@@ -409,6 +411,32 @@ function setDocLevel(doc : Doc){
     }
 
     doc.dsts.forEach(x => setDocLevel(x));
+}
+
+function updateDocLevels(docs : Doc[]){
+    let changed : boolean;
+    do {
+        const max_level = Math.max(... docs.map(doc => doc.level));
+        const rows : Doc[][] = [];
+        range(max_level + 1).forEach(x => rows.push([]));
+        docs.forEach(doc => rows[doc.level].push(doc));
+
+        changed = false;
+        for(let level = max_level; 0 <= level; level--){
+            for(const doc of rows[level]){
+                if(doc.dsts.length != 0){
+                    const min_level = Math.min(... doc.dsts.map(x => x.level));
+                    if(doc.level < min_level - 1){
+                        doc.level = min_level - 1;
+                        changed = true;
+                    }
+                }
+            }
+        }
+
+        docs.forEach(doc => doc.level < Math.min(... doc.dsts.map(x => x.level)));
+
+    }while(changed);
 }
 
 export function copyMap(){
