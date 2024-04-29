@@ -16,9 +16,13 @@ const panelHeight = 30;
 let theTree : Tree;
 
 let edgeMap = new Map<string, Edge>();
+let selectedDoc : Doc | null = null;
 
+function edgeKey(doc1 : Doc, doc2 : Doc) : string {
+    return `${doc1.id}:${doc2.id}`;
+}
 function getEdge(doc1 : Doc, doc2 : Doc) : Edge {
-    const key = `${doc1.id}:${doc2.id}`;
+    const key = edgeKey(doc1, doc2);
     const edge = edgeMap.get(key)!;
 
     assert(edge != undefined);
@@ -46,6 +50,46 @@ function dsp2(pos : Vec3, eye : Vec3) : string {
     return `(${pt.x.toFixed()} ${pt.y.toFixed()})`;
 }
 
+function addEdge(tree : Tree, src_doc : Doc, dst_doc : Doc){
+    src_doc.dsts.push(dst_doc);
+    dst_doc.srcs.push(src_doc);
+
+    const edge = new Edge(tree, src_doc, dst_doc);
+    const key = `${src_doc.id}:${dst_doc.id}`;
+    edgeMap.set(key, edge);
+}
+
+function cancelLinkDocs(){
+    if(selectedDoc != null){
+
+        selectedDoc.setColor("black");
+        selectedDoc = null;
+    }
+}
+
+function linkDocs(doc : Doc){
+    if(selectedDoc == null){
+        selectedDoc = doc;
+        selectedDoc.setColor("blue");
+    }
+    else{
+        if(selectedDoc != doc){
+
+            const key1 = edgeKey(selectedDoc, doc);
+            const key2 = edgeKey(doc, selectedDoc);
+            if(!edgeMap.has(key1) && !edgeMap.has(key2)){
+
+                addEdge(theTree, selectedDoc, doc);
+                theTree.initDocLevels();
+                theTree.update(theTree.eye);
+            }
+        }
+
+        cancelLinkDocs();
+    }
+}
+
+
 function deselectAll(){
     theTree.docs.filter(x => x.selected).map(x => x.select(false));
     Array.from( edgeMap.values() ).map(x => x.select(false));
@@ -56,7 +100,7 @@ class Tree {
     viewWidth!  : number;
     viewHeight! : number;
     docs : Doc[];
-    rows : Doc[][];
+    rows!: Doc[][];
 
     eye = new Vec3(0, 0, eyeZ);
     downEye! : Vec3;
@@ -83,21 +127,23 @@ class Tree {
             const dst_doc = doc_map.get(obj["dst"])!;
     
             assert(src_doc != undefined && dst_doc != undefined);
-            src_doc.dsts.push(dst_doc);
-            dst_doc.srcs.push(src_doc);
     
-            const edge = new Edge(this, src_doc, dst_doc);
-            const key = `${src_doc.id}:${dst_doc.id}`;
-            edgeMap.set(key, edge);
+            addEdge(this, src_doc, dst_doc);
     
             msg(`${src_doc.title} => ${dst_doc.title}`);
         }    
 
         this.docs.filter(x => x.srcs.length == 0 && x.dsts.length == 0).forEach(x => msg(`NG ${x.title}`));
-        this.docs = this.docs.filter(x => x.srcs.length != 0 || x.dsts.length != 0);
+        // this.docs = this.docs.filter(x => x.srcs.length != 0 || x.dsts.length != 0);
         this.docs.forEach(doc => doc.init(this));
-    
-        const roots = this.docs.filter(x => x.srcs.length == 0);
+
+        this.initDocLevels();
+        
+        this.setEventListener();
+    }
+
+    initDocLevels(){
+        const roots = this.docs.filter(x => x.srcs.length == 0 && x.dsts.length != 0);
         do{
             levelChanged = false;
             roots.forEach(x => setDocLevel(x));
@@ -130,9 +176,7 @@ class Tree {
 
                 doc.setPos(x, y, z);
             }
-        }
-
-        this.setEventListener();
+        }        
     }
 
     setEventListener(){
@@ -147,6 +191,7 @@ class Tree {
     onKeyDown(ev : KeyboardEvent){
         if(ev.key == "Escape"){
             deselectAll();
+            cancelLinkDocs();
         }
     }
 
@@ -164,6 +209,10 @@ class Tree {
 
     onPointerDown(ev: PointerEvent){
         ev.preventDefault(); 
+        msg("pointer down");
+        if(ev.ctrlKey){
+            return;
+        }
 
         if(ev.button == 0){
 
@@ -183,6 +232,7 @@ class Tree {
 
     onPointerUp(ev: PointerEvent){
         ev.preventDefault(); 
+        msg("pointer up");
 
         if(isNaN(this.downX)){
             return;
@@ -277,6 +327,11 @@ class Doc {
         this.text.addEventListener("click", this.onClick.bind(this));
     }
 
+    setColor(color : string){
+        this.rect.setAttribute("stroke", color);
+        this.text.setAttribute("stroke", color);
+    }
+
     select(selected : boolean){
         this.selected = selected;
         if(this.selected){
@@ -316,7 +371,12 @@ class Doc {
     }
 
     onClick(ev : MouseEvent){
+        msg("click doc");
         if(ev.ctrlKey){
+            linkDocs(this);
+        }
+        else{
+
             this.selectSrcs([]);
             this.selectDsts([]);
         }
@@ -440,12 +500,15 @@ function updateDocLevels(docs : Doc[]){
 }
 
 export function copyMap(){
+    const docs = theTree.docs.slice();
+    docs.sort((a:Doc, b:Doc) => a.id - b.id);
+
     const lines : string[] = [];
     lines.push(`{`);
     lines.push(`  "docs" : [`);
 
-    for(const [i,doc] of theTree.docs.entries()){
-        const cm = (i == theTree.docs.length - 1 ? "" : ",");
+    for(const [i,doc] of docs.entries()){
+        const cm = (i == docs.length - 1 ? "" : ",");
         lines.push(`        { "id" : ${doc.id}, "title" : "${doc.title}" }${cm}`);
     }
 
@@ -454,6 +517,8 @@ export function copyMap(){
     lines.push(`  "edges" : [`);
 
     const edges = Array.from(edgeMap.values());
+    edges.sort((a:Edge, b:Edge) => edgeKey(a.src, a.dst).localeCompare( edgeKey(b.src, b.dst) ));
+
     for(const [i,edge] of edges.entries()){
         const cm = (i == edges.length - 1 ? "" : ",");
         lines.push(`        { "src" : ${edge.src.id}, "dst" : ${edge.dst.id} }${cm}`);
