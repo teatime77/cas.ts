@@ -15,7 +15,7 @@ const panelHeight = 30;
 
 let theTree : Tree;
 
-let edgeMap = new Map<string, Edge>();
+export let edgeMap = new Map<string, Edge>();
 let selectedDoc : Doc | null = null;
 
 function edgeKey(doc1 : Doc, doc2 : Doc) : string {
@@ -50,13 +50,15 @@ function dsp2(pos : Vec3, eye : Vec3) : string {
     return `(${pt.x.toFixed()} ${pt.y.toFixed()})`;
 }
 
-function addEdge(tree : Tree, src_doc : Doc, dst_doc : Doc){
+function addEdge(src_doc : Doc, dst_doc : Doc) : Edge {
     src_doc.dsts.push(dst_doc);
     dst_doc.srcs.push(src_doc);
 
-    const edge = new Edge(tree, src_doc, dst_doc);
+    const edge = new Edge(src_doc, dst_doc);
     const key = `${src_doc.id}:${dst_doc.id}`;
     edgeMap.set(key, edge);
+
+    return edge;
 }
 
 function cancelLinkDocs(){
@@ -79,7 +81,8 @@ function linkDocs(doc : Doc){
             const key2 = edgeKey(doc, selectedDoc);
             if(!edgeMap.has(key1) && !edgeMap.has(key2)){
 
-                addEdge(theTree, selectedDoc, doc);
+                const edge = addEdge(selectedDoc, doc);
+                edge.initPath(theTree);
                 theTree.initDocLevels();
                 theTree.update(theTree.eye);
             }
@@ -93,6 +96,33 @@ function linkDocs(doc : Doc){
 function deselectAll(){
     theTree.docs.filter(x => x.selected).map(x => x.select(false));
     Array.from( edgeMap.values() ).map(x => x.select(false));
+}
+
+export function makeDocsFromJson(data : any) : Doc[] {
+    const doc_map = new Map<number, Doc>();
+    for(const obj of data["docs"]){
+        const doc = new Doc(obj["id"], obj["title"]);
+        msg(`${doc.id} ${doc.title}`);
+
+        doc_map.set(doc.id, doc);
+    }
+    const docs = Array.from(doc_map.values());
+
+    edgeMap = new Map<string, Edge>();
+    for(const obj of data["edges"]){
+        const src_doc = doc_map.get(obj["src"])!;
+        const dst_doc = doc_map.get(obj["dst"])!;
+
+        assert(src_doc != undefined && dst_doc != undefined);
+
+        addEdge(src_doc, dst_doc);
+
+        msg(`${src_doc.title} => ${dst_doc.title}`);
+    }    
+
+    docs.filter(x => x.srcs.length == 0 && x.dsts.length == 0).forEach(x => msg(`NG ${x.title}`));
+
+    return docs;
 }
 
 class Tree {
@@ -112,30 +142,10 @@ class Tree {
         this.svg = $("map-svg") as any as SVGSVGElement;
         this.setViewSize();
 
-        const doc_map = new Map<number, Doc>();
-        for(const obj of data["docs"]){
-            const doc = new Doc(obj["id"], obj["title"]);
-            msg(`${doc.id} ${doc.title}`);
-    
-            doc_map.set(doc.id, doc);
-        }
-        this.docs = Array.from(doc_map.values());
-    
-        edgeMap = new Map<string, Edge>();
-        for(const obj of data["edges"]){
-            const src_doc = doc_map.get(obj["src"])!;
-            const dst_doc = doc_map.get(obj["dst"])!;
-    
-            assert(src_doc != undefined && dst_doc != undefined);
-    
-            addEdge(this, src_doc, dst_doc);
-    
-            msg(`${src_doc.title} => ${dst_doc.title}`);
-        }    
-
-        this.docs.filter(x => x.srcs.length == 0 && x.dsts.length == 0).forEach(x => msg(`NG ${x.title}`));
-        // this.docs = this.docs.filter(x => x.srcs.length != 0 || x.dsts.length != 0);
+        this.docs = makeDocsFromJson(data);
         this.docs.forEach(doc => doc.init(this));
+
+        Array.from(edgeMap.values()).forEach(x => x.initPath(this));
 
         this.initDocLevels();
         
@@ -273,7 +283,7 @@ class Tree {
     }
 }
 
-class Doc {
+export class Doc {
     id : number;
     title : string;
     dsts  : Doc[] = [];
@@ -421,18 +431,24 @@ class Doc {
         this.rect.setAttribute("x", `${this.pos2.x}`);
         this.rect.setAttribute("y", `${this.pos2.y}`);
     }
+
+    onVizClick(ev : MouseEvent){
+        msg(`viz: ${this.title}`);
+    }
 }
 
-class Edge {
+export class Edge {
     src : Doc;
     dst : Doc;
-    path : SVGPathElement;
+    path! : SVGPathElement;
     selected : boolean = false;
 
-    constructor(tree : Tree, src : Doc, dst : Doc){
+    constructor(src : Doc, dst : Doc){
         this.src = src;
         this.dst = dst;
+    }
 
+    initPath(tree : Tree){
         this.path = document.createElementNS("http://www.w3.org/2000/svg","path");
         this.path.setAttribute("fill", "transparent");
         this.path.setAttribute("stroke", "black");

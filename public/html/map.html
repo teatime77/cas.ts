@@ -17,6 +17,7 @@
     <!-- To automatically render math in text elements, include the auto-render extension: -->
     <script defer src="../katex/contrib/auto-render.min.js" integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
 
+    <script type="text/javascript" src="../js/viz-standalone.js"></script>
     <script type="text/javascript" src="../js/main.js?ver=0"></script>
 
 <script>
@@ -47,14 +48,18 @@
   });
 </script>
 </head>
-<body onload="casts.bodyOnLoadEdge()" style="margin: 0; padding: 0; overflow: hidden;">
+<body onload="casts.bodyOnLoadGraph()" style="margin: 0; padding: 0; overflow: scroll;">
 <div style="height: 30px;" style="text-align: center;">
   <button onclick="casts.copyMap()" ">copy</button>
   <span ></span>全体を見るにはマウスでドラッグしてください。
 </div>
 <svg id="map-svg" style="margin: 0; padding: 0; background-color: blanchedalmond; border-style: ridge; border-width: 3px;" xmlns="http://www.w3.org/2000/svg">
-
 </svg>
+
+<div id="map-div">
+  <h3 style="text-align:center; ">グラフを作っています．．．</h3>
+</div>
+
 
 <!-- $$
 \int_0^\pi
