@@ -16,7 +16,7 @@ export function makeDot(docs : Doc[], mapEdges : Edge[]){
         let id = (url != undefined ? `be/${url}` : `${doc.id}`);
         let color = `, fontcolor="blue"`;
 
-        docLines.push(`b${doc.id} [ label="${doc.title}", id="${id}", class="doc", tooltip="　" ${color} ];` );
+        docLines.push(`b${doc.id} [ label="${doc.title}" id="${id}" class="doc" tooltip="　" fontsize="10" ${color} ];` );
     }
 
     for(let edge of mapEdges){

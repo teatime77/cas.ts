@@ -414,7 +414,14 @@ async function main(page : string) {
 
         initAction();
     }
-    await initFirebase(page);
+
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+
+    if(page == "firebase" || params.get("db") != undefined){
+
+        await initFirebase(page);
+    }
 
     if(page == "edit"){
         showContents();
@@ -429,8 +436,6 @@ async function main(page : string) {
     // mergeJson(index, youtube);
     // makeYoutubeJson();
 
-    const url = new URL(window.location.href);
-    const params = url.searchParams;
     const path= params.get("path");
     if(path != undefined){
         await readDoc(path);
