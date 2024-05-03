@@ -22,3 +22,6 @@ tmp
 **/*.log
 export
 run.bat
+ts/lib/*.js
+ts/lib/*.d.ts
+ts/lib/*.tsbuildinfo

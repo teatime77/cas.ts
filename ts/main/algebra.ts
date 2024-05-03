@@ -1,4 +1,42 @@
 namespace casts {
+//
+export function makeMathDiv(){
+    mathDiv = document.createElement("div");
+    mathDiv.className = "math-div";
+    mathDivRoot.appendChild(mathDiv);
+}
+
+
+export function addHtml(html : string){
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    mathDiv.parentElement!.insertBefore(div, mathDiv);
+
+    if(html.indexOf("$") != -1){
+        renderMathInElement(div, {
+            delimiters : [ 
+                {left: "$", right: "$", display: false}
+            ],
+            trust : true
+        });
+    }
+}
+
+
+export function addDiv(html : string){
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    mathDivRoot.appendChild(div);
+}
+
+
+export function mulR(... rs : Rational[]) : Rational {
+    const numerator   = rs.reduce((acc, cur) => acc * cur.numerator,   1);
+    const denominator = rs.reduce((acc, cur) => acc * cur.denominator, 1);
+
+    return new Rational(numerator, denominator);
+}
+
 
 export function show(app : App, root : App){
     assert(app.args.length == 1 && app.args[0] instanceof Path);

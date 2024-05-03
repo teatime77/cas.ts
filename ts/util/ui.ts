@@ -136,7 +136,7 @@ export class MsgBox {
     }
 }
 
-function enableMenuItem(id : string, enable : boolean){
+export function enableMenuItem(id : string, enable : boolean){
     if(enable){            
         $(id).style.cursor = "pointer";
         $(id).style.color  = "black";
@@ -147,64 +147,6 @@ function enableMenuItem(id : string, enable : boolean){
         $(id).style.color  = "darkgray";
         $(id).style.textDecoration = "line-through";
     }        
-}
-
-export class DragDrop {
-    dropItem : DbItem;
-    dragItem : DbItem;
-
-    addChild(){
-        msg(`child ${this.dropItem.title} <= ${this.dragItem.title}`);
-        this.closeDlg();
-
-        (this.dropItem as Section).moveChild(this.dragItem);
-        showContents();
-    }
-
-    addAfter(){        
-        msg(`after ${this.dropItem.title} <= ${this.dragItem.title}`);
-        this.closeDlg();
-
-        this.dropItem.moveAfter(this.dragItem);
-        showContents();
-    }
-
-    addBefore(){
-        msg(`before ${this.dropItem.title} <= ${this.dragItem.title}`);
-        this.closeDlg();
-
-        this.dropItem.moveBefore(this.dragItem);
-        showContents();
-    }
-    
-    closeDlg(){
-        $dlg("drag-drop-dlg").close();
-    }
-
-    constructor(drop_item : DbItem, drag_item : DbItem){
-        this.dropItem = drop_item;
-        this.dragItem = drag_item;
-
-        const enable_drop_child = drop_item instanceof Section && drop_item.children.length == 0;
-
-        $("drag-drop-child").onclick = enable_drop_child ? this.addChild.bind(this) : null;
-        $("drag-drop-after").onclick = this.addAfter.bind(this);
-        $("drag-drop-before").onclick = this.addBefore.bind(this);
-
-        enableMenuItem("drag-drop-child", enable_drop_child);
-    }
-
-    show(){
-        $dlg("drag-drop-dlg").showModal();
-    }
-}
-
-export function showContents(){
-    const root = getRoot();
-    $div("contents-div").innerHTML = "";
-    root.makeContents();
-
-    $dlg("contents-dlg").showModal();
 }
 
 }

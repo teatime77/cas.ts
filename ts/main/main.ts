@@ -2,21 +2,6 @@ namespace casts {
 
 export let mathDivRoot : HTMLDivElement;
 export let mathDiv : HTMLDivElement;
-let translation : { [text : string] : { [text : string] : string} };
-export let termDic : { [id : number] : Term } = {};
-const theLang : string = "ja";
-
-export function parseMath(text: string) : Term {
-    let parser = new Parser(text);
-    let trm = parser.LogicalExpression();
-    if(parser.token.typeTkn != TokenType.eot){
-        throw new Error();
-    }
-
-    trm.setParent(null);
-
-    return trm;
-}
 
 function heading(text : string){
     const words = text.match(/#+/)!;
@@ -272,18 +257,6 @@ function readAllDoc(parent_dir : any){
     }, 1);
 }
 
-export function translate(text : string, lang : string = theLang) : string {
-    const item = translation[text.replace('-', ' ')];
-    if(item != undefined){
-        const dst_text = item[lang];
-        if(dst_text != undefined){
-            return dst_text;
-        }
-    }
-
-    return text;
-}
-
 function makeIndex(parent_ul : HTMLUListElement | HTMLDivElement, parent_dir : any){
     assert(parent_dir != undefined);
     const ul = document.createElement("ul");
@@ -420,7 +393,7 @@ async function main(page : string) {
 
     if(page == "firebase" || params.get("db") != undefined){
 
-        await initFirebase(page);
+        await initContents(page);
     }
 
     if(page == "edit"){

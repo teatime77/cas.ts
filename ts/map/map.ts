@@ -570,6 +570,13 @@ function lineToObj(nest_titles:[number, string][]) : [number, any] {
     return [nest, obj];
 }
 
+function setMapEventListener(map : MapSVG){
+    map.svg.addEventListener("pointerdown", map.onPointerDown.bind(map));
+    map.svg.addEventListener("pointerup"  , map.onPointerUp.bind(map));
+    map.svg.addEventListener("pointermove", map.onPointerMove.bind(map));
+    // map.svg.addEventListener("wheel"      , map.onWheel.bind(map));
+}
+
 export async function bodyOnLoadMap(){
     // const map = await fetchJson(`../data/map.json`);
 

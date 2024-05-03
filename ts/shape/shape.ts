@@ -22,6 +22,9 @@ let loginUid : string | null = null;
 let guestUid = defaultUid;
 let firebase: any;
 
+export let actions : Action[];
+
+
 class Glb {
     toolType : string = "";
     eventPos! : Vec2;
@@ -39,6 +42,19 @@ class Glb {
     }
 }
 
+
+function v2app(v : Vec2) : App {
+    return new App(operator("vec"), [new ConstNum(v.x), new ConstNum(v.y)]);
+}
+
+export class Action {
+    command : App;
+
+    constructor(command : App){
+        this.command = command;
+    }
+}
+
 export class WidgetAction extends Action {
     constructor(command : App){
         super(command);
@@ -48,6 +64,51 @@ export class WidgetAction extends Action {
 
 let glb : Glb;
 
+
+export function addAction(act : Action){
+    actions.push(act);
+}
+
+/**
+ * Viewのイベント処理
+ */
+export function setViewEventListener(view: View){
+    view.svg.addEventListener("click", view.svgClick);
+//+    view.svg.addEventListener("pointerdown", view.svgPointerDown);  
+//+    view.svg.addEventListener("pointerup"  , view.svgPointerUp);  
+    view.svg.addEventListener("pointermove", view.svgPointerMove);  
+//+    view.svg.addEventListener("wheel"      , view.svgWheel);
+}
+
+
+/**
+ * tool-typeのクリック
+ */
+function setToolTypeEventListener(){
+    const toolTypes = document.getElementsByName("tool-type");
+    for(let x of toolTypes){
+        x.addEventListener("click", setToolType);
+    }
+}
+
+/**
+ * ShapeのNameのイベント処理
+ */
+export function setNameEventListener(shape: Shape){
+    shape.svgName!.addEventListener("pointerdown", shape.namePointerdown);
+    shape.svgName!.addEventListener("pointermove", shape.namePointermove);
+    shape.svgName!.addEventListener("pointerup"  , shape.namePointerup);
+}
+
+
+/**
+ * Pointのイベント処理
+ */
+export function setPointEventListener(point: Point){
+    point.circle.addEventListener("pointerdown", point.pointerdown);
+    point.circle.addEventListener("pointermove", point.pointermove);
+    point.circle.addEventListener("pointerup"  , point.pointerup);
+}
 
 export function initShape(){
     glb = new Glb();
@@ -1556,7 +1617,7 @@ export class Point extends Shape {
     }
 
     app() : App {
-        return new App(actionRef("@point"), [this.pos.app()]);
+        return new App(actionRef("@point"), [v2app(this.pos)]);
     }
 
     setEnable(enable: boolean){
@@ -2060,7 +2121,7 @@ export abstract class AbstractStraightLine extends CompositeShape {
 export class LineSegment extends AbstractStraightLine {
 
     app() : App{
-        return new App(actionRef("@line_segment"), [this.p1.app(), this.p2.app()]);
+        return new App(actionRef("@line_segment"), [v2app(this.p1), v2app(this.p2)]);
     }
 
 }
@@ -2068,7 +2129,7 @@ export class LineSegment extends AbstractStraightLine {
 export class StraightLine extends AbstractStraightLine {
 
     app() : App{
-        return new App(actionRef("@straight_line"), [this.p1.app(), this.p2.app()]);
+        return new App(actionRef("@straight_line"), [v2app(this.p1), v2app(this.p2)]);
     }
 
 }
@@ -2076,7 +2137,7 @@ export class StraightLine extends AbstractStraightLine {
 export class HalfLine extends AbstractStraightLine {
 
     app() : App{
-        return new App(actionRef("@half_line"), [this.p1.app(), this.p2.app()]);
+        return new App(actionRef("@half_line"), [v2app(this.p1), v2app(this.p2)]);
     }
 
 }

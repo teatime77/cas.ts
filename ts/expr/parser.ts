@@ -1,10 +1,30 @@
 namespace casts {
 
+export let termDic : { [id : number] : Term } = {};
+
 export const pathSep = ":";
 
 export function Zero() : ConstNum {
     return new ConstNum(0);
 }
+
+
+export function actionRef(name : string) : RefVar {
+    return new RefVar(name);
+}
+
+export function parseMath(text: string) : Term {
+    let parser = new Parser(text);
+    let trm = parser.LogicalExpression();
+    if(parser.token.typeTkn != TokenType.eot){
+        throw new Error();
+    }
+
+    trm.setParent(null);
+
+    return trm;
+}
+
 
 function isGreek(text : string) : boolean {
     const greeks = [

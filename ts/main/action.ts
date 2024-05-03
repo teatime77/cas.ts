@@ -1,14 +1,52 @@
 namespace casts {
 //
 export let curIndex : Index;
-let actions : Action[];
 export let Alg : Algebra;
 
-export class Action {
-    command : App;
 
-    constructor(command : App){
-        this.command = command;
+export function render(ele: HTMLElement, tex_text: string){
+    try{
+        ele.innerHTML = "";
+        
+        katex.render(tex_text, ele, {
+            throwOnError: false,
+            displayMode : true,
+            trust : true,
+            // newLineInDisplayMode : "ignore",
+            macros : getUserMacros()
+        });
+
+        
+        const term_spans = Array.from(ele.getElementsByClassName("enclosing")) as HTMLSpanElement[];
+        for(const span of term_spans){
+            const id_str     = span.getAttribute("data-id");
+            const tabidx_str = span.getAttribute("data-tabidx");
+            if(id_str != null && tabidx_str != null){
+                const id = parseInt(id_str);
+                const tabidx = parseInt(tabidx_str);
+
+                const trm = termDic[id];
+                assert(trm != undefined);
+
+                span.tabIndex = tabidx;
+                span.addEventListener("keypress", (ev : KeyboardEvent)=>{
+                    ev.stopPropagation();
+                    if(ev.key == " "){
+                        searchCandidate(trm);
+                    }
+                });
+                span.addEventListener("keydown", (ev:KeyboardEvent)=>{
+                    if(ev.key == "ArrowLeft"){
+                        ChangeOrder.move(trm, -1);
+                    }
+                    else if(ev.key == "ArrowRight"){
+                        ChangeOrder.move(trm,  1);
+                    }
+                });
+            }
+        }
+    }
+    catch(e){
     }
 }
 
@@ -26,10 +64,6 @@ export class FormulaAction extends Action {
         closeDlg("eq-action-dlg");
         msg(`delete ${this.expr.str()}`);
     }
-}
-
-export function actionRef(name : string) : RefVar {
-    return new RefVar(name);
 }
 
 export async function writeProof(){
@@ -105,10 +139,6 @@ function applyFormula(cmd : App) : App {
     return focus_root;
 }
 
-export function addAction(act : Action){
-    actions.push(act);
-}
-
 export function doCommand(cmd : App){
     let expr : App;
     
@@ -166,6 +196,18 @@ function* generateActions(){
         yield;
     }
 }
+
+
+function getAncestors(index : Index) : DbItem[] {
+    const path : DbItem[]= [];
+
+    for(let section = index.parent; section != null; section = section.parent){
+        path.push(section);
+    }
+
+    return path;
+}
+
 
 export async function startProof(index : Index){
     curIndex = index;
