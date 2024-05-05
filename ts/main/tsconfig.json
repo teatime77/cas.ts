@@ -110,7 +110,7 @@
   "references": [
     { "path": "../util" },
     { "path": "../expr" },
-    { "path": "../map" },
+    { "path": "../graph" },
     { "path": "../shape" },
     { "path": "../db" }
 ]
