@@ -7,7 +7,7 @@ let indexMenuDlg : HTMLDialogElement;
 
 
 
-let Sections : Section[];
+let Sections : DbSection[];
 export let Indexes : Index[];
 
 
@@ -19,7 +19,7 @@ export class DragDrop {
         msg(`child ${this.dropItem.title} <= ${this.dragItem.title}`);
         this.closeDlg();
 
-        (this.dropItem as Section).moveChild(this.dragItem);
+        (this.dropItem as DbSection).moveChild(this.dragItem);
         showContents();
     }
 
@@ -47,7 +47,7 @@ export class DragDrop {
         this.dropItem = drop_item;
         this.dragItem = drag_item;
 
-        const enable_drop_child = drop_item instanceof Section && drop_item.children.length == 0;
+        const enable_drop_child = drop_item instanceof DbSection && drop_item.children.length == 0;
 
         $("drag-drop-child").onclick = enable_drop_child ? this.addChild.bind(this) : null;
         $("drag-drop-after").onclick = this.addAfter.bind(this);
@@ -71,8 +71,8 @@ export function showContents(){
 
 
 
-export function getRoot() : Section {
-    let root : Section;
+export function getRoot() : DbSection {
+    let root : DbSection;
 
     root = Sections.find(x => x.parentId == null)!;
     assert(root != undefined && root.id == 0);
@@ -124,7 +124,7 @@ async function inputIndex(title : string = "", assertion : string = "") : Promis
 
 export abstract class DbItem {
     parentId : number  | null;
-    parent   : Section | null = null;
+    parent   : DbSection | null = null;
     id       : number;
     order    : number = 0;
     title    : string;
@@ -166,7 +166,7 @@ export abstract class DbItem {
         this.span.style.cursor = "pointer";
         this.span.style.marginLeft = `${this.nest() * 40}px`;
         this.span.style.alignContent = "center";
-        const marker = (this instanceof Section ? "・ " : "  ");
+        const marker = (this instanceof DbSection ? "・ " : "  ");
         this.span.innerText = marker + translate(this.title);
         this.span.draggable = true;
         this.span.addEventListener("dragstart", this.onDragStart.bind(this));
@@ -216,7 +216,7 @@ export abstract class DbItem {
         await writeDB(this.table(), this.id, this.data())
 
         console.log(`OK:put ${this.table()} ${this.id}`);
-        if(this instanceof Section){
+        if(this instanceof DbSection){
             Sections.push(this);
         }
         else if(this instanceof Index){
@@ -263,7 +263,7 @@ export abstract class DbItem {
             changed.push(this);
         }
 
-        if(this instanceof Section){
+        if(this instanceof DbSection){
             for(const [i,x] of this.children.entries()){
                 x.correctDbData(this.id, i, changed);
             }
@@ -271,11 +271,11 @@ export abstract class DbItem {
     }
 }
 
-export class Section extends DbItem {
+class DbSection extends DbItem {
     children  : DbItem[] = [];
 
-    static fromData(id : number, data : any) : Section {
-        return new Section(id, data.parentId, data.order, data.title)
+    static fromData(id : number, data : any) : DbSection {
+        return new DbSection(id, data.parentId, data.order, data.title)
     }
 
     table() : string {
@@ -321,7 +321,7 @@ export class Section extends DbItem {
             return;
         }
 
-        const section = new Section(getMaxId() + 1, this.id, this.children.length, title);
+        const section = new DbSection(getMaxId() + 1, this.id, this.children.length, title);
         section.parent = this;
         this.children.push(section);
 
@@ -470,9 +470,9 @@ export class Index extends DbItem {
     }
 }
 
-async function readSections() : Promise<Section[]> {
+async function readSections() : Promise<DbSection[]> {
     const docs = await getSnapshot('sections');
-    const sections = docs.map(([id, data]) => Section.fromData(id, data));
+    const sections = docs.map(([id, data]) => DbSection.fromData(id, data));
 
     return sections;
 }
@@ -510,7 +510,7 @@ export async function initContents(page : string){
 
     if(Sections.length == 0){
 
-        const root = new Section(0, null, 0, "目次");
+        const root = new DbSection(0, null, 0, "目次");
         await root.putDB();
     }
 
@@ -527,7 +527,7 @@ export async function initContents(page : string){
 
     for(const item of sections_indexes){
         if(item.parentId != null){
-            const parent = map.get(item.parentId) as Section;
+            const parent = map.get(item.parentId) as DbSection;
             assert(parent != undefined);
             
             item.parent = parent;
