@@ -81,6 +81,7 @@ class Graph {
             var svg = viz.renderSVGElement(dot) as SVGSVGElement;
 
             svg.addEventListener("contextmenu", onMenu);
+            svg.addEventListener("click", graph.onClick.bind(graph))
 
             const nodes = Array.from(svg.getElementsByClassName("node doc")) as SVGGElement[];
             for(const g of nodes){
@@ -92,6 +93,11 @@ class Graph {
                 else{
                     msg(`node : ${g.id} [${doc.title}]`);
                     g.addEventListener("click", doc.onVizClick.bind(doc));
+
+                    const ellipses = g.getElementsByTagName("ellipse");
+                    if(ellipses.length == 1){
+                        doc.ellipse = ellipses.item(0)!;
+                    }
                 }
 
                 g.setAttribute("cursor", "pointer");
@@ -122,9 +128,13 @@ class Graph {
 
         this.docs.sort((a:Doc, b:Doc) => a.id - b.id);
     }
+
+    onClick(ev : MouseEvent){
+        this.docs.filter(x => x.selected).forEach(x => x.select(false));
+    }
 }
 
-let graph : Graph;
+export let graph : Graph;
 
 
 function onMenu(ev : MouseEvent){

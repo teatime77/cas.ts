@@ -294,6 +294,7 @@ export class Doc {
 
     text! : SVGTextElement;
     rect! : SVGRectElement;
+    ellipse : SVGEllipseElement | undefined;
     textBox! : DOMRect;
 
     pos    : Vec3 = new Vec3(0, 0, 0);
@@ -344,15 +345,20 @@ export class Doc {
 
     select(selected : boolean){
         this.selected = selected;
-        if(this.selected){
 
-            this.text.setAttribute("stroke", "red");
-            this.rect.setAttribute("stroke", "red");
+        let color = (this.selected ? "red" : "black");
+
+
+        if(this.text != undefined){
+            this.text.setAttribute("stroke", color);
         }
-        else{
 
-            this.text.setAttribute("stroke", "black");
-            this.rect.setAttribute("stroke", "black");
+        if(this.rect != undefined){
+            this.rect.setAttribute("stroke", color);
+        }
+
+        if(this.ellipse != undefined){
+            this.ellipse.setAttribute("stroke", color);
         }
     }
 
@@ -380,7 +386,7 @@ export class Doc {
         }
     }
 
-    onClick(ev : MouseEvent){
+    onClick(ev : MouseEvent){        
         msg("click doc");
         if(ev.ctrlKey){
             linkDocs(this);
@@ -433,6 +439,10 @@ export class Doc {
     }
 
     onVizClick(ev : MouseEvent){
+        ev.stopPropagation();
+        ev.preventDefault();
+        
+        this.select(!this.selected);
         msg(`viz: ${this.title}`);
     }
 }
