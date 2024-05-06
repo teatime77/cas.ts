@@ -59,6 +59,16 @@
       });
   });
 </script>
+<style>
+.menu_dlg {
+  position: absolute; margin: 0;
+}
+
+.mn1 {
+  margin-left: 10px;
+  cursor:pointer;
+}
+</style>
 </head>
 <body onload="casts.bodyOnLoadGraph()" style="margin: 0; padding: 0; overflow: scroll;">
 <div style="height: 30px;" style="text-align: center;">
@@ -76,6 +86,12 @@
 <!-- $$
 \int_0^\pi
 $$ -->
+<div id="dlg-list"></div>
+
+<dialog id="graph-menu-dlg" class="menu_dlg">
+  <span class="mn1" onclick="casts.addGraphSection()">セクションを追加</span><br/>
+  <span class="mn1" onclick="casts.addGraphItem()">項目を追加</span><br/>
+</dialog>
 
 </body>
 </html>

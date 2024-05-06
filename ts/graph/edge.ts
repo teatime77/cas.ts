@@ -18,7 +18,7 @@ let theTree : Tree;
 export let edgeMap = new Map<string, Edge>();
 let selectedDoc : Doc | null = null;
 
-function edgeKey(doc1 : Doc, doc2 : Doc) : string {
+export function edgeKey(doc1 : Doc, doc2 : Doc) : string {
     return `${doc1.id}:${doc2.id}`;
 }
 function getEdge(doc1 : Doc, doc2 : Doc) : Edge {
@@ -515,24 +515,24 @@ function updateDocLevels(docs : Doc[]){
     }while(changed);
 }
 
-export function copyMap(){
-    const docs = theTree.docs.slice();
+export function makeIndexJson(docs : Doc[], edges : Edge[]){
+    docs = docs.slice();
+
     docs.sort((a:Doc, b:Doc) => a.id - b.id);
 
     const lines : string[] = [];
     lines.push(`{`);
-    lines.push(`  "docs" : [`);
+    lines.push(`    "docs" : [`);
 
     for(const [i,doc] of docs.entries()){
         const cm = (i == docs.length - 1 ? "" : ",");
         lines.push(`        { "id" : ${doc.id}, "title" : "${doc.title}" }${cm}`);
     }
 
-    lines.push(`  ]`);
-    lines.push(`  ,`);
-    lines.push(`  "edges" : [`);
+    lines.push(`    ]`);
+    lines.push(`    ,`);
+    lines.push(`    "edges" : [`);
 
-    const edges = Array.from(edgeMap.values());
     edges.sort((a:Edge, b:Edge) => edgeKey(a.src, a.dst).localeCompare( edgeKey(b.src, b.dst) ));
 
     for(const [i,edge] of edges.entries()){
@@ -540,10 +540,16 @@ export function copyMap(){
         lines.push(`        { "src" : ${edge.src.id}, "dst" : ${edge.dst.id} }${cm}`);
     }
 
-    lines.push(`  ]`);
+    lines.push(`    ]`);
     lines.push(`}`);
 
-    const text = lines.join("\r\n");
+    const text = lines.join("\n");
+
+    return text;
+}
+
+export function copyMap(){
+    const text = makeIndexJson(theTree.docs, Array.from(edgeMap.values()))
 
     navigator.clipboard.writeText(text)
     .then(

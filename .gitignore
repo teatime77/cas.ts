@@ -25,3 +25,4 @@ run.bat
 ts/lib/*.js
 ts/lib/*.d.ts
 ts/lib/*.tsbuildinfo
+python/__pycache__

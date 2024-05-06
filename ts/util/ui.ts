@@ -149,4 +149,10 @@ export function enableMenuItem(id : string, enable : boolean){
     }        
 }
 
+
+export async function includeDialog(){
+    const dialog_html = await fetchText("./dialog.html");
+    $div("dlg-list").innerHTML = dialog_html;
+}
+
 }
