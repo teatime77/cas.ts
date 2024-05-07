@@ -61,10 +61,12 @@
 </script>
 <style>
 .menu_dlg {
-  position: absolute; margin: 0;
+  position: absolute; 
+  margin: 0;
 }
 
 .mn1 {
+  display: inline-block;
   margin-left: 10px;
   cursor:pointer;
 }
@@ -88,9 +90,11 @@
 $$ -->
 <div id="dlg-list"></div>
 
-<dialog id="graph-menu-dlg" class="menu_dlg">
-  <span class="mn1" onclick="casts.addGraphSection()">セクションを追加</span><br/>
-  <span class="mn1" onclick="casts.addGraphItem()">項目を追加</span><br/>
+<dialog id="graph-menu-dlg" class="menu_dlg" style="width:150px;">
+  <div style="display: flex; flex-direction: column;">
+    <span class="mn1" onclick="casts.addGraphSection()">セクションを追加</span>
+    <span class="mn1" onclick="casts.addGraphItem()">項目を追加</span>
+  </div>
 </dialog>
 
 </body>

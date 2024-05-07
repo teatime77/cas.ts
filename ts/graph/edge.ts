@@ -98,7 +98,7 @@ function deselectAll(){
     Array.from( edgeMap.values() ).map(x => x.select(false));
 }
 
-export function makeDocsFromJson(data : any) : Doc[] {
+export function makeDocsFromJson(data : any) : [Doc[], Section[]] {
     const doc_map = new Map<number, Doc>();
     for(const obj of data["docs"]){
         const doc = new Doc(obj["id"], obj["title"]);
@@ -107,6 +107,23 @@ export function makeDocsFromJson(data : any) : Doc[] {
         doc_map.set(doc.id, doc);
     }
     const docs = Array.from(doc_map.values());
+
+    const sections : Section[] = [];
+    if(data["sections"] != undefined){
+
+        for(const obj of data["sections"]){
+            const section = new Section(obj["title"]);
+            sections.push(section);
+            msg(`${section.title}`);
+
+            const doc_ids = obj["doc_ids"] as number[];
+            for(const id of doc_ids){
+                const doc = doc_map.get(id)!;
+                assert(doc != undefined);
+                doc.section = section;
+            }
+        }
+    }
 
     edgeMap = new Map<string, Edge>();
     for(const obj of data["edges"]){
@@ -122,7 +139,7 @@ export function makeDocsFromJson(data : any) : Doc[] {
 
     docs.filter(x => x.srcs.length == 0 && x.dsts.length == 0).forEach(x => msg(`NG ${x.title}`));
 
-    return docs;
+    return [docs, sections];
 }
 
 class Tree {
@@ -142,7 +159,8 @@ class Tree {
         this.svg = $("map-svg") as any as SVGSVGElement;
         this.setViewSize();
 
-        this.docs = makeDocsFromJson(data);
+        const [docs, sections] = makeDocsFromJson(data);
+        this.docs = docs;
         this.docs.forEach(doc => doc.init(this));
 
         Array.from(edgeMap.values()).forEach(x => x.initPath(this));
@@ -286,9 +304,9 @@ class Tree {
 export class Doc {
     id : number;
     title : string;
+    section : Section | undefined;
     dsts  : Doc[] = [];
     srcs  : Doc[] = [];
-    // edges : Edge[] = [];
     level : number = 0;
     selected : boolean = false;
 
@@ -441,7 +459,7 @@ export class Doc {
     onVizClick(ev : MouseEvent){
         ev.stopPropagation();
         ev.preventDefault();
-        
+
         this.select(!this.selected);
         msg(`viz: ${this.title}`);
     }
@@ -525,13 +543,14 @@ function updateDocLevels(docs : Doc[]){
     }while(changed);
 }
 
-export function makeIndexJson(docs : Doc[], edges : Edge[]){
+export function makeIndexJson(docs : Doc[], sections : Section[], edges : Edge[]){
     docs = docs.slice();
 
     docs.sort((a:Doc, b:Doc) => a.id - b.id);
 
     const lines : string[] = [];
     lines.push(`{`);
+
     lines.push(`    "docs" : [`);
 
     for(const [i,doc] of docs.entries()){
@@ -541,6 +560,22 @@ export function makeIndexJson(docs : Doc[], edges : Edge[]){
 
     lines.push(`    ]`);
     lines.push(`    ,`);
+
+    lines.push(`    "sections" : [`);
+
+    for(const [i,section] of sections.entries()){
+        const doc_ids = docs.filter(doc => doc.section == section).map(doc => `${doc.id}`).join(", ");
+        const cm = (i == sections.length - 1 ? "" : ",");
+
+        lines.push(`        {`);
+        lines.push(`            "title" : "${section.title}",`);
+        lines.push(`            "doc_ids"  : [ ${doc_ids} ]`);
+        lines.push(`        }${cm}`);
+    }
+
+    lines.push(`    ]`);
+    lines.push(`    ,`);
+
     lines.push(`    "edges" : [`);
 
     edges.sort((a:Edge, b:Edge) => edgeKey(a.src, a.dst).localeCompare( edgeKey(b.src, b.dst) ));
@@ -559,7 +594,7 @@ export function makeIndexJson(docs : Doc[], edges : Edge[]){
 }
 
 export function copyMap(){
-    const text = makeIndexJson(theTree.docs, Array.from(edgeMap.values()))
+    const text = makeIndexJson(theTree.docs, [], Array.from(edgeMap.values()))
 
     navigator.clipboard.writeText(text)
     .then(

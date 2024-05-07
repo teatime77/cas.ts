@@ -6,34 +6,43 @@ let URLs     : { [id: number]: string; } = {};
 
 class Graph {
     docs : Doc[];
-    edges : Edge[]
+    edges : Edge[];
+    sections : Section[];
 
-    constructor(docs : Doc[], edges : Edge[]){
+    constructor(docs : Doc[], sections : Section[], edges : Edge[]){
         this.docs  = docs;
+        this.sections = sections;
         this.edges = edges;
     }
 
     makeDot(){
         let doc_map = new Map<string, Doc>();
+        this.docs.forEach(doc => doc_map.set(`${doc.id}`, doc));
+
         let docLines  : string[] = [];
-        let docLines2  : string[] = [];
+        let secLines  : string[] = [];
         let edgeLines : string[] = [];
 
-        for(let doc of this.docs){
-            doc_map.set(`${doc.id}`, doc);
+        for(let doc of this.docs.filter(doc => doc.section == undefined)){
             let url = URLs[doc.id];
 
             let id = (url != undefined ? `be/${url}` : `${doc.id}`);
             let color = `, fontcolor="blue"`;
+            docLines.push(`b${doc.id} [ label="${doc.title}" id="${id}" class="doc" tooltip="　" fontsize="10" ${color} ];` );
+        }
 
-            if(166 <= doc.id && doc.id <= 171){
-
-                docLines2.push(`b${doc.id} [ label="${doc.title}" id="${id}" class="doc" tooltip="　" fontsize="10" ${color} ];` );
+        for(let [idx, section] of this.sections.entries()){
+            const docs = this.docs.filter(x => x.section == section);
+            secLines.push(`subgraph cluster_${idx} {`);
+            secLines.push(`    label = "${section.title}";`);
+            secLines.push(`    labelloc  = "b";`);
+            secLines.push(`    labeljust = "l";`);
+            secLines.push(`    color     = "green";`);
+            secLines.push(`    penwidth  = 2;`);
+            for(const doc of docs){
+                secLines.push(`b${doc.id} [ label="${doc.title}" id="${doc.id}" class="doc" tooltip="　" fontsize="10" , fontcolor="blue" ];` );
             }
-            else{
-
-                docLines.push(`b${doc.id} [ label="${doc.title}" id="${id}" class="doc" tooltip="　" fontsize="10" ${color} ];` );
-            }
+            secLines.push(`}`);
         }
 
         for(let edge of this.edges){
@@ -53,17 +62,6 @@ class Graph {
         //     }
         // }
 
-        let sub = `
-        subgraph cluster_3 {
-            label = "行列";
-            labelloc  = "b";
-            labeljust = "l";
-            color     = "green";
-            penwidth  = 2;
-            ${docLines2.join('\n')}
-        }
-        `
-
         let dot = `
         digraph graph_name {
             graph [
@@ -71,7 +69,7 @@ class Graph {
                 charset = "UTF-8";
             ];
             ${docLines.join('\n')}
-            ${sub}
+            ${secLines.join('\n')}
             ${edgeLines.join('\n')}
             ${ranks.join('\n')}
         }
@@ -103,6 +101,11 @@ class Graph {
                 g.setAttribute("cursor", "pointer");
             }
 
+            const clusters = Array.from(svg.getElementsByClassName("cluster")) as SVGGElement[];
+            for(const g of nodes){
+
+            }
+
             const map_div = $div("map-div");
             map_div.innerHTML = "";
 
@@ -129,6 +132,25 @@ class Graph {
         this.docs.sort((a:Doc, b:Doc) => a.id - b.id);
     }
 
+    addSection(title : string){
+        const section = new Section(title);
+        this.sections.push(section);
+
+        this.docs.filter(x => x.selected).forEach(x => x.section = section);
+    }
+
+    async update(){
+        const text = makeIndexJson(this.docs, this.sections, this.edges);
+
+        const data = {
+            "command" : "write-index",
+            "text" : text
+        };
+        const res =  await postData("/db", data);
+        const status = res["status"];
+        msg(`status:[${status}]`);
+    }
+
     onClick(ev : MouseEvent){
         this.docs.filter(x => x.selected).forEach(x => x.select(false));
     }
@@ -136,10 +158,40 @@ class Graph {
 
 export let graph : Graph;
 
+export class Section {
+    title : string;
 
-function onMenu(ev : MouseEvent){
+    constructor(title : string){
+        this.title = title;
+    }
+}
+
+
+async function onMenu(ev : MouseEvent){
     ev.preventDefault();
-    showDlg(ev, "graph-menu-dlg");
+
+    const dlg = $dlg("graph-menu-dlg");
+
+    const rc1 = dlg.getBoundingClientRect();
+    msg(`dlg w: [${dlg.style.width}] [${dlg.style.maxWidth}] [${dlg.style.minWidth}] [${rc1.width}]`)
+
+    let x : number;
+    let y : number;
+    let w = 150;
+    // if(document.documentElement.clientWidth < ev.pageX + 150){
+    //     x = document.documentElement.clientWidth - w;
+    // }
+    // else{
+    //     x = ev.pageX;
+    // }
+    x = ev.pageX;
+    y = ev.pageY;
+    dlg.style.left = x + "px";
+    dlg.style.top  = y + "px";
+    dlg.showModal();
+
+
+    // showDlg(ev, "graph-menu-dlg");
 }
 
 export async function bodyOnLoadGraph(){
@@ -149,10 +201,10 @@ export async function bodyOnLoadGraph(){
 
     const data = await fetchJson(`../data/edge.json`);
 
-    const docs = makeDocsFromJson(data);
+    const [docs, sections] = makeDocsFromJson(data);
     const edges = Array.from(edgeMap.values());
 
-    graph = new Graph(docs, edges);
+    graph = new Graph(docs, sections, edges);
 
     graph.makeDot();        
 }
@@ -164,19 +216,17 @@ export async function addGraphItem(){
         return;
     }
     graph.addDoc(title);
-
-    const text = makeIndexJson(graph.docs, graph.edges);
-
-    const data = {
-        "command" : "write-index",
-        "text" : text
-    };
-    const res =  await postData("/db", data);
-    const status = res["status"];
-    msg(`status:[${status}]`);
+    await graph.update();
 }
 
 export async function addGraphSection(){
+    const title = await inputBox();
+    msg(`input ${title}`);
+    if(title == null){
+        return;
+    }
+    graph.addSection(title);
+    await graph.update();
 }
 
 }
