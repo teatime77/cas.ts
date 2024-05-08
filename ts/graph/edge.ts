@@ -21,11 +21,11 @@ let selectedDoc : Doc | null = null;
 export function edgeKey(doc1 : Doc, doc2 : Doc) : string {
     return `${doc1.id}:${doc2.id}`;
 }
-function getEdge(doc1 : Doc, doc2 : Doc) : Edge {
-    const key = edgeKey(doc1, doc2);
-    const edge = edgeMap.get(key)!;
 
-    assert(edge != undefined);
+export function getEdge(edge_map : Map<string, Edge>, doc1 : Doc, doc2 : Doc) : Edge | undefined {
+    const key = edgeKey(doc1, doc2);
+    const edge = edge_map.get(key)!;
+
     return edge;
 }
 
@@ -50,13 +50,13 @@ function dsp2(pos : Vec3, eye : Vec3) : string {
     return `(${pt.x.toFixed()} ${pt.y.toFixed()})`;
 }
 
-function addEdge(src_doc : Doc, dst_doc : Doc) : Edge {
+export function addEdge(edge_map : Map<string, Edge>, src_doc : Doc, dst_doc : Doc) : Edge {
     src_doc.dsts.push(dst_doc);
     dst_doc.srcs.push(src_doc);
 
     const edge = new Edge(src_doc, dst_doc);
-    const key = `${src_doc.id}:${dst_doc.id}`;
-    edgeMap.set(key, edge);
+    const key = edgeKey(src_doc, dst_doc);
+    edge_map.set(key, edge);
 
     return edge;
 }
@@ -81,7 +81,7 @@ function linkDocs(doc : Doc){
             const key2 = edgeKey(doc, selectedDoc);
             if(!edgeMap.has(key1) && !edgeMap.has(key2)){
 
-                const edge = addEdge(selectedDoc, doc);
+                const edge = addEdge(edgeMap, selectedDoc, doc);
                 edge.initPath(theTree);
                 theTree.initDocLevels();
                 theTree.update(theTree.eye);
@@ -98,7 +98,7 @@ function deselectAll(){
     Array.from( edgeMap.values() ).map(x => x.select(false));
 }
 
-export function makeDocsFromJson(data : any) : [Doc[], Section[]] {
+export function makeDocsFromJson(data : any) : [Doc[], Section[], Map<string, Edge>] {
     const doc_map = new Map<number, Doc>();
     for(const obj of data["docs"]){
         const doc = new Doc(obj["id"], obj["title"]);
@@ -125,21 +125,21 @@ export function makeDocsFromJson(data : any) : [Doc[], Section[]] {
         }
     }
 
-    edgeMap = new Map<string, Edge>();
+    const edge_map = new Map<string, Edge>();
     for(const obj of data["edges"]){
         const src_doc = doc_map.get(obj["src"])!;
         const dst_doc = doc_map.get(obj["dst"])!;
 
         assert(src_doc != undefined && dst_doc != undefined);
 
-        addEdge(src_doc, dst_doc);
+        addEdge(edge_map, src_doc, dst_doc);
 
         msg(`${src_doc.title} => ${dst_doc.title}`);
     }    
 
     docs.filter(x => x.srcs.length == 0 && x.dsts.length == 0).forEach(x => msg(`NG ${x.title}`));
 
-    return [docs, sections];
+    return [docs, sections, edge_map];
 }
 
 class Tree {
@@ -159,7 +159,7 @@ class Tree {
         this.svg = $("map-svg") as any as SVGSVGElement;
         this.setViewSize();
 
-        const [docs, sections] = makeDocsFromJson(data);
+        const [docs, sections, edgeMap] = makeDocsFromJson(data);
         this.docs = docs;
         this.docs.forEach(doc => doc.init(this));
 
@@ -394,7 +394,7 @@ export class Doc extends MapItem {
         done.push(this);
         this.select(true);
         for(const doc of this.srcs){
-            getEdge(doc, this).select(true);
+            getEdge(edgeMap, doc, this)!.select(true);
             doc.selectSrcs(done);
         }
     }
@@ -406,7 +406,7 @@ export class Doc extends MapItem {
         done.push(this);
         this.select(true);
         for(const doc of this.dsts){
-            getEdge(this, doc).select(true);
+            getEdge(edgeMap, this, doc)!.select(true);
             doc.selectDsts(done);
         }
     }
@@ -430,7 +430,7 @@ export class Doc extends MapItem {
             let pt2 = dst.pos2.copy();
             pt2.x += 0.5 * dst.width;
 
-            const path = getEdge(this, dst).path;
+            const path = getEdge(edgeMap, this, dst)!.path;
 
             let y1c : number;
             let y2c : number;
@@ -470,6 +470,13 @@ export class Doc extends MapItem {
         if(ev.ctrlKey){
 
             this.select(!this.selected);
+            if(this.selected && !graph.selections.includes(this)){
+                graph.selections.push(this);
+            }
+            else if(!this.selected && graph.selections.includes(this)){
+                remove(graph.selections, this);
+            }
+
             msg(`viz: ${this.title}`);
         }
     }

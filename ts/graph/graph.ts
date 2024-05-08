@@ -4,13 +4,14 @@ namespace casts {
 
 class Graph {
     docs : Doc[];
-    edges : Edge[];
+    edgeMap = new Map<string, Edge>();
     sections : Section[];
+    selections : Doc[] = [];
 
-    constructor(docs : Doc[], sections : Section[], edges : Edge[]){
+    constructor(docs : Doc[], sections : Section[], edge_map : Map<string, Edge>){
         this.docs  = docs;
         this.sections = sections;
-        this.edges = edges;
+        this.edgeMap = edge_map;
     }
 
     makeViz(){
@@ -30,7 +31,7 @@ class Graph {
 
         this.sections.forEach(sec => sec.makeDot(secLines));
 
-        for(let edge of this.edges){
+        for(let edge of this.edgeMap.values()){
             let id = `${edge.src.id}:${edge.dst.id}`;
             edgeLines.push(`b${edge.src.id} -> b${edge.dst.id} [ id="${id}" ];`);
         }
@@ -64,7 +65,8 @@ class Graph {
             var svg = viz.renderSVGElement(dot) as SVGSVGElement;
 
             svg.addEventListener("contextmenu", onMenu);
-            svg.addEventListener("click", graph.onClick.bind(graph))
+            svg.addEventListener("click", graph.onClick.bind(graph));
+            svg.addEventListener("keydown", graph.onKeyDown.bind(graph));
 
             const nodes = Array.from(svg.getElementsByClassName("node doc")) as SVGGElement[];
             for(const g of nodes){
@@ -112,8 +114,16 @@ class Graph {
         });
     }
 
+
+    onKeyDown(ev : KeyboardEvent){
+        if(ev.key == "Escape"){
+            this.clearSelections();
+        }
+    }
+
     clearSelections(){
         this.docs.filter(doc => doc.selected).forEach(doc => doc.select(false));
+        this.selections = [];
     }
 
     addDoc(title : string){
@@ -148,6 +158,24 @@ class Graph {
 
     async removeFromSection(ev : MouseEvent){
         this.docs.filter(x => x.selected).forEach(x => x.section = undefined);
+        this.clearSelections();
+
+        await updateGraph();
+    }
+
+    async connectEdge(ev : MouseEvent){
+        if(this.sections.length < 2){
+            return;
+        }
+
+        for(let i = 0; i + 1 < this.selections.length; i++){
+            const [src, dst] = this.selections.slice(i, i + 2);
+
+            if(getEdge(this.edgeMap, src, dst) == undefined){
+                addEdge(this.edgeMap, src, dst);
+            }
+        }
+
         this.clearSelections();
 
         await updateGraph();
@@ -236,12 +264,12 @@ export async function bodyOnLoadGraph(){
 
     const data = await fetchJson(`../data/edge.json`);
 
-    const [docs, sections] = makeDocsFromJson(data);
-    const edges = Array.from(edgeMap.values());
+    const [docs, sections, edge_map] = makeDocsFromJson(data);
 
-    graph = new Graph(docs, sections, edges);
+    graph = new Graph(docs, sections, edge_map);
 
     $("remove-from-section").onclick = graph.removeFromSection.bind(graph);
+    $("connect-edge").addEventListener("click", graph.connectEdge.bind(graph));
 
     graph.makeViz();        
 }
@@ -249,7 +277,7 @@ export async function bodyOnLoadGraph(){
 async function updateGraph(){
     graph.makeViz();        
 
-    const text = makeIndexJson(graph.docs, graph.sections, graph.edges);
+    const text = makeIndexJson(graph.docs, graph.sections, Array.from(graph.edgeMap.values()));
 
     const data = {
         "command" : "write-index",
