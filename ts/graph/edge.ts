@@ -112,7 +112,7 @@ export function makeDocsFromJson(data : any) : [Doc[], Section[]] {
     if(data["sections"] != undefined){
 
         for(const obj of data["sections"]){
-            const section = new Section(obj["title"]);
+            const section = new Section(obj["id"], obj["title"]);
             sections.push(section);
             msg(`${section.title}`);
 
@@ -301,14 +301,22 @@ class Tree {
     }
 }
 
-export class Doc {
-    id : number;
-    title : string;
+export class MapItem {
+    id       : number;
+    title    : string;
+    selected : boolean = false;
+
+    constructor(id : number, title : string){
+        this.id    = id;
+        this.title = title;
+    }
+}
+
+export class Doc extends MapItem {
     section : Section | undefined;
     dsts  : Doc[] = [];
     srcs  : Doc[] = [];
     level : number = 0;
-    selected : boolean = false;
 
     text! : SVGTextElement;
     rect! : SVGRectElement;
@@ -322,8 +330,7 @@ export class Doc {
     height : number = NaN;
 
     constructor(id : number, title : string){
-        this.id    = id;
-        this.title = title;
+        super(id, title);
     }
 
     init(tree: Tree){
@@ -460,8 +467,15 @@ export class Doc {
         ev.stopPropagation();
         ev.preventDefault();
 
-        this.select(!this.selected);
-        msg(`viz: ${this.title}`);
+        if(ev.ctrlKey){
+
+            this.select(!this.selected);
+            msg(`viz: ${this.title}`);
+        }
+    }
+
+    makeDot(lines : string[]){
+        lines.push(`b${this.id} [ label="${this.title}" id="${this.id}" class="doc" tooltip="　" fontsize="10" , fontcolor="blue" ];` );
     }
 }
 
@@ -568,8 +582,9 @@ export function makeIndexJson(docs : Doc[], sections : Section[], edges : Edge[]
         const cm = (i == sections.length - 1 ? "" : ",");
 
         lines.push(`        {`);
-        lines.push(`            "title" : "${section.title}",`);
-        lines.push(`            "doc_ids"  : [ ${doc_ids} ]`);
+        lines.push(`            "id"      : ${section.id},`);
+        lines.push(`            "title"   : "${section.title}",`);
+        lines.push(`            "doc_ids" : [ ${doc_ids} ]`);
         lines.push(`        }${cm}`);
     }
 

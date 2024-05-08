@@ -2,8 +2,6 @@ declare var Viz: any;
 
 namespace casts {
 
-let URLs     : { [id: number]: string; } = {};
-
 class Graph {
     docs : Doc[];
     edges : Edge[];
@@ -15,35 +13,22 @@ class Graph {
         this.edges = edges;
     }
 
-    makeDot(){
+    makeViz(){
         let doc_map = new Map<string, Doc>();
         this.docs.forEach(doc => doc_map.set(`${doc.id}`, doc));
+
+        let sec_map = new Map<string, Section>();
+        this.sections.forEach(sec => sec_map.set(`s${sec.id}`, sec));
 
         let docLines  : string[] = [];
         let secLines  : string[] = [];
         let edgeLines : string[] = [];
 
         for(let doc of this.docs.filter(doc => doc.section == undefined)){
-            let url = URLs[doc.id];
-
-            let id = (url != undefined ? `be/${url}` : `${doc.id}`);
-            let color = `, fontcolor="blue"`;
-            docLines.push(`b${doc.id} [ label="${doc.title}" id="${id}" class="doc" tooltip="　" fontsize="10" ${color} ];` );
+            doc.makeDot(docLines);
         }
 
-        for(let [idx, section] of this.sections.entries()){
-            const docs = this.docs.filter(x => x.section == section);
-            secLines.push(`subgraph cluster_${idx} {`);
-            secLines.push(`    label = "${section.title}";`);
-            secLines.push(`    labelloc  = "b";`);
-            secLines.push(`    labeljust = "l";`);
-            secLines.push(`    color     = "green";`);
-            secLines.push(`    penwidth  = 2;`);
-            for(const doc of docs){
-                secLines.push(`b${doc.id} [ label="${doc.title}" id="${doc.id}" class="doc" tooltip="　" fontsize="10" , fontcolor="blue" ];` );
-            }
-            secLines.push(`}`);
-        }
+        this.sections.forEach(sec => sec.makeDot(secLines));
 
         for(let edge of this.edges){
             let id = `${edge.src.id}:${edge.dst.id}`;
@@ -101,9 +86,18 @@ class Graph {
                 g.setAttribute("cursor", "pointer");
             }
 
-            const clusters = Array.from(svg.getElementsByClassName("cluster")) as SVGGElement[];
-            for(const g of nodes){
+            for(const [id, sec] of sec_map.entries()){
+                const g = svg.getElementById(id) as SVGGElement;
+                assert(g != undefined);
+                g.addEventListener("click", sec.onSectionClick.bind(sec));
+                g.addEventListener("contextmenu", sec.onSectionMenu.bind(sec));
 
+                const polygons = g.getElementsByTagName("polygon");
+                if(polygons.length == 1){
+                    sec.polygon = polygons.item(0)!;
+                }
+
+                g.setAttribute("cursor", "pointer");
             }
 
             const map_div = $div("map-div");
@@ -116,6 +110,10 @@ class Graph {
             map_div.style.width = `${rc.width.toFixed()}px`;
             map_div.style.height = `${rc.height.toFixed()}px`;
         });
+    }
+
+    clearSelections(){
+        this.docs.filter(doc => doc.selected).forEach(doc => doc.select(false));
     }
 
     addDoc(title : string){
@@ -133,22 +131,26 @@ class Graph {
     }
 
     addSection(title : string){
-        const section = new Section(title);
+        let next_id = 1;
+        for(const sec of this.sections){
+            if(next_id < sec.id){
+                break;
+            }
+            next_id++;
+        }
+
+        const section = new Section(next_id, title);
         this.sections.push(section);
 
         this.docs.filter(x => x.selected).forEach(x => x.section = section);
+        this.clearSelections();
     }
 
-    async update(){
-        const text = makeIndexJson(this.docs, this.sections, this.edges);
+    async removeFromSection(ev : MouseEvent){
+        this.docs.filter(x => x.selected).forEach(x => x.section = undefined);
+        this.clearSelections();
 
-        const data = {
-            "command" : "write-index",
-            "text" : text
-        };
-        const res =  await postData("/db", data);
-        const status = res["status"];
-        msg(`status:[${status}]`);
+        await updateGraph();
     }
 
     onClick(ev : MouseEvent){
@@ -158,40 +160,73 @@ class Graph {
 
 export let graph : Graph;
 
-export class Section {
-    title : string;
+export class Section extends MapItem {
+    polygon : SVGPolygonElement | undefined;
 
-    constructor(title : string){
-        this.title = title;
+    constructor(id: number, title : string){
+        super(id, title);
+    }
+
+    select(selected : boolean){
+        this.selected = selected;
+
+        let color = (this.selected ? "red" : "black");
+
+        if(this.polygon != undefined){
+            this.polygon.setAttribute("stroke", color);
+        }
+    }
+
+    onSectionClick(ev : MouseEvent){
+        ev.stopPropagation();
+        ev.preventDefault();
+
+        if(ev.ctrlKey){
+
+            this.select(!this.selected);
+            msg(`section : ${this.title}`);
+        }
+    }
+
+    onSectionMenu(ev : MouseEvent){
+        ev.stopPropagation();
+        ev.preventDefault();
+
+        $("appendToSection").onclick = this.appendToSection.bind(this);
+        showDlg(ev, "graph-section-menu-dlg");
+    }
+
+    async appendToSection(ev : MouseEvent){
+        msg(`appendToSection`);
+        graph.docs.filter(x => x.selected).forEach(x => x.section = this);
+        graph.clearSelections();
+
+        await updateGraph();
+    }
+
+    makeDot(lines : string[]){
+        lines.push(`subgraph cluster_${this.id} {`);
+        lines.push(`    id = "s${this.id}";`);
+        lines.push(`    label = "${this.title}";`);
+        lines.push(`    labelloc  = "b";`);
+        lines.push(`    labeljust = "l";`);
+        lines.push(`    bgcolor   = "cornsilk";`);
+        lines.push(`    color     = "green";`);
+        lines.push(`    penwidth  = 2;`);
+
+        const docs = graph.docs.filter(x => x.section == this);
+        docs.forEach(doc => doc.makeDot(lines));
+
+        lines.push(`}`);
     }
 }
 
 
 async function onMenu(ev : MouseEvent){
     ev.preventDefault();
+    ev.stopPropagation();
 
-    const dlg = $dlg("graph-menu-dlg");
-
-    const rc1 = dlg.getBoundingClientRect();
-    msg(`dlg w: [${dlg.style.width}] [${dlg.style.maxWidth}] [${dlg.style.minWidth}] [${rc1.width}]`)
-
-    let x : number;
-    let y : number;
-    let w = 150;
-    // if(document.documentElement.clientWidth < ev.pageX + 150){
-    //     x = document.documentElement.clientWidth - w;
-    // }
-    // else{
-    //     x = ev.pageX;
-    // }
-    x = ev.pageX;
-    y = ev.pageY;
-    dlg.style.left = x + "px";
-    dlg.style.top  = y + "px";
-    dlg.showModal();
-
-
-    // showDlg(ev, "graph-menu-dlg");
+    showDlg(ev, "graph-menu-dlg");
 }
 
 export async function bodyOnLoadGraph(){
@@ -206,7 +241,24 @@ export async function bodyOnLoadGraph(){
 
     graph = new Graph(docs, sections, edges);
 
-    graph.makeDot();        
+    $("remove-from-section").onclick = graph.removeFromSection.bind(graph);
+
+    graph.makeViz();        
+}
+
+async function updateGraph(){
+    graph.makeViz();        
+
+    const text = makeIndexJson(graph.docs, graph.sections, graph.edges);
+
+    const data = {
+        "command" : "write-index",
+        "text" : text
+    };
+
+    const res =  await postData("/db", data);
+    const status = res["status"];
+    msg(`status:[${status}]`);
 }
 
 export async function addGraphItem(){
@@ -216,7 +268,7 @@ export async function addGraphItem(){
         return;
     }
     graph.addDoc(title);
-    await graph.update();
+    await updateGraph();
 }
 
 export async function addGraphSection(){
@@ -226,7 +278,7 @@ export async function addGraphSection(){
         return;
     }
     graph.addSection(title);
-    await graph.update();
+    await updateGraph();
 }
 
 }

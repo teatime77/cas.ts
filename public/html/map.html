@@ -69,6 +69,7 @@
   display: inline-block;
   margin-left: 10px;
   cursor:pointer;
+  white-space: nowrap;
 }
 </style>
 </head>
@@ -85,16 +86,16 @@
 </div>
 
 
-<!-- $$
-\int_0^\pi
-$$ -->
 <div id="dlg-list"></div>
 
-<dialog id="graph-menu-dlg" class="menu_dlg" style="width:150px;">
-  <div style="display: flex; flex-direction: column;">
-    <span class="mn1" onclick="casts.addGraphSection()">セクションを追加</span>
-    <span class="mn1" onclick="casts.addGraphItem()">項目を追加</span>
-  </div>
+<dialog id="graph-menu-dlg" class="menu_dlg">
+    <span class="mn1" onclick="casts.addGraphSection()">セクションを追加</span><br/>
+    <span class="mn1" onclick="casts.addGraphItem()">項目を追加</span><br/>
+    <span class="mn1" id="remove-from-section">除去</span>
+</dialog>
+
+<dialog id="graph-section-menu-dlg" class="menu_dlg">
+    <span class="mn1" id="appendToSection" >追加</span><br/>
 </dialog>
 
 </body>

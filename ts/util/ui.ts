@@ -66,11 +66,26 @@ export function closeDlg(dlg_id : string){
     ($(dlg_id) as HTMLDialogElement).close();
 }
 
-export function showDlg(ev : MouseEvent, dlg_id : string){
-    const dlg = document.getElementById(dlg_id) as HTMLDialogElement;
-    dlg.style.left = ev.pageX + "px";
+let dlgSet = new Set<string>();
+export function showDlg(ev : MouseEvent, dlg_id : string){    
+    const dlg = $dlg(dlg_id);
+
+    dlg.style.left = `${ev.pageX}px`;
     dlg.style.top  = ev.pageY + "px";
+
     dlg.showModal();
+
+    if(!dlgSet.has(dlg_id)){
+        dlgSet.add(dlg_id);
+        dlg.addEventListener("click", (ev : MouseEvent)=>{
+            dlg.close();
+        });
+    }
+
+    // const rc = dlg.getBoundingClientRect();
+    // if(document.documentElement.scrollWidth < ev.pageX + rc.width){
+    //     dlg.style.left = `${document.documentElement.scrollWidth - rc.width}px`;
+    // }
 }
 
 export async function showDlgOk(dlg_id : string, ok_id : string) : Promise<boolean> {
