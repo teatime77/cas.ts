@@ -1,6 +1,7 @@
 declare var Viz: any;
 
 namespace casts {
+let showSubgraph : boolean = true;
 
 class Graph {
     docs : Doc[];
@@ -14,7 +15,24 @@ class Graph {
         this.edgeMap = edge_map;
     }
 
-    makeViz(){
+    edges() : Edge[]{
+        return Array.from(this.edgeMap.values());
+    }
+
+    makeRanks(ranks : string[], docs : Doc[]){
+        const max_level = Math.max(... docs.map(x => x.level));
+        for(let level = 0; level < max_level; level++){
+            const same_docs = docs.filter(doc => doc.level == level);
+            if(same_docs.length != 0){
+
+                const id_list = same_docs.map(doc => `b${doc.id};`).join(" ");
+                const rank = `{rank = same; ${id_list}}`
+                ranks.push(rank);
+            }
+        }
+    }
+
+    async makeViz(){
         let doc_map = new Map<string, Doc>();
         this.docs.forEach(doc => doc_map.set(`${doc.id}`, doc));
 
@@ -25,28 +43,17 @@ class Graph {
         let secLines  : string[] = [];
         let edgeLines : string[] = [];
 
-        for(let doc of this.docs.filter(doc => doc.section == undefined)){
-            doc.makeDot(docLines);
+        if(showSubgraph){
+            this.docs.filter(doc => doc.section == undefined).forEach(doc => doc.makeDot(docLines));
+            this.sections.forEach(sec => sec.makeDot(secLines));
+        }
+        else{
+            this.docs.forEach(doc => doc.makeDot(docLines));
         }
 
-        this.sections.forEach(sec => sec.makeDot(secLines));
-
-        for(let edge of this.edgeMap.values()){
-            let id = `${edge.src.id}:${edge.dst.id}`;
-            edgeLines.push(`b${edge.src.id} -> b${edge.dst.id} [ id="${id}" ];`);
-        }
+        this.edges().forEach(edge => edge.makeDot(edgeLines));
 
         const ranks : string[] = [];
-        // const max_level = Math.max(... docs.map(x => x.level));
-        // for(let level = 0; level < max_level; level++){
-        //     const same_docs = docs.filter(doc => doc.level == level);
-        //     if(same_docs.length != 0){
-
-        //         const id_list = same_docs.map(doc => `b${doc.id};`).join(" ");
-        //         const rank = `{rank = same; ${id_list}}`
-        //         ranks.push(rank);
-        //     }
-        // }
 
         let dot = `
         digraph graph_name {
@@ -61,12 +68,12 @@ class Graph {
         }
         `;
 
-        Viz.instance().then(function(viz:any) {
+        const viz = await Viz.instance();
+        // Viz.instance().then(function(viz:any) {
             var svg = viz.renderSVGElement(dot) as SVGSVGElement;
 
             svg.addEventListener("contextmenu", onMenu);
             svg.addEventListener("click", graph.onClick.bind(graph));
-            svg.addEventListener("keydown", graph.onKeyDown.bind(graph));
 
             const nodes = Array.from(svg.getElementsByClassName("node doc")) as SVGGElement[];
             for(const g of nodes){
@@ -76,7 +83,6 @@ class Graph {
                     msg(`node NG: ${g.id} [${g.textContent}]`);
                 }
                 else{
-                    msg(`node : ${g.id} [${doc.title}]`);
                     g.addEventListener("click", doc.onVizClick.bind(doc));
 
                     const ellipses = g.getElementsByTagName("ellipse");
@@ -88,18 +94,44 @@ class Graph {
                 g.setAttribute("cursor", "pointer");
             }
 
-            for(const [id, sec] of sec_map.entries()){
-                const g = svg.getElementById(id) as SVGGElement;
-                assert(g != undefined);
-                g.addEventListener("click", sec.onSectionClick.bind(sec));
-                g.addEventListener("contextmenu", sec.onSectionMenu.bind(sec));
 
-                const polygons = g.getElementsByTagName("polygon");
-                if(polygons.length == 1){
-                    sec.polygon = polygons.item(0)!;
+            const edges = Array.from(svg.getElementsByClassName("edge")) as SVGGElement[];
+            for(const g of edges){
+                const edge = this.edgeMap.get(g.id);
+                if(edge == undefined){
+
+                    msg(`edge NG: ${g.id} [${g.textContent}]`);
+                }
+                else{
+                    g.addEventListener("click", edge.onEdgeClick.bind(edge));
+
+                    const paths = g.getElementsByTagName("path");
+                    if(paths.length == 1){
+                        edge.path = paths.item(0)!;
+                    }
+                    else{
+                        msg(`edge no path: ${g.id} ${paths.length} [${g.textContent}]`);                        
+                    }
                 }
 
                 g.setAttribute("cursor", "pointer");
+            }
+
+            if(showSubgraph){
+
+                for(const [id, sec] of sec_map.entries()){
+                    const g = svg.getElementById(id) as SVGGElement;
+                    assert(g != undefined);
+                    g.addEventListener("click", sec.onSectionClick.bind(sec));
+                    g.addEventListener("contextmenu", sec.onSectionMenu.bind(sec));
+
+                    const polygons = g.getElementsByTagName("polygon");
+                    if(polygons.length == 1){
+                        sec.polygon = polygons.item(0)!;
+                    }
+
+                    g.setAttribute("cursor", "pointer");
+                }
             }
 
             const map_div = $div("map-div");
@@ -111,22 +143,40 @@ class Graph {
 
             map_div.style.width = `${rc.width.toFixed()}px`;
             map_div.style.height = `${rc.height.toFixed()}px`;
-        });
+        // });
     }
 
 
-    onKeyDown(ev : KeyboardEvent){
+    async onKeyDown(ev : KeyboardEvent){
+        msg(`key down:${ev.key}`);
+        
         if(ev.key == "Escape"){
             this.clearSelections();
+        }
+        else if(ev.key == "Delete"){
+
+            const selected_edges = this.edges().filter(edge => edge.selected);
+            if(selected_edges.length != 0){
+
+                if(window.confirm("Do you really want to delete?")) {
+                    selected_edges.forEach(edge => this.edgeMap.delete(edge.key()));
+
+                    this.clearSelections();
+
+                    await updateGraph();
+                }
+            }
         }
     }
 
     clearSelections(){
         this.docs.filter(doc => doc.selected).forEach(doc => doc.select(false));
         this.selections = [];
+        
+        this.edges().filter(edge => edge.selected).forEach(edge => edge.select(false));
     }
 
-    addDoc(title : string){
+    addDoc(title : string) : Doc {
         let next_id = 1;
         for(const doc of this.docs){
             if(next_id < doc.id){
@@ -138,6 +188,8 @@ class Graph {
         this.docs.push(doc);
 
         this.docs.sort((a:Doc, b:Doc) => a.id - b.id);
+
+        return doc;
     }
 
     addSection(title : string){
@@ -220,12 +272,25 @@ export class Section extends MapItem {
         ev.stopPropagation();
         ev.preventDefault();
 
-        $("appendToSection").onclick = this.appendToSection.bind(this);
+        $("add-item-to-section").onclick = this.addItemToSection.bind(this);
+        $("append-to-section").onclick = this.appendToSection.bind(this);
         showDlg(ev, "graph-section-menu-dlg");
     }
 
+    async addItemToSection(ev : MouseEvent){
+        const title = await inputBox();
+        if(title == null){
+            return;
+        }
+
+        const doc = graph.addDoc(title);
+        doc.section = this;
+
+        await updateGraph();
+    }
+
     async appendToSection(ev : MouseEvent){
-        msg(`appendToSection`);
+        msg(`append To Section`);
         graph.docs.filter(x => x.selected).forEach(x => x.section = this);
         graph.clearSelections();
 
@@ -262,7 +327,7 @@ export async function bodyOnLoadGraph(){
 
     $("map-svg").style.display = "none";
 
-    const data = await fetchJson(`../data/edge.json`);
+    const data = await fetchJson(`../data/graph.json`);
 
     const [docs, sections, edge_map] = makeDocsFromJson(data);
 
@@ -270,14 +335,15 @@ export async function bodyOnLoadGraph(){
 
     $("remove-from-section").onclick = graph.removeFromSection.bind(graph);
     $("connect-edge").addEventListener("click", graph.connectEdge.bind(graph));
+    document.body.addEventListener("keydown", graph.onKeyDown.bind(graph));
 
-    graph.makeViz();        
+    await graph.makeViz();        
 }
 
 async function updateGraph(){
-    graph.makeViz();        
+    await graph.makeViz();        
 
-    const text = makeIndexJson(graph.docs, graph.sections, Array.from(graph.edgeMap.values()));
+    const text = makeIndexJson(graph.docs, graph.sections, graph.edges());
 
     const data = {
         "command" : "write-index",
@@ -307,6 +373,11 @@ export async function addGraphSection(){
     }
     graph.addSection(title);
     await updateGraph();
+}
+
+export async function changeDisplay(){
+    showSubgraph = ! showSubgraph;
+    await graph.makeViz();      
 }
 
 }

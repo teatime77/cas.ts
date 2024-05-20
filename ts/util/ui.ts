@@ -35,13 +35,15 @@ export function bindClick(id : string, fnc : ()=>void){
 }
 
 export async function inputBox() : Promise<string | null> {
-    const dlg = document.getElementById("input-box-dlg") as HTMLDialogElement;
+    const dlg = $dlg("input-box-dlg");
+    const inp = $("input-box-text") as HTMLInputElement;
+    inp.value = "";
+
     dlg.showModal();
 
     return new Promise((resolve) => {
         const ok = document.getElementById("input-box-ok") as HTMLButtonElement;
         ok.addEventListener("click", (ev : MouseEvent)=>{
-            const inp = document.getElementById("input-box-text") as HTMLInputElement;
             resolve(inp.value);
             dlg.close();
         });

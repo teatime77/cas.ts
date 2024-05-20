@@ -15,7 +15,7 @@ const panelHeight = 30;
 
 let theTree : Tree;
 
-export let edgeMap = new Map<string, Edge>();
+let edge_Map = new Map<string, Edge>();
 let selectedDoc : Doc | null = null;
 
 export function edgeKey(doc1 : Doc, doc2 : Doc) : string {
@@ -79,9 +79,9 @@ function linkDocs(doc : Doc){
 
             const key1 = edgeKey(selectedDoc, doc);
             const key2 = edgeKey(doc, selectedDoc);
-            if(!edgeMap.has(key1) && !edgeMap.has(key2)){
+            if(!edge_Map.has(key1) && !edge_Map.has(key2)){
 
-                const edge = addEdge(edgeMap, selectedDoc, doc);
+                const edge = addEdge(edge_Map, selectedDoc, doc);
                 edge.initPath(theTree);
                 theTree.initDocLevels();
                 theTree.update(theTree.eye);
@@ -95,14 +95,13 @@ function linkDocs(doc : Doc){
 
 function deselectAll(){
     theTree.docs.filter(x => x.selected).map(x => x.select(false));
-    Array.from( edgeMap.values() ).map(x => x.select(false));
+    Array.from( edge_Map.values() ).map(x => x.select(false));
 }
 
 export function makeDocsFromJson(data : any) : [Doc[], Section[], Map<string, Edge>] {
     const doc_map = new Map<number, Doc>();
     for(const obj of data["docs"]){
         const doc = new Doc(obj["id"], obj["title"]);
-        msg(`${doc.id} ${doc.title}`);
 
         doc_map.set(doc.id, doc);
     }
@@ -114,7 +113,6 @@ export function makeDocsFromJson(data : any) : [Doc[], Section[], Map<string, Ed
         for(const obj of data["sections"]){
             const section = new Section(obj["id"], obj["title"]);
             sections.push(section);
-            msg(`${section.title}`);
 
             const doc_ids = obj["doc_ids"] as number[];
             for(const id of doc_ids){
@@ -133,11 +131,9 @@ export function makeDocsFromJson(data : any) : [Doc[], Section[], Map<string, Ed
         assert(src_doc != undefined && dst_doc != undefined);
 
         addEdge(edge_map, src_doc, dst_doc);
-
-        msg(`${src_doc.title} => ${dst_doc.title}`);
     }    
 
-    docs.filter(x => x.srcs.length == 0 && x.dsts.length == 0).forEach(x => msg(`NG ${x.title}`));
+    docs.filter(x => x.srcs.length == 0 && x.dsts.length == 0).forEach(x => msg(`no edge : ${x.title}`));
 
     return [docs, sections, edge_map];
 }
@@ -159,11 +155,11 @@ class Tree {
         this.svg = $("map-svg") as any as SVGSVGElement;
         this.setViewSize();
 
-        const [docs, sections, edgeMap] = makeDocsFromJson(data);
+        const [docs, sections, edge_map] = makeDocsFromJson(data);
         this.docs = docs;
         this.docs.forEach(doc => doc.init(this));
 
-        Array.from(edgeMap.values()).forEach(x => x.initPath(this));
+        Array.from(edge_map.values()).forEach(x => x.initPath(this));
 
         this.initDocLevels();
         
@@ -394,7 +390,7 @@ export class Doc extends MapItem {
         done.push(this);
         this.select(true);
         for(const doc of this.srcs){
-            getEdge(edgeMap, doc, this)!.select(true);
+            getEdge(edge_Map, doc, this)!.select(true);
             doc.selectSrcs(done);
         }
     }
@@ -406,7 +402,7 @@ export class Doc extends MapItem {
         done.push(this);
         this.select(true);
         for(const doc of this.dsts){
-            getEdge(edgeMap, this, doc)!.select(true);
+            getEdge(edge_Map, this, doc)!.select(true);
             doc.selectDsts(done);
         }
     }
@@ -430,7 +426,7 @@ export class Doc extends MapItem {
             let pt2 = dst.pos2.copy();
             pt2.x += 0.5 * dst.width;
 
-            const path = getEdge(edgeMap, this, dst)!.path;
+            const path = getEdge(edge_Map, this, dst)!.path;
 
             let y1c : number;
             let y2c : number;
@@ -497,6 +493,10 @@ export class Edge {
         this.dst = dst;
     }
 
+    key() : string {
+        return edgeKey(this.src, this.dst);
+    }
+
     initPath(tree : Tree){
         this.path = document.createElementNS("http://www.w3.org/2000/svg","path");
         this.path.setAttribute("fill", "transparent");
@@ -514,6 +514,24 @@ export class Edge {
         else{
 
             this.path.setAttribute("stroke", "black");
+        }
+    }
+
+    makeDot(lines : string[]){
+        let id = `${this.src.id}:${this.dst.id}`;
+        lines.push(`b${this.src.id} -> b${this.dst.id} [ id="${id}" ];`);
+
+    }
+
+    onEdgeClick(ev : MouseEvent){
+        ev.stopPropagation();
+        ev.preventDefault();
+
+        if(ev.ctrlKey){
+
+            this.select(!this.selected);
+
+            msg(`edge click: ${this.src.title} => ${this.dst.title}`);
         }
     }
 }
@@ -616,7 +634,7 @@ export function makeIndexJson(docs : Doc[], sections : Section[], edges : Edge[]
 }
 
 export function copyMap(){
-    const text = makeIndexJson(theTree.docs, [], Array.from(edgeMap.values()))
+    const text = makeIndexJson(theTree.docs, [], Array.from(edge_Map.values()))
 
     navigator.clipboard.writeText(text)
     .then(

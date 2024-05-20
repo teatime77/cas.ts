@@ -10,10 +10,10 @@ def write_index(data):
     text = data["text"]
     print(f"text:[{text}]")
 
-    path = "public/data/edge.json"
+    path = "public/data/graph.json"
 
     dt = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-    dst = f"tmp/backup/index-{dt}.json"
+    dst = f"tmp/backup/graph-{dt}.json"
 
     shutil.copy2(path, dst)
     print(f"copy {path} to {dst}")
