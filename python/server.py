@@ -4,7 +4,9 @@ import os
 import datetime
 import shutil
 
-app = Flask(__name__, static_folder="../public", static_url_path="/")
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).replace('\\', '/')
+
+app = Flask(__name__, static_folder=f'{root_dir}/public', static_url_path="/")
 
 def write_index(data):
     text = data["text"]
