@@ -99,13 +99,7 @@ function deselectAll(){
 }
 
 export function makeDocsFromJson(data : any) : [Doc[], Section[], Map<string, Edge>] {
-    const doc_map = new Map<number, Doc>();
-    for(const obj of data["docs"]){
-        const doc = new Doc(obj["id"], obj["title"]);
-
-        doc_map.set(doc.id, doc);
-    }
-    const docs = Array.from(doc_map.values());
+    const sec_map = new Map<number, Section>();
 
     const sections : Section[] = [];
     if(data["sections"] != undefined){
@@ -113,15 +107,26 @@ export function makeDocsFromJson(data : any) : [Doc[], Section[], Map<string, Ed
         for(const obj of data["sections"]){
             const section = new Section(obj["id"], obj["title"]);
             sections.push(section);
-
-            const doc_ids = obj["doc_ids"] as number[];
-            for(const id of doc_ids){
-                const doc = doc_map.get(id)!;
-                assert(doc != undefined);
-                doc.section = section;
-            }
+            sec_map.set(section.id, section);
         }
     }
+
+    const doc_map = new Map<number, Doc>();
+    for(const obj of data["docs"]){
+        const doc = new Doc(obj["id"], obj["title"]);
+
+        const parent_id = obj["parent"];
+        if(parent_id != undefined){
+            doc.parent = sec_map.get(parent_id);
+            if(doc.parent == undefined){
+
+                msg(`doc parent is invalid:${doc.id} ${doc.title} parent:${parent_id}`);
+            }
+        }
+
+        doc_map.set(doc.id, doc);
+    }
+    const docs = Array.from(doc_map.values());
 
     const edge_map = new Map<string, Edge>();
     for(const obj of data["edges"]){
@@ -299,6 +304,7 @@ class Tree {
 
 export class MapItem {
     id       : number;
+    parent   : Section | undefined;
     title    : string;
     selected : boolean = false;
 
@@ -309,7 +315,6 @@ export class MapItem {
 }
 
 export class Doc extends MapItem {
-    section : Section | undefined;
     dsts  : Doc[] = [];
     srcs  : Doc[] = [];
     level : number = 0;
@@ -602,7 +607,14 @@ export function makeIndexJson(docs : Doc[], sections : Section[], edges : Edge[]
 
     for(const [i,doc] of docs.entries()){
         const cm = (i == docs.length - 1 ? "" : ",");
-        lines.push(`        { "id" : ${doc.id}, "title" : "${doc.title}" }${cm}`);
+        if(doc.parent == undefined){
+
+            lines.push(`        { "id" : ${doc.id}, "title" : "${doc.title}" }${cm}`);
+        }
+        else{
+
+            lines.push(`        { "id" : ${doc.id}, "title" : "${doc.title}", "parent" : ${doc.parent.id} }${cm}`);
+        }
     }
 
     lines.push(`    ]`);
@@ -611,13 +623,11 @@ export function makeIndexJson(docs : Doc[], sections : Section[], edges : Edge[]
     lines.push(`    "sections" : [`);
 
     for(const [i,section] of sections.entries()){
-        const doc_ids = docs.filter(doc => doc.section == section).map(doc => `${doc.id}`).join(", ");
         const cm = (i == sections.length - 1 ? "" : ",");
 
         lines.push(`        {`);
         lines.push(`            "id"      : ${section.id},`);
-        lines.push(`            "title"   : "${section.title}",`);
-        lines.push(`            "doc_ids" : [ ${doc_ids} ]`);
+        lines.push(`            "title"   : "${section.title}"`);
         lines.push(`        }${cm}`);
     }
 

@@ -44,8 +44,8 @@ class Graph {
         let edgeLines : string[] = [];
 
         if(showSubgraph){
-            this.docs.filter(doc => doc.section == undefined).forEach(doc => doc.makeDot(docLines));
-            this.sections.forEach(sec => sec.makeDot(secLines));
+            this.docs.filter(doc => doc.parent == undefined).forEach(doc => doc.makeDot(docLines));
+            this.sections.filter(sec => sec.parent == undefined).forEach(sec => sec.makeDot(secLines));
         }
         else{
             this.docs.forEach(doc => doc.makeDot(docLines));
@@ -206,12 +206,12 @@ class Graph {
         const section = new Section(next_id, title);
         this.sections.push(section);
 
-        this.docs.filter(x => x.selected).forEach(x => x.section = section);
+        this.docs.filter(x => x.selected).forEach(x => x.parent = section);
         this.clearSelections();
     }
 
     async removeFromSection(ev : MouseEvent){
-        this.docs.filter(x => x.selected).forEach(x => x.section = undefined);
+        this.docs.filter(x => x.selected).forEach(x => x.parent = undefined);
         this.clearSelections();
 
         await updateGraph();
@@ -286,14 +286,14 @@ export class Section extends MapItem {
         }
 
         const doc = graph.addDoc(title);
-        doc.section = this;
+        doc.parent = this;
 
         await updateGraph();
     }
 
     async appendToSection(ev : MouseEvent){
         msg(`append To Section`);
-        graph.docs.filter(x => x.selected).forEach(x => x.section = this);
+        graph.docs.filter(x => x.selected).forEach(x => x.parent = this);
         graph.clearSelections();
 
         await updateGraph();
@@ -309,8 +309,8 @@ export class Section extends MapItem {
         lines.push(`    color     = "green";`);
         lines.push(`    penwidth  = 2;`);
 
-        const docs = graph.docs.filter(x => x.section == this);
-        docs.forEach(doc => doc.makeDot(lines));
+        graph.sections.filter(sec => sec.parent == this).forEach(sec => sec.makeDot(lines));
+        graph.docs.filter(sec => sec.parent == this).forEach(doc => doc.makeDot(lines));
 
         lines.push(`}`);
     }
