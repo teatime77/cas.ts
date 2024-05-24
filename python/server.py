@@ -5,6 +5,10 @@ import datetime
 import shutil
 
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).replace('\\', '/')
+backup_dir = f'{root_dir}/tmp/backup'
+
+if not os.path.isdir(backup_dir):
+    os.makedirs(backup_dir)
 
 app = Flask(__name__, static_folder=f'{root_dir}/public', static_url_path="/")
 
@@ -15,7 +19,7 @@ def write_index(data):
     path = "public/data/graph.json"
 
     dt = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-    dst = f"tmp/backup/graph-{dt}.json"
+    dst = f"{backup_dir}/graph-{dt}.json"
 
     shutil.copy2(path, dst)
     print(f"copy {path} to {dst}")

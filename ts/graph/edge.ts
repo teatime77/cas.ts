@@ -520,7 +520,6 @@ export class Edge {
     makeDot(lines : string[]){
         let id = `${this.src.id}:${this.dst.id}`;
         lines.push(`b${this.src.id} -> b${this.dst.id} [ id="${id}" ];`);
-
     }
 
     onEdgeClick(ev : MouseEvent){
@@ -534,6 +533,15 @@ export class Edge {
             msg(`edge click: ${this.src.title} => ${this.dst.title}`);
         }
     }
+
+    onEdgeMenu(ev : MouseEvent){
+        ev.stopPropagation();
+        ev.preventDefault();
+
+        $("delete-edge").onclick = graph.deleteEdges.bind(graph);
+        showDlg(ev, "graph-edge-menu-dlg");
+    }
+
 }
 
 export async function bodyOnLoadEdge(){

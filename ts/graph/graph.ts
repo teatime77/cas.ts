@@ -104,6 +104,7 @@ class Graph {
                 }
                 else{
                     g.addEventListener("click", edge.onEdgeClick.bind(edge));
+                    g.addEventListener("contextmenu", edge.onEdgeMenu.bind(edge));
 
                     const paths = g.getElementsByTagName("path");
                     if(paths.length == 1){
@@ -114,7 +115,7 @@ class Graph {
                     }
                 }
 
-                g.setAttribute("cursor", "pointer");
+                g.setAttribute("cursor", "crosshair");
             }
 
             if(showSubgraph){
@@ -147,24 +148,25 @@ class Graph {
     }
 
 
-    async onKeyDown(ev : KeyboardEvent){
-        msg(`key down:${ev.key}`);
-        
+    async onKeyDown(ev : KeyboardEvent){        
         if(ev.key == "Escape"){
             this.clearSelections();
         }
         else if(ev.key == "Delete"){
+            await this.deleteEdges();
+        }
+    }
 
-            const selected_edges = this.edges().filter(edge => edge.selected);
-            if(selected_edges.length != 0){
+    async deleteEdges(){
+        const selected_edges = this.edges().filter(edge => edge.selected);
+        if(selected_edges.length != 0){
 
-                if(window.confirm("Do you really want to delete?")) {
-                    selected_edges.forEach(edge => this.edgeMap.delete(edge.key()));
+            if(window.confirm("Do you really want to delete?")) {
+                selected_edges.forEach(edge => this.edgeMap.delete(edge.key()));
 
-                    this.clearSelections();
+                this.clearSelections();
 
-                    await updateGraph();
-                }
+                await updateGraph();
             }
         }
     }
