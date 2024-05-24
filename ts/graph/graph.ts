@@ -293,7 +293,7 @@ export class Section extends MapItem {
 
     async appendToSection(ev : MouseEvent){
         msg(`append To Section`);
-        graph.docs.filter(x => x.selected).forEach(x => x.parent = this);
+        allMapItems().filter(x => x.selected).forEach(x => x.parent = this);
         graph.clearSelections();
 
         await updateGraph();
@@ -380,6 +380,10 @@ export async function addGraphSection(){
 export async function changeDisplay(){
     showSubgraph = ! showSubgraph;
     await graph.makeViz();      
+}
+
+function allMapItems() : MapItem[] {
+    return (graph.docs as MapItem[]).concat(graph.sections);
 }
 
 }

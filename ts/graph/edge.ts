@@ -104,10 +104,25 @@ export function makeDocsFromJson(data : any) : [Doc[], Section[], Map<string, Ed
     const sections : Section[] = [];
     if(data["sections"] != undefined){
 
+        const sec_to_parent_id : [Section, number][] = [];
         for(const obj of data["sections"]){
             const section = new Section(obj["id"], obj["title"]);
             sections.push(section);
             sec_map.set(section.id, section);
+
+            const parent_id = obj["parent"];
+            if(parent_id != undefined){
+
+                sec_to_parent_id.push([section, parent_id])
+            }
+        }
+
+        for(const [sec, parent_id] of sec_to_parent_id){
+            sec.parent = sec_map.get(parent_id);
+            if(sec.parent == undefined){
+
+                msg(`section parent is invalid:${sec.id} ${sec.title} parent:${parent_id}`);
+            }
         }
     }
 
@@ -311,6 +326,17 @@ export class MapItem {
     constructor(id : number, title : string){
         this.id    = id;
         this.title = title;
+    }
+
+    jsonStr() : string {
+        if(this.parent == undefined){
+
+            return `{ "id" : ${this.id}, "title" : "${this.title}" }`;
+        }
+        else{
+
+            return `{ "id" : ${this.id}, "title" : "${this.title}", "parent" : ${this.parent.id} }`;
+        }
     }
 }
 
@@ -607,14 +633,7 @@ export function makeIndexJson(docs : Doc[], sections : Section[], edges : Edge[]
 
     for(const [i,doc] of docs.entries()){
         const cm = (i == docs.length - 1 ? "" : ",");
-        if(doc.parent == undefined){
-
-            lines.push(`        { "id" : ${doc.id}, "title" : "${doc.title}" }${cm}`);
-        }
-        else{
-
-            lines.push(`        { "id" : ${doc.id}, "title" : "${doc.title}", "parent" : ${doc.parent.id} }${cm}`);
-        }
+        lines.push(`        ${doc.jsonStr()}${cm}`);
     }
 
     lines.push(`    ]`);
@@ -624,11 +643,7 @@ export function makeIndexJson(docs : Doc[], sections : Section[], edges : Edge[]
 
     for(const [i,section] of sections.entries()){
         const cm = (i == sections.length - 1 ? "" : ",");
-
-        lines.push(`        {`);
-        lines.push(`            "id"      : ${section.id},`);
-        lines.push(`            "title"   : "${section.title}"`);
-        lines.push(`        }${cm}`);
+        lines.push(`        ${section.jsonStr()}${cm}`);
     }
 
     lines.push(`    ]`);
