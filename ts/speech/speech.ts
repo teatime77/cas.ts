@@ -1,8 +1,21 @@
 namespace casts{
 let voiceList:  {[key: string]: SpeechSynthesisVoice } = {};
-let uttrVoice : SpeechSynthesisVoice|null = null;
-const voiceLang = "en-US";              // "ja-JP"
-const voiceName = "Microsoft Ana Online (Natural) - English (United States)"; // "Google US English";    // "Google 日本語";
+let uttrVoice : SpeechSynthesisVoice |  undefined;
+const voiceLang = "ja-JP";  //"en-US"
+const voiceNames : string[] = [];// "Microsoft Ana Online (Natural) - English (United States)"; // "Google US English";
+const voiceNamesDic : { [lang: string]: string[] } = {
+    "ja-JP" : [
+        "Microsoft Nanami Online (Natural) - Japanese (Japan)",
+        "Microsoft Ayumi - Japanese (Japan)",
+        "Google 日本語"
+    ]
+    ,
+    "en-US" : [
+    ]
+};
+
+const voices : { [lang: string]: SpeechSynthesisVoice[] } = {};
+
 let prevCharIndex = 0;
 let Phrases : Phrase[] = [];
 let phraseIdx : number = 0;
@@ -14,6 +27,59 @@ export class Phrase {
 
     constructor(words : string[]){
         this.words   = words;
+    }
+}
+
+export class Speech {
+    prevCharIndex = 0;
+    lang : string;
+    lang2 : string;
+
+    constructor(){        
+        this.lang = $sel("voice-lang-select").value;
+        this.lang2 = this.lang.substring(0, 2);
+
+        const voice_name = $sel("voice-name-select").value;
+        uttrVoice = voices[this.lang].find(voice => voice.name == voice_name);
+        assert(uttrVoice != undefined);
+    }
+
+    speak(text : string){
+        msg(`Speak ${text}`);
+    
+        const uttr = new SpeechSynthesisUtterance(text);
+    
+        uttr.voice = uttrVoice!;
+
+        uttr.addEventListener("end", this.onEnd.bind(this));
+        uttr.addEventListener("boundary", this.onBoundary.bind(this));
+        uttr.addEventListener("mark", this.onMark.bind(this));
+    
+        uttr.rate = parseFloat(speechRrate.value);
+            
+        speechSynthesis.speak(uttr);
+    }
+
+    onBoundary(ev: SpeechSynthesisEvent) : void {
+        const text = ev.utterance.text.substring(this.prevCharIndex, ev.charIndex).trim();
+        if(ev.charIndex == 0){
+
+            msg(`Speech start name:${ev.name} text:[${ev.utterance.text}]`)
+        }
+        else{
+    
+            msg(`Speech bdr: idx:${ev.charIndex} name:${ev.name} type:${ev.type} text:[${text}]`);
+        }
+        this.prevCharIndex = ev.charIndex;
+    
+    }
+
+    onEnd(ev: SpeechSynthesisEvent) : void {
+        msg(`Speech end: idx:${ev.charIndex} name:${ev.name} type:${ev.type} text:[${ev.utterance.text.substring(this.prevCharIndex)}]`);
+    }
+    
+    onMark(ev: SpeechSynthesisEvent) : void {
+
     }
 }
 
@@ -57,30 +123,54 @@ function setVoice(){
     const voice_lang_select = $sel("voice-lang-select");
     const voice_name_select = $sel("voice-name-select");
 
+    let voice_priority = 100;
+
     for(const voice of speechSynthesis.getVoices()){
-        if(voice.lang == voiceLang || voice.lang == "ja-JP"){
+        if(voices[voice.lang] == undefined){
+            voices[voice.lang] = [];
+
+            const opt = document.createElement("option");
+            opt.text = voice.lang;
+            opt.value = voice.lang;
+            voice_lang_select.add(opt);
+        }
+
+        voices[voice.lang].push(voice);
+
+        if(true || voice.lang == voiceLang || voice.lang == "ja-JP"){
 
             msg(`${voice.lang} [${voice.name}] ${voice.default} ${voice.localService} ${voice.voiceURI}`);
 
-            if(voice.name == voiceName){
+            const voice_idx = voiceNames.indexOf(voice.name);
+            if(voice_idx == -1){
+                if(voice_priority == 100){
+                    msg(`set voice by name[${voice.name}]`);
+                    uttrVoice = voice;    
+                }
+            }
+            else if(voice_idx < voice_priority){
+                voice_priority = voice_idx;
                 msg(`set voice by name[${voice.name}]`);
-                uttrVoice = voice;
+                uttrVoice = voice;    
             }
-
-            if(uttrVoice == null){
-                msg(`set voice by lang[${voice.name}]`);
-                uttrVoice = voice;
-            }
-
 
             voiceList[voice.name] = voice;
+        }
+    }
 
+    voice_lang_select.addEventListener("change", (ev:Event)=>{
+        const lang = voice_lang_select.value;
+
+        voice_name_select.innerHTML = "";
+        for(const voice of voices[lang]){
             const opt = document.createElement("option");
             opt.text = voice.name;
             opt.value = voice.name;
             voice_name_select.add(opt);
         }
-    }
+        uttrVoice = voiceList[voice_name_select.value];
+        msg(`set voice by name[${uttrVoice.name}]`);
+    });
 
     voice_name_select.addEventListener("change", (ev:Event)=>{
         uttrVoice = voiceList[voice_name_select.value];
@@ -89,7 +179,7 @@ function setVoice(){
 
 }
 
-export function initSpeech(){
+function initSpeechSub(){
     speechRrate = $("speech-rate") as HTMLInputElement;
 
     if ('speechSynthesis' in window) {
@@ -98,6 +188,10 @@ export function initSpeech(){
     else {
         msg("このブラウザは音声合成に対応していません。😭");
     }    
+}
+
+export function initSpeech(){
+    initSpeechSub();
 
     speechSynthesis.onvoiceschanged = function(){
         msg("voices changed");
@@ -105,15 +199,26 @@ export function initSpeech(){
     };
 }
 
+export async function asyncInitSpeech() : Promise<void> {
+    initSpeechSub();
+
+    return new Promise((resolve) => {
+        speechSynthesis.addEventListener("voiceschanged", (ev:Event)=>{
+            setVoice();
+            msg("speech initialized");
+            resolve();
+        })
+    });
+}
+
 
 export function speak(text : string){
+    assert(uttrVoice != null);
     msg(`speak ${text}`);
 
     const uttr = new SpeechSynthesisUtterance(text);
 
-    if(uttrVoice != null){
-        uttr.voice = uttrVoice;
-    }
+    uttr.voice = uttrVoice!;
 
     // スピーチ 終了
     uttr.onend = onSpeechEnd;
@@ -186,7 +291,7 @@ function onSpeechBoundary(ev: SpeechSynthesisEvent){
 }
 
 function onSpeechEnd(ev: SpeechSynthesisEvent){
-    msg(`speech end: idx:${ev.charIndex} name:${ev.name} type:${ev.type} text:${ev.utterance.text.substring(prevCharIndex, ev.charIndex)}`);
+    msg(`speech end: idx:${ev.charIndex} name:${ev.name} type:${ev.type} text:[${ev.utterance.text.substring(prevCharIndex)}]`);
 }
 
 function onMark(ev: SpeechSynthesisEvent){

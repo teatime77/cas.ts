@@ -109,6 +109,7 @@
   ,
   "references": [
     { "path": "../util" },
+    { "path": "../speech" },
     { "path": "../expr" }
 ]
 }

@@ -163,6 +163,8 @@ class Movie {
     svg : SVGSVGElement;
     CTMInv : DOMMatrix | null = null;
     svgRatio: number = 0;
+    lines : string[] = [];
+    speech! : Speech;
 
     constructor(width : number, height : number, x1 : number, y1 : number, x2 : number, y2 : number){
         this.width = width;
@@ -210,14 +212,65 @@ class Movie {
         return line;
     }
 
+    speakM(speech_texts : string[]){
+        const text = speech_texts.find(x => x.startsWith(`# ${this.speech.lang2}`));
+        if(text == undefined){
+            msg(`no translation:${speech_texts[0]}`);
+            return;
+        }
+        this.speech.speak(text.substring(6));
+        // speak(text.substring(6));
+    }
+
+    async getLines(){
+        const texts = await fetchText(`../data/script/1.py`);
+        this.lines = texts.replaceAll('\r', "").split('\n');
+        
+        const head = this.lines.shift();
+        assert(head!.startsWith("from"));
+    }
+
+    async run(){
+        this.speech = new Speech();
+    
+        await this.getLines();
+
+        while(this.lines.length != 0){
+            const line = this.lines.shift()!.trim();
+            if(line.length == 0){
+                continue
+            }
+            else if(line.startsWith("#")){
+                const speech_texts : string[] = [ line ];
+                while(this.lines.length != 0 && this.lines[0].trim().startsWith("#")){
+                    speech_texts.push( this.lines.shift()!.trim() );
+                }
+                movie.speakM(speech_texts);
+                continue;
+            }
+            msg(`parse:${line}`);
+            const expr = parseMath(line);
+            if(expr instanceof App){
+                const app = expr;
+                if(app.isEq()){
+    
+                    assert(app.args.length == 2 && app.args[0] instanceof RefVar);
+                    const ref = app.args[0] as RefVar;
+                    const val = exec(app.args[1]);
+                    refData.set(ref.name, val);
+                }
+                else{
+                    assert(false);
+                }
+            }
+            else{
+                assert(false);
+            }
+        }
+    }
 }
 
 let movie : Movie;
-
-function toFloats(args:Term[]) : number[]{
-    assert(args.every(x => x instanceof ConstNum));
-    return args.map(x => x.value.fval());
-}
 
 function exec(trm : Term) : Term | ShapeM {
     if(trm instanceof App){
@@ -252,45 +305,19 @@ function exec(trm : Term) : Term | ShapeM {
     }
 }
 
+async function startMovie(ev:MouseEvent){
+    await movie.run();
+}
+
 export async function bodyOnLoadMovie(){
+    await includeDialog();
 
     movie = new Movie(480, 480, -5, -5, 5, 5);
-    const texts = await fetchText(`../data/script/1.py`);
-    const lines = texts.replaceAll('\r', "").split('\n');
-    
-    const head = lines.shift();
-    assert(head!.startsWith("from"));
 
-    while(lines.length != 0){
-        const line = lines.shift()!.trim();
-        if(line.length == 0){
-            continue
-        }
-        else if(line.startsWith("#")){
-            continue;
-        }
-        msg(`parse:${line}`);
-        const expr = parseMath(line);
-        if(expr instanceof App){
-            const app = expr;
-            if(app.isEq()){
+    await asyncInitSpeech();
 
-                assert(app.args.length == 2 && app.args[0] instanceof RefVar);
-                const ref = app.args[0] as RefVar;
-                const val = exec(app.args[1]);
-                refData.set(ref.name, val);
-            }
-            else{
-                assert(false);
-            }
-        }
-        else{
-            assert(false);
-        }
+    $dlg("speech-dlg").show();
 
-    }
-
-
-    // movie.makeLine(1, 1, 2, 2);
+    $("start-movie").addEventListener("click", startMovie);
 }   
 }
