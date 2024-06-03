@@ -1,6 +1,7 @@
 namespace casts {
 //
 const fgColor = "black";
+const focusColor = "red";
 const strokeWidth = 4;
 
 const refData = new Map<string, Term | ShapeM>();
@@ -43,7 +44,11 @@ function calc(trm : Term) : number {
 }
 
 class ShapeM {
-    color : string = "black";    
+    color : string = "black";
+
+    focus(){
+        assert(false);
+    }
 }
 
 class PointM extends ShapeM {
@@ -65,6 +70,10 @@ class PointM extends ShapeM {
 
         msg(`point cx:${calc(this.x)} cy:${calc(this.y)} r:${movie.toSvg2(5)}`)
         movie.svg.appendChild(this.point);
+    }
+
+    focus(){
+        this.point.setAttribute("fill", focusColor);
     }
 }
 
@@ -258,6 +267,13 @@ class Movie {
                     const ref = app.args[0] as RefVar;
                     const val = exec(app.args[1]);
                     refData.set(ref.name, val);
+                }
+                else if(app.fncName == "focus"){
+                    assert(app.args.length == 1 && app.args[0] instanceof RefVar);
+                    const ref = app.args[0] as RefVar;
+                    const data = refData.get(ref.name) as ShapeM;
+                    assert(data instanceof ShapeM);
+                    data.focus();
                 }
                 else{
                     assert(false);

@@ -1,8 +1,6 @@
 namespace casts{
-let voiceList:  {[key: string]: SpeechSynthesisVoice } = {};
 let uttrVoice : SpeechSynthesisVoice |  undefined;
-const voiceLang = "ja-JP";  //"en-US"
-const voiceNames : string[] = [];// "Microsoft Ana Online (Natural) - English (United States)"; // "Google US English";
+const defaultLang = "ja-JP";  //"en-US"
 const voiceNamesDic : { [lang: string]: string[] } = {
     "ja-JP" : [
         "Microsoft Nanami Online (Natural) - Japanese (Japan)",
@@ -13,6 +11,7 @@ const voiceNamesDic : { [lang: string]: string[] } = {
     "en-US" : [
     ]
 };
+let voice_name_select : HTMLSelectElement;
 
 const voices : { [lang: string]: SpeechSynthesisVoice[] } = {};
 
@@ -119,11 +118,44 @@ export function pronunciation(word: string) : string[]{
     return [word];
 }
 
-function setVoice(){
-    const voice_lang_select = $sel("voice-lang-select");
-    const voice_name_select = $sel("voice-name-select");
+function setVoiceByLang(lang : string){
+    voice_name_select.innerHTML = "";
+
+    const default_names = voiceNamesDic[lang];
+    let default_opt : HTMLOptionElement | undefined = undefined;
 
     let voice_priority = 100;
+    for(const voice of voices[lang]){
+        const opt = document.createElement("option");
+        opt.text = voice.name;
+        opt.value = voice.name;
+        voice_name_select.add(opt);
+
+        if(default_names != undefined){
+
+            const voice_idx = default_names.indexOf(voice.name);
+            if(voice_idx == -1){
+                if(voice_priority == 100){
+                    msg(`set voice by name[${voice.name}]`);
+                    default_opt = opt;    
+                }
+            }
+            else if(voice_idx < voice_priority){
+                voice_priority = voice_idx;
+                msg(`set voice by name[${voice.name}]`);
+                default_opt = opt;    
+            }
+        }
+    }
+
+    if(default_opt != undefined){
+        default_opt.selected = true;
+    }
+}
+
+function setVoiceList(){
+    const voice_lang_select = $sel("voice-lang-select");
+    voice_name_select = $sel("voice-name-select");
 
     for(const voice of speechSynthesis.getVoices()){
         if(voices[voice.lang] == undefined){
@@ -132,51 +164,22 @@ function setVoice(){
             const opt = document.createElement("option");
             opt.text = voice.lang;
             opt.value = voice.lang;
+            if(voice.lang == defaultLang){
+                opt.selected = true;
+            }
             voice_lang_select.add(opt);
         }
 
         voices[voice.lang].push(voice);
-
-        if(true || voice.lang == voiceLang || voice.lang == "ja-JP"){
-
-            msg(`${voice.lang} [${voice.name}] ${voice.default} ${voice.localService} ${voice.voiceURI}`);
-
-            const voice_idx = voiceNames.indexOf(voice.name);
-            if(voice_idx == -1){
-                if(voice_priority == 100){
-                    msg(`set voice by name[${voice.name}]`);
-                    uttrVoice = voice;    
-                }
-            }
-            else if(voice_idx < voice_priority){
-                voice_priority = voice_idx;
-                msg(`set voice by name[${voice.name}]`);
-                uttrVoice = voice;    
-            }
-
-            voiceList[voice.name] = voice;
-        }
+        msg(`${voice.lang} [${voice.name}] ${voice.default} ${voice.localService} ${voice.voiceURI}`);
     }
 
     voice_lang_select.addEventListener("change", (ev:Event)=>{
         const lang = voice_lang_select.value;
-
-        voice_name_select.innerHTML = "";
-        for(const voice of voices[lang]){
-            const opt = document.createElement("option");
-            opt.text = voice.name;
-            opt.value = voice.name;
-            voice_name_select.add(opt);
-        }
-        uttrVoice = voiceList[voice_name_select.value];
-        msg(`set voice by name[${uttrVoice.name}]`);
+        setVoiceByLang(lang);
     });
 
-    voice_name_select.addEventListener("change", (ev:Event)=>{
-        uttrVoice = voiceList[voice_name_select.value];
-        msg(`set voice by name[${uttrVoice.name}]`);
-    });
-
+    setVoiceByLang(defaultLang);
 }
 
 function initSpeechSub(){
@@ -195,7 +198,7 @@ export function initSpeech(){
 
     speechSynthesis.onvoiceschanged = function(){
         msg("voices changed");
-        setVoice();
+        setVoiceList();
     };
 }
 
@@ -204,7 +207,7 @@ export async function asyncInitSpeech() : Promise<void> {
 
     return new Promise((resolve) => {
         speechSynthesis.addEventListener("voiceschanged", (ev:Event)=>{
-            setVoice();
+            setVoiceList();
             msg("speech initialized");
             resolve();
         })
