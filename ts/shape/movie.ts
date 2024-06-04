@@ -4,7 +4,7 @@ const fgColor = "black";
 const focusColor = "red";
 const strokeWidth = 4;
 
-const refData = new Map<string, Term | ShapeM>();
+const refData : { [name: string]: Term | ShapeM } = {};
 
 function toTerm(x : Term | ShapeM) : Term {
     assert(x instanceof Term);
@@ -19,7 +19,7 @@ function calc(trm : Term) : number {
         return trm.value.fval();
     }
     else if(trm instanceof RefVar){
-        const data = refData.get(trm.name);
+        const data = refData[trm.name];
         if(data == undefined){
             throw new MyError();
         }
@@ -45,9 +45,10 @@ function calc(trm : Term) : number {
 
 class ShapeM {
     color : string = "black";
+    focused : boolean = false;
 
-    focus(){
-        assert(false);
+    focus(is_focused : boolean){
+        this.focused = is_focused;
     }
 }
 
@@ -72,8 +73,10 @@ class PointM extends ShapeM {
         movie.svg.appendChild(this.point);
     }
 
-    focus(){
-        this.point.setAttribute("fill", focusColor);
+    focus(is_focused : boolean){
+        super.focus(is_focused);
+        const color = is_focused ? focusColor : this.color;
+        this.point.setAttribute("fill", color);
     }
 }
 
@@ -126,7 +129,7 @@ class CircleM extends CircleArcM {
 
     constructor(center_ref : RefVar, radius : Term){
         super();
-        this.center = refData.get(center_ref.name) as PointM;
+        this.center = refData[center_ref.name] as PointM;
         assert(this.center instanceof PointM);
         this.radius = radius;
 
@@ -155,14 +158,25 @@ class TriangleM extends ShapeM {
 
     constructor(p0_ref : RefVar, p1_ref : RefVar, p2_ref : RefVar){
         super();
-        const p0 = refData.get(p0_ref.name) as PointM;
-        const p1 = refData.get(p1_ref.name) as PointM;
-        const p2 = refData.get(p2_ref.name) as PointM;
+        const p0 = refData[p0_ref.name] as PointM;
+        const p1 = refData[p1_ref.name] as PointM;
+        const p2 = refData[p2_ref.name] as PointM;
 
         this.points = [ p0, p1, p2];
         assert(this.points.every(x => x instanceof PointM));
 
         this.lines = [ new LineSegmentM(p0, p1), new LineSegmentM(p1, p2), new LineSegmentM(p2, p0)];
+    }
+}
+
+class Mark {
+    shape : ShapeM;
+    start : number;
+    end!  : number;
+
+    constructor(shape : ShapeM, start : number){        
+        this.shape = shape;
+        this.start = start;
     }
 }
 
@@ -174,6 +188,7 @@ class Movie {
     svgRatio: number = 0;
     lines : string[] = [];
     speech! : Speech;
+    marks : Mark[] = [];
 
     constructor(width : number, height : number, x1 : number, y1 : number, x2 : number, y2 : number){
         this.width = width;
@@ -222,13 +237,53 @@ class Movie {
     }
 
     speakM(speech_texts : string[]){
-        const text = speech_texts.find(x => x.startsWith(`# ${this.speech.lang2}`));
-        if(text == undefined){
+        const line = speech_texts.find(x => x.startsWith(`# ${this.speech.lang2}`));
+        if(line == undefined){
             msg(`no translation:${speech_texts[0]}`);
             return;
         }
-        this.speech.speak(text.substring(6));
+        const text = line.substring(6);
+
+        this.marks = [];
+        const mark_stack : Mark[] = [];
+        let speech_text : string = "";
+        for(let i = 0; i < text.length; ){
+            const c = text.charAt(i);
+            if(c == '@'){
+                let j = i + 1;
+                for(; j < text.length && text.charAt(j) != '{'; j++);
+                const name = text.substring(i + 1, j);
+                const shape = refData[name] as ShapeM;
+                assert(shape instanceof ShapeM);
+                const mark = new Mark(shape, i);
+                this.marks.push(mark);
+                mark_stack.push(mark);
+
+                i = j + 1;
+            }
+            else if(c == '}'){
+                assert(mark_stack.length != 0);
+                const mark = mark_stack.pop()!;
+                mark.end = i;
+
+                i++;
+            }
+            else{
+                speech_text += c;
+
+                i++;
+            }
+        }
+        this.speech.callback = this.onBoundary.bind(this);
+        
+        this.speech.speak(speech_text);
         // speak(text.substring(6));
+    }
+
+    onBoundary(idx:number) : void {
+        msg(`idx:${idx} marks:${this.marks.length}`);
+        this.marks.filter(x => !x.shape.focused && x.start <= idx && idx < x.end).forEach(x => x.shape.focus(true));
+        this.marks.filter(x =>  x.shape.focused && x.end   <= idx               ).forEach(x => x.shape.focus(false));
     }
 
     async getLines(){
@@ -266,14 +321,14 @@ class Movie {
                     assert(app.args.length == 2 && app.args[0] instanceof RefVar);
                     const ref = app.args[0] as RefVar;
                     const val = exec(app.args[1]);
-                    refData.set(ref.name, val);
+                    refData[ref.name] = val;
                 }
                 else if(app.fncName == "focus"){
                     assert(app.args.length == 1 && app.args[0] instanceof RefVar);
                     const ref = app.args[0] as RefVar;
-                    const data = refData.get(ref.name) as ShapeM;
+                    const data = refData[ref.name] as ShapeM;
                     assert(data instanceof ShapeM);
-                    data.focus();
+                    data.focus(true);
                 }
                 else{
                     assert(false);

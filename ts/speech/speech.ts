@@ -33,6 +33,7 @@ export class Speech {
     prevCharIndex = 0;
     lang : string;
     lang2 : string;
+    callback! : (idx:number)=>void;
 
     constructor(){        
         this.lang = $sel("voice-lang-select").value;
@@ -69,12 +70,18 @@ export class Speech {
     
             msg(`Speech bdr: idx:${ev.charIndex} name:${ev.name} type:${ev.type} text:[${text}]`);
         }
+        if(this.callback != undefined){
+            this.callback(ev.charIndex);
+        }
         this.prevCharIndex = ev.charIndex;
     
     }
 
     onEnd(ev: SpeechSynthesisEvent) : void {
         msg(`Speech end: idx:${ev.charIndex} name:${ev.name} type:${ev.type} text:[${ev.utterance.text.substring(this.prevCharIndex)}]`);
+        if(this.callback != undefined){
+            this.callback(ev.utterance.text.length);
+        }
     }
     
     onMark(ev: SpeechSynthesisEvent) : void {
