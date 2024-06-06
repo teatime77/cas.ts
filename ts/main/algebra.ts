@@ -119,13 +119,21 @@ function multiplyArgs(args: Term[]) : Term {
     }
 }
 
-export function showRoot(root : Term){
+export function* showRoot(root : Term){
     assert(root != null, "show root");
     root.setParent(null);
 
     root.setTabIdx();
     const tex = root.tex();
     render(mathDiv, tex);
+
+    makeMathDiv()
+    const node = makeFlow(root);
+    const speech = new Speech();
+    for(const s of node.genTex(speech)){
+        render(mathDiv, s);
+        yield;
+    }
 }
 
 /**
@@ -154,7 +162,7 @@ export function* subst(app: App, root : Term){
             t.replace(dst);
         }
 
-        showRoot(root);
+        yield* showRoot(root);
         yield;
     }
 }
@@ -392,7 +400,7 @@ function* cancelOut(root : Term, app : App, multipliers : Term[], divisors : Ter
         app.value.setmul(m.value);
         app.value.setdiv(d.value);
 
-        showRoot(root);
+        yield* showRoot(root);
         yield;
     }
 }
@@ -479,7 +487,7 @@ export function* cancelAdd(root : Term){
                 trm.cancel = true;
                 trm2.cancel = true;
 
-                showRoot(root);
+                yield* showRoot(root);
                 yield;
             }
         }
@@ -494,7 +502,7 @@ export function* cancelAdd(root : Term){
  */
 export function* highlight(trm : Term, root : Term){
     trm.color = true;
-    showRoot(root);
+    yield* showRoot(root);
     yield;
     trm.color = false;
 }
@@ -547,7 +555,7 @@ export function* remCancel(root : Term){
             assert(false, "rem cancel");
         }
 
-        showRoot(root);
+        yield* showRoot(root);
         yield;
     }
 }
@@ -616,7 +624,7 @@ export function* resolveAddAll(root : Term){
             // 加算の中の加算を、親の加算にまとめる。
             resolveAdd(add, add_child);
 
-            showRoot(root);
+            yield* showRoot(root);
             yield;
         }
     }
@@ -634,7 +642,7 @@ export function* zeroOneAddMul(root : App){
             // 引数が1個だけの加算や乗算を、唯一の引数で置き換える。
             oneArg(bin1 as App);
 
-            showRoot(root);
+            yield* showRoot(root);
             yield;
             continue;
         }
@@ -661,7 +669,7 @@ export function* zeroOneAddMul(root : App){
                 assert(false, "trim-mul 5");
             }
 
-            showRoot(root);
+            yield* showRoot(root);
             yield;
             continue;
         }
@@ -688,7 +696,7 @@ export function* trimMul(root : App){
             // 分子の係数に、除算の係数をかける。
             div.args[0].value.setmul(div.value);
 
-            showRoot(root);
+            yield* showRoot(root);
             yield;
             continue;
         }
@@ -709,7 +717,7 @@ export function* trimMul(root : App){
                 // 引数内の定数を取り除く。
                 nums.forEach(x => x.remArg());
 
-                showRoot(root);
+                yield* showRoot(root);
                 yield;
             }
 
@@ -728,7 +736,7 @@ export function* trimMul(root : App){
                 // 引数内の0を取り除く。
                 zeros.forEach(x => x.remArg());
 
-                showRoot(root);
+                yield* showRoot(root);
                 yield;
             }
 
@@ -922,7 +930,7 @@ export function* transpose(cmd : App, root : Term){
 
     // 移動する項をキャンセルする。
     trm.cancel = true;
-    showRoot(root);
+    yield* showRoot(root);
     yield;
 
     // 移動元の項の親
@@ -952,7 +960,7 @@ export function* transpose(cmd : App, root : Term){
         assert(false, "move add")
     }
 
-    showRoot(root);
+    yield* showRoot(root);
     yield;
 
     // 移動先の親
@@ -1021,7 +1029,7 @@ export function* distribute(cmd : App, root : App){
     mul.replace(add);
 
     // mul.args[0].cancel = true;
-    showRoot(root);
+    yield* showRoot(root);
     yield;
 
     for(const [i, trm] of add.args.entries()){
@@ -1030,7 +1038,7 @@ export function* distribute(cmd : App, root : App){
         // 乗数をかける。
         add.setArg( multiply(multiplier.clone(), trm), i );
 
-        showRoot(root);
+        yield* showRoot(root);
         yield;
     }
 }
@@ -1269,7 +1277,7 @@ export function* mulSign(root : App){
             app.value.numerator *= sgn;
             app.args.forEach(x => x.value.setAbs());
 
-            showRoot(root);
+            yield* showRoot(root);
             yield;
         }
     }

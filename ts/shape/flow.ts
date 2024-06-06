@@ -15,8 +15,17 @@ class Phrase {
 abstract class TexNode {
     abstract makeSpeech(phrases : Phrase[]) : void;
 
-    *gen(speech : Speech) : IterableIterator<string> {
+    initString() : string {
         return "";
+    }
+
+    *genTex(speech : Speech) : IterableIterator<string> {
+        return "";
+    }
+}
+
+class TexSpeech extends TexNode {
+    makeSpeech(phrases : Phrase[]) : void {
     }
 }
 
@@ -29,8 +38,8 @@ abstract class TexBlock extends TexNode {
     }
 
     makeSpeech(phrases : Phrase[]) : void {
+        this.nodes.forEach(x => x.makeSpeech(phrases));
     }
-
 }
 
 class TexSync extends TexBlock {
@@ -38,11 +47,41 @@ class TexSync extends TexBlock {
         super(nodes);
     }
 
+    *genTex(speech : Speech) : IterableIterator<string> {
+        for(const x of this.nodes){
+            assert(x instanceof TexNode);
+        }
+        const arg_strs = this.nodes.map(x => x.initString());
+
+        for(let [idx, node] of this.nodes.entries()){
+            for(const s of node.genTex(speech)){
+                arg_strs[idx] = s;
+
+                yield `${arg_strs.join(" ")}`;
+            }
+        }
+
+        yield `${arg_strs.join(" ")}`;
+    }
 }
 
 class TexSeq extends TexBlock {
     constructor(nodes : TexNode[]){
         super(nodes);
+    }
+
+    *genTex(speech : Speech) : IterableIterator<string> {
+        const arg_strs : string[] = Array<string>(this.nodes.length).fill("");
+
+        for(let [idx, node] of this.nodes.entries()){
+            for(const s of node.genTex(speech)){
+                arg_strs[idx] = s;
+
+                yield `${arg_strs.join(" ")}`;
+            }
+        }
+
+        yield `${arg_strs.join(" ")}`;
     }
 }
 
@@ -53,7 +92,7 @@ abstract class TexLeaf extends TexNode {
         super();
     }
 
-    *gen(speech : Speech) : IterableIterator<string> {
+    *genTex(speech : Speech) : IterableIterator<string> {
         while(speech.prevCharIndex < this.charPos) yield "";
 
         return "";
@@ -71,6 +110,10 @@ class TexNum extends TexLeaf {
     makeSpeech(phrases : Phrase[]) : void {
     }
 
+    initString() : string {
+        return this.num.tex2();
+    }
+
 }
 
 class TexRef extends TexLeaf {
@@ -83,6 +126,9 @@ class TexRef extends TexLeaf {
     makeSpeech(phrases : Phrase[]) : void {
     }
 
+    initString() : string {
+        return this.ref.tex2();
+    }
 }
 
 class TexStr extends TexLeaf {
@@ -96,16 +142,23 @@ class TexStr extends TexLeaf {
     makeSpeech(phrases : Phrase[]) : void {
     }
 
+    initString() : string {
+        return this.str;
+    }
 }
 
-function sync(...params:any[]) : TexBlock {
-    return new TexSync(params);
+function sync(...params:any[]) : TexSync {
+    return new TexSync(params.map(x => makeFlow(x)));
+}
+
+function seq(...params:any[]) : TexSeq {
+    return new TexSeq(params.map(x => makeFlow(x)));
 }
 
 function join(trms:Term[], delimiter : string) : TexNode {
-    const nodes = trms.map(x => makeFlow2(x));
+    const nodes = trms.map(x => makeFlow(x));
     if(trms.length == 1){
-        return makeFlow2(trms[0]);
+        return makeFlow(trms[0]);
     }
     else{
         const nodes : TexNode[] = [];
@@ -114,7 +167,7 @@ function join(trms:Term[], delimiter : string) : TexNode {
                 nodes.push(new TexStr(delimiter));
             }
 
-            nodes.push(makeFlow2(trm));
+            nodes.push(makeFlow(trm));
         }
 
         return new TexSeq(nodes);
@@ -185,11 +238,9 @@ function     putValueF(trm : Term, text : string) : string {
 
 // }
 
-function makeFlow2(trm : TexNode | Term | string | any[]) : TexNode {
-    if(Array.isArray(trm)){
-        return new TexSeq(trm.map(x => makeFlow2(x)));
-    }
-    else if(trm instanceof TexNode){
+
+export function makeFlow(trm : TexNode | Term | string) : TexNode {
+    if(trm instanceof TexNode){
         return trm;
     }
     else if(typeof trm === "string"){
@@ -206,45 +257,45 @@ function makeFlow2(trm : TexNode | Term | string | any[]) : TexNode {
     else if(trm instanceof App){
         const app = trm;
 
-        let nodes : TexNode | (Term | TexNode | string)[] | TexNode[][];
+        let node : TexNode;    // | (Term | TexNode | string)[] | TexNode[][];
 
         if(app.fnc instanceof App){
 
             if(app.fnc instanceof RefVar){
 
-                nodes = [ app.fnc, sync("(", app.args, ")") ]
+                node = seq( app.fnc, sync("(", join(app.args, ","), ")") )
             }
             else{
 
-                nodes = [ sync("(", app.fnc, ")"), sync("(", app.args, ")") ]
+                node = seq( sync("(", app.fnc, ")"), sync("(", join(app.args, ","), ")") )
             }
         }
         else if(app.fncName == "lim"){
 
-            nodes = [ sync("\\lim_{", [app.args[1], "\\to", app.args[2]], "}"), app.args[0] ];
+            node = seq( sync("\\lim_{", seq(app.args[1], "\\to", app.args[2]), "}"), app.args[0] );
         }
         else if(app.fncName == "in"){
             const ids = join(app.args, " , ");
-            nodes = [ ids , "\\in" , app.args[1] ];
+            node = seq( ids , "\\in" , app.args[1] );
         }
         else if(app.isDiff()){
-            const n = (app.args.length == 3 ? `^{${app.args[2]}}`:``);
+            const n = (app.args.length == 3 ? sync("^{", app.args[2], "}") : ``);
 
             const d = (app.fncName == "diff" ? "d" : "\\partial");
 
             if(app.args[0].isDiv()){
 
-                nodes = [sync("\\frac{", d, n, "}{", d, app.args[1], n, "}"), sync("(", app.args[0], ")")]
+                node = seq(sync("\\frac{", d, n, "}{", d, app.args[1], n, "}"), sync("(", app.args[0], ")"))
             }
             else{
 
-                nodes = sync("\\frac{", d, n, app.args[0], "}{", d, app.args[1], n, "}")
+                node = sync("\\frac{", d, n, app.args[0], "}{", d, app.args[1], n, "}")
             }
         }
         else if(isLetterOrAt(app.fncName)){
             if(["sin", "cos"].includes(app.fncName) && ! (app.args[0] instanceof App)){
 
-                nodes = [ app.fnc, app.args[0] ]
+                node = seq( app.fnc, app.args[0] )
             }
             else if(app.fncName == "sqrt"){
 
@@ -253,7 +304,7 @@ function makeFlow2(trm : TexNode | Term | string | any[]) : TexNode {
             }
             else{
 
-                nodes = [ app.fnc, sync("(", join(app.args, ","), ")")]
+                node = seq( app.fnc, sync("(", join(app.args, ","), ")") )
             }
         }
         else{
@@ -265,33 +316,44 @@ function makeFlow2(trm : TexNode | Term | string | any[]) : TexNode {
                     throw new MyError();
 
                 case 1:
-                    nodes = makeFlow2(app.args[0]);
+                    node = makeFlow(app.args[0]);
                     break;
 
                 default:
-                    nodes = join(app.args, ` `);
+                    node = join(app.args, ` `);
                     break;
                 }
+                break;
 
             case "/":
-                assert(app.args.length == 2);
-                nodes = sync("\\frac{", app.args[0], "}{", app.args[1], "}");
+                if(app.args.length == 3){
+                    msg(`/ 3args [${app.args[0].strval}] [ ${app.args[1].strval}] [ ${app.args[2].strval}]`);
+                }
+                else if(app.args.length == 1){
+                    msg(`/ 1arg [${app.args[0].strval}]`);
+                    return makeFlow(app.args[0]);
+                }
+                else{
+                    assert(app.args.length == 2);
+                }
+                node = sync("\\frac{", app.args[0], "}{", app.args[1], "}");
                 break;
 
             case "^":
                 if(app.args[0] instanceof App && ["sin","cos","tan"].includes(app.args[0].fncName)){
 
                     const app2 = app.args[0];
-                    nodes = [ sync(`${texName(app2.fncName)}^{`, app.args[1], "}"), app2.args[0] ]
+                    node = seq( sync(`${texName(app2.fncName)}^{`, app.args[1], "}"), app2.args[0] )
                 }
                 else{
 
-                    nodes = sync("{", app.args[0], "}^{", app.args[1], "}");
+                    node = sync("{", app.args[0], "}^{", app.args[1], "}");
                 }
                 break
 
             default:
-                nodes = join(app.args, ` ${texName(app.fncName)} `);
+                node = join(app.args, ` ${texName(app.fncName)} `);
+                break
             }
         }
 
@@ -299,25 +361,19 @@ function makeFlow2(trm : TexNode | Term | string | any[]) : TexNode {
 
             if((app.isAdd() || app.isMul()) && app.parent.fncName == "lim"){
 
-                nodes = sync("(", nodes, ")");
+                node = sync("(", node, ")");
             }
             else if(app.isOperator() && app.parent.isOperator() && !app.parent.isDiv()){
                 if(app.parent.fncName == "^" && app.parent.args[1] == app){
                     ;
                 }
                 else if(app.parent.precedence() <= app.precedence()){
-                    nodes = sync("(", nodes, ")");
+                    node = sync("(", node, ")");
                 }            
             }
         }
 
-        if(Array.isArray(nodes)){
-            return makeFlow2(nodes);
-        }
-        else{
-
-            return nodes;
-        }    
+        return node;
     }
     else{
 

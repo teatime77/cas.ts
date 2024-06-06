@@ -131,7 +131,7 @@ function* gen(texts : string){
                 alg.root.setParent(null);
                 alg.root.verifyParent(null);
 
-                showRoot(alg.root);
+                yield* showRoot(alg.root);
             }
             else if(expr instanceof RefVar && expr.name[0] == '@'){
                 makeMathDiv();
@@ -180,7 +180,7 @@ function* gen(texts : string){
                 alg.root.setParent(null);
                 alg.root.verifyParent(null);
 
-                showRoot(alg.root);
+                yield* showRoot(alg.root);
             }
             else{
                 assert(expr instanceof App, "gen 4");
@@ -254,7 +254,7 @@ function readAllDoc(parent_dir : any){
             clearInterval(timer_id);
             console.log("ジェネレータ 終了");
         }        
-    }, 1);
+    }, 100);
 }
 
 function makeIndex(parent_ul : HTMLUListElement | HTMLDivElement, parent_dir : any){

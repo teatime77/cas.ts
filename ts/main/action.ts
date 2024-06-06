@@ -3,7 +3,14 @@ namespace casts {
 export let curIndex : Index;
 export let Alg : Algebra;
 
+function handler(errorCode : any, errorMsg : any, token : any){
+    if(errorCode == "htmlExtension" && errorMsg == "HTML extension is disabled on strict mode"){
+        return "ignore";
+    }
 
+    msg(`katex code:[${typeof errorCode}][${errorCode}] msg:[${typeof errorMsg}][${errorMsg}] token:[${typeof token}][${token}]`);
+    return "warn";
+}
 export function render(ele: HTMLElement, tex_text: string){
     try{
         ele.innerHTML = "";
@@ -12,6 +19,7 @@ export function render(ele: HTMLElement, tex_text: string){
             throwOnError: false,
             displayMode : true,
             trust : true,
+            strict : "ignore", // false, // handler,
             // newLineInDisplayMode : "ignore",
             macros : getUserMacros()
         });

@@ -45,7 +45,7 @@ export function* pulloutDiff(root : App){
         }
 
         
-        showRoot(root);
+        yield* showRoot(root);
         yield;
     }
 }  
