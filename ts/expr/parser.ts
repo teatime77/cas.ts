@@ -45,7 +45,7 @@ function isGreek(text : string) : boolean {
     return false;
 }
 
-function texName(text : string){
+export function texName(text : string){
     switch(text){
     case "=="     : return "=";
     case "!="     : return "\\ne";
