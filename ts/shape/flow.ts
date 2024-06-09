@@ -129,7 +129,7 @@ abstract class TexNode {
     }
 
     *genTex(speech : Speech) : IterableIterator<string> {
-        return "";
+        yield "";
     }
 
     say(text : string) : TexNode {
@@ -202,7 +202,11 @@ abstract class TexLeaf extends TexNode {
         super();
     }
 
-    abstract getText() : string;
+    abstract texText() : string;
+    
+    speechText() : string {
+        return this.texText();
+    }
 
     makeSpeech(phrases : PhraseF[]) : void {
         let text : string;
@@ -210,7 +214,7 @@ abstract class TexLeaf extends TexNode {
             text = this.diction;
         }
         else{
-            text = this.getText();
+            text = this.speechText();
         }
         this.phrase = pronunciationF(this, text);
         if(this.phrase != undefined){
@@ -225,7 +229,7 @@ abstract class TexLeaf extends TexNode {
         // while(speech.prevCharIndex < this.charPos) yield "";
 
         // yield this.getText();
-        return this.getText();
+        yield this.texText();
     }
 }
 
@@ -237,7 +241,7 @@ class TexNum extends TexLeaf {
         this.num = num;
     }
 
-    getText() : string {
+    texText() : string {
         return this.num.value.str();
     }
 
@@ -254,8 +258,15 @@ class TexRef extends TexLeaf {
         this.ref = ref;
     }
 
-    getText() : string {
-        return this.ref.name;
+    texText() : string {
+        if(isGreek(this.ref.name)){
+
+            return `\\${this.ref.name}`;
+        }
+        else{
+
+            return this.ref.name;
+        }
     }
 
     initString() : string {
@@ -271,7 +282,7 @@ class TexStr extends TexLeaf {
         this.str = str;
     }
 
-    getText() : string {
+    speechText() : string {
         if(this.str == "\\lim_{"){
             msg("");
         }
@@ -281,7 +292,11 @@ class TexStr extends TexLeaf {
         if(list.includes(this.str)){
             return "";
         }
-        return this.str;
+        return symbol2words(this.str);
+    }
+    
+    texText() : string {
+        return texName(this.str);
     }
 
     initString() : string {
@@ -299,7 +314,7 @@ class TexSpeech extends TexStr {
     }
 
     *genTex(speech : Speech) : IterableIterator<string> {
-        return "";
+        yield "";
     }
 }
 
@@ -523,7 +538,7 @@ export function makeFlow(trm : TexNode | Term | string) : TexNode {
                 break
 
             default:
-                node = join(app.args, ` ${symbol2words(app.fncName)} `);
+                node = join(app.args, app.fncName);
                 break
             }
         }

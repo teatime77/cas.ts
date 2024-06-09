@@ -27,6 +27,11 @@ export function parseMath(text: string) : Term {
 
 
 export function isGreek(text : string) : boolean {
+    assert(typeof text == "string");
+    if(text.length == 0){
+        return false;
+    }
+    
     const greeks = [
         "alpha", "beta", "gamma", "delta", "epsilon", "varepsilon", "zeta", "eta", "theta", 
         "vartheta", "iota", "kappa", "lambda", "mu", "nu", "xi", "pi", "varpi", "rho", "varrho", 
@@ -68,8 +73,6 @@ export function texName(text : string){
     if(isGreek(text)){
         return `\\${text}`;
     }
-
-    const fnc_names = [ "sin", "cos", "sqrt" ]
 
     return text;
 }
