@@ -11,7 +11,7 @@ function handler(errorCode : any, errorMsg : any, token : any){
     msg(`katex code:[${typeof errorCode}][${errorCode}] msg:[${typeof errorMsg}][${errorMsg}] token:[${typeof token}][${token}]`);
     return "warn";
 }
-export function render(ele: HTMLElement, tex_text: string){
+export function renderKatex(ele: HTMLElement, tex_text: string){
     try{
         ele.innerHTML = "";
         
@@ -19,7 +19,7 @@ export function render(ele: HTMLElement, tex_text: string){
             throwOnError: false,
             displayMode : true,
             trust : true,
-            strict : "ignore", // false, // handler,
+            strict : false, // "ignore", // false, // handler,
             // newLineInDisplayMode : "ignore",
             macros : getUserMacros()
         });
@@ -227,7 +227,7 @@ export async function startProof(index : Index){
 
     $h("index-title").innerText = index.title;
     assert(curIndex.assertion.isEq());
-    render($("assertion-tex"), curIndex.assertion.tex());
+    renderKatex($("assertion-tex"), curIndex.assertion.tex());
 
     Alg = new Algebra();
     Alg.root = curIndex.assertion;

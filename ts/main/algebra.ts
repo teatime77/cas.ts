@@ -125,13 +125,30 @@ export function* showRoot(root : Term){
 
     root.setTabIdx();
     const tex = root.tex();
-    render(mathDiv, tex);
+    renderKatex(mathDiv, tex);
 
-    makeMathDiv()
+    makeMathDiv();
+
     const node = makeFlow(root);
+    const phrases : PhraseF[] = [];
+    node.makeSpeech(phrases);
+
+    const text = phrases.map(x => x.words.join(" ")).join(" ");
+    // div.innerHTML = text;
+    // msg(`speak :${text}`);
+
     const speech = new Speech();
+    speech.speak(text);
+
     for(const s of node.genTex(speech)){
-        render(mathDiv, s);
+        if(stopGen){
+            return;
+        }
+        renderKatex(mathDiv, s);
+        yield;
+    }
+
+    while(speech.speaking){
         yield;
     }
 }
@@ -229,7 +246,7 @@ export class Algebra {
         root.setStrVal();
         root.setTabIdx();
         const tex = root.tex();
-        render(mathDiv, tex);
+        renderKatex(mathDiv, tex);
     }
 
     /**
@@ -1300,7 +1317,7 @@ export function* verify(cmd : App, root : App){
         expr.setStrVal();
         expr.setTabIdx();
         const tex = expr.tex();
-        render(mathDiv, tex);
+        renderKatex(mathDiv, tex);
         yield;
 
         assert(false);

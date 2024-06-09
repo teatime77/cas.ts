@@ -26,7 +26,7 @@ export function parseMath(text: string) : Term {
 }
 
 
-function isGreek(text : string) : boolean {
+export function isGreek(text : string) : boolean {
     const greeks = [
         "alpha", "beta", "gamma", "delta", "epsilon", "varepsilon", "zeta", "eta", "theta", 
         "vartheta", "iota", "kappa", "lambda", "mu", "nu", "xi", "pi", "varpi", "rho", "varrho", 
@@ -375,6 +375,7 @@ export abstract class Term {
     
     tex() : string {
         const text = this.tex2();
+        return text;
         return this.htmldata(this.putValue(text));
     }
 
@@ -418,8 +419,12 @@ export abstract class Term {
         return this.value.numerator == 0;
     }
 
+    isValue(n : number) : boolean {
+        return this instanceof ConstNum && this.value.fval() == n;
+    }
+
     isOne() : boolean {
-        return this instanceof ConstNum && this.value.fval() == 1;
+        return this.isValue(1);
     }
 
     isE() : boolean {

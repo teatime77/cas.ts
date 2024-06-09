@@ -45,7 +45,7 @@ export abstract class Transformation {
     
         const tex_div = document.createElement("div");
     
-        render(tex_div, this.result().tex());
+        renderKatex(tex_div, this.result().tex());
     
         div.appendChild(btn);
         div.appendChild(tex_div);

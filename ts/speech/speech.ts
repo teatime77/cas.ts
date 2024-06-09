@@ -34,6 +34,7 @@ export class Speech {
     lang : string;
     lang2 : string;
     callback! : (idx:number)=>void;
+    speaking : boolean = false;
 
     constructor(){        
         this.lang = $sel("voice-lang-select").value;
@@ -58,6 +59,7 @@ export class Speech {
         uttr.rate = parseFloat(speechRrate.value);
             
         speechSynthesis.speak(uttr);
+        this.speaking = true;
     }
 
     onBoundary(ev: SpeechSynthesisEvent) : void {
@@ -82,6 +84,7 @@ export class Speech {
         if(this.callback != undefined){
             this.callback(ev.utterance.text.length);
         }
+        this.speaking = false;
     }
     
     onMark(ev: SpeechSynthesisEvent) : void {

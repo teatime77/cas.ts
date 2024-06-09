@@ -394,10 +394,10 @@ export class Index extends DbItem {
     makeContents(){
         super.makeContents();
 
-        render(this.tex!, this.assertion.tex());
+        renderKatex(this.tex!, this.assertion.tex());
 
         this.span!.addEventListener("click", (ev : MouseEvent)=>{
-            render($("assertion-tex"), this.assertion.tex());
+            renderKatex($("assertion-tex"), this.assertion.tex());
         });
 
         this.span!.addEventListener("contextmenu", (ev : MouseEvent)=>{

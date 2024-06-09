@@ -2,6 +2,7 @@ namespace casts {
 
 export let mathDivRoot : HTMLDivElement;
 export let mathDiv : HTMLDivElement;
+export let stopGen : boolean = false;
 
 function heading(text : string){
     const words = text.match(/#+/)!;
@@ -216,6 +217,10 @@ async function readDoc(path: string){
 function* genDocPath(parent_dir : any) : any {
     if(parent_dir["dirs"] != undefined){
         for(const dir of parent_dir["dirs"]){
+            if(stopGen){
+                return;
+            }
+
             yield* genDocPath(dir);
         } 
     }
@@ -237,10 +242,18 @@ function* genDocPath(parent_dir : any) : any {
             mathDivRoot.innerHTML = "";
 
             for(const g of gen(texts)){
+                if(stopGen){
+                    return;
+                }
                 yield;
             }
         }
     }
+}
+
+export function stopDocGen(){
+    stopGen = true;
+    cancelSpeech();
 }
 
 
