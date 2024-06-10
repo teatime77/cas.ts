@@ -133,9 +133,19 @@ export function* showRoot(root : Term){
     const phrases : PhraseF[] = [];
     node.makeSpeech(phrases);
 
-    const text = phrases.map(x => x.words.join(" ")).join(" ");
-    // div.innerHTML = text;
-    // msg(`speak :${text}`);
+    let text = "";
+    for(const phrase of phrases){
+        phrase.start = text.length;
+        for(const word of phrase.words){
+            if(word != ""){
+                if(text != ""){
+                    text += " ";
+                }
+                text += word;
+            }
+        }
+        phrase.end = text.length;
+    }
 
     const speech = new Speech();
     speech.speak(text);

@@ -36,6 +36,7 @@
       renderMathInElement(document.body, {
         // customised options
         // • auto-render specific keys, e.g.:
+        strict : false,
         delimiters: [
             {left: '$$', right: '$$', display: true},
             {left: '$', right: '$', display: false},
@@ -60,6 +61,9 @@
 
 数式処理を使って数学や物理の式の導出をしています。
 <!-- <iframe id="map-iframe" src="./map.svg" ></iframe> -->
+<button onclick="casts.showSpeech()">音声</button>
+<button onclick="casts.readAllDoc()">start</button>
+<button onclick="casts.stopDocGen()">stop</button>
 <div id="math-div-root"></div>
 
 <div id="dlg-list"></div>

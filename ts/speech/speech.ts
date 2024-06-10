@@ -1,6 +1,7 @@
 namespace casts{
 let uttrVoice : SpeechSynthesisVoice |  undefined;
-const defaultLang = "ja-JP";  //"en-US"
+// const defaultLang = "ja-JP";
+const defaultLang = "en-US"
 const voiceNamesDic : { [lang: string]: string[] } = {
     "ja-JP" : [
         "Microsoft Nanami Online (Natural) - Japanese (Japan)",
@@ -9,6 +10,7 @@ const voiceNamesDic : { [lang: string]: string[] } = {
     ]
     ,
     "en-US" : [
+        "Microsoft Ana Online (Natural) - English (United States)"
     ]
 };
 let voice_name_select : HTMLSelectElement;

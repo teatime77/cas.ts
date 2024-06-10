@@ -3,6 +3,7 @@ namespace casts {
 export let mathDivRoot : HTMLDivElement;
 export let mathDiv : HTMLDivElement;
 export let stopGen : boolean = false;
+let docsIndex : any;
 
 function heading(text : string){
     const words = text.match(/#+/)!;
@@ -257,8 +258,8 @@ export function stopDocGen(){
 }
 
 
-function readAllDoc(parent_dir : any){
-    const iterator = genDocPath(parent_dir);
+export function readAllDoc(){
+    const iterator = genDocPath(docsIndex);
 
     const timer_id = setInterval(()=>{
         if(iterator.next().done){
@@ -404,7 +405,7 @@ async function main(page : string) {
     }
 
     const index_text = await fetchText(`../data/index.json`);
-    const index = JSON.parse(index_text);
+    docsIndex = JSON.parse(index_text);
 
     const youtube_text = await fetchText(`../data/youtube.json`);
     const youtube = JSON.parse(youtube_text);
@@ -419,22 +420,19 @@ async function main(page : string) {
     }
 
     if(params.get("all") != undefined){
-        readAllDoc(index);
         return;
     }
 
     if(page == "index"){
 
         const div = document.createElement("div");
-        makeIndex(div, index)
+        makeIndex(div, docsIndex)
         document.body.appendChild(div);
     }
 
     if(page == "edit" || page == "shape"){
         initShape();
     }
-
-
 }
 
 export function bodyOnLoad(page : string){

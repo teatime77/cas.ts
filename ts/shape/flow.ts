@@ -223,13 +223,15 @@ abstract class TexLeaf extends TexNode {
     }
 
     *genTex(speech : Speech) : IterableIterator<string> {
+        const tex_text = this.texText()
+
         if(this.phrase != undefined){
-
+            while(speech.speaking && speech.prevCharIndex < this.phrase.start){
+                yield tex_text;
+            }
         }
-        // while(speech.prevCharIndex < this.charPos) yield "";
 
-        // yield this.getText();
-        yield this.texText();
+        yield tex_text;
     }
 }
 
