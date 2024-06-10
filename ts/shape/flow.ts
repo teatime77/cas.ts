@@ -151,28 +151,6 @@ abstract class TexBlock extends TexNode {
     }
 }
 
-class TexSync extends TexBlock {
-    constructor(nodes : TexNode[]){
-        super(nodes);
-    }
-
-    *genTex(speech : Speech) : IterableIterator<string> {
-        for(const x of this.nodes){
-            assert(x instanceof TexNode);
-        }
-        const arg_strs = this.nodes.map(x => x.initString());
-
-        for(let [idx, node] of this.nodes.entries()){
-            for(const s of node.genTex(speech)){
-                arg_strs[idx] = s;
-
-                yield `${arg_strs.join(" ")}`;
-            }
-        }
-
-        yield `${arg_strs.join(" ")}`;
-    }
-}
 
 class TexSeq extends TexBlock {
     constructor(nodes : TexNode[]){
@@ -180,7 +158,7 @@ class TexSeq extends TexBlock {
     }
 
     *genTex(speech : Speech) : IterableIterator<string> {
-        const arg_strs : string[] = Array<string>(this.nodes.length).fill("");
+        const arg_strs = this.nodes.map(x => x.initString());
 
         for(let [idx, node] of this.nodes.entries()){
             for(const s of node.genTex(speech)){
@@ -246,11 +224,6 @@ class TexNum extends TexLeaf {
     texText() : string {
         return this.num.value.str();
     }
-
-    initString() : string {
-        return this.num.tex2();
-    }
-
 }
 
 class TexRef extends TexLeaf {
@@ -269,10 +242,6 @@ class TexRef extends TexLeaf {
 
             return this.ref.name;
         }
-    }
-
-    initString() : string {
-        return this.ref.tex2();
     }
 }
 
@@ -302,17 +271,22 @@ class TexStr extends TexLeaf {
     }
 
     initString() : string {
-        return this.str;
+        const list = [
+            "{", "}", "(", ")", "}{", "}^{","^{"
+        ];
+        if(list.includes(this.str)){
+            return this.str;
+        }
+        if(this.str.startsWith("\\") && this.str.endsWith("}")){
+            return this.str;
+        }
+        return "";
     }
 }
 
 class TexSpeech extends TexStr {
     constructor(text : string){
         super(text);
-    }
-
-    initString() : string {
-        return "";
     }
 
     *genTex(speech : Speech) : IterableIterator<string> {
@@ -322,10 +296,6 @@ class TexSpeech extends TexStr {
 
 function spc(text : string) : TexSpeech {
     return new TexSpeech(text);
-}
-
-function sync(...params:any[]) : TexSync {
-    return new TexSync(params.map(x => makeFlow(x)));
 }
 
 function seq(...params:any[]) : TexSeq {
@@ -440,33 +410,33 @@ export function makeFlow(trm : TexNode | Term | string) : TexNode {
 
             if(app.fnc instanceof RefVar){
 
-                node = seq( app.fnc, sync("(", join(app.args, ","), ")") )
+                node = seq( app.fnc, seq("(", join(app.args, ","), ")") );
             }
             else{
 
-                node = seq( sync("(", app.fnc, ")"), sync("(", join(app.args, ","), ")") )
+                node = seq( "(", app.fnc, ")", seq("(", join(app.args, ","), ")") );
             }
         }
         else if(app.fncName == "lim"){
 
-            node = seq( sync("\\lim_{", seq(app.args[1], "\\to", app.args[2]), "}"), app.args[0] );
+            node = seq( "\\lim_{", app.args[1], "\\to", app.args[2], "}", app.args[0] );
         }
         else if(app.fncName == "in"){
             const ids = join(app.args, " , ");
             node = seq( ids , "\\in" , app.args[1] );
         }
         else if(app.isDiff()){
-            const n = (app.args.length == 3 ? sync("^{", app.args[2], "}") : ``);
+            const n = (app.args.length == 3 ? seq("^{", app.args[2], "}") : ``);
 
             const d = (app.fncName == "diff" ? "d" : "\\partial");
 
             if(app.args[0].isDiv()){
 
-                node = seq(sync("\\frac{", d, n, "}{", spc("over"), d, app.args[1], n, "}"), sync("(", app.args[0], ")"))
+                node = seq("\\frac{", d, n, "}{", spc("over"), d, app.args[1], n, "}", seq("(", app.args[0], ")"))
             }
             else{
 
-                node = sync("\\frac{", d, n, app.args[0], "}{", spc("over"), d, app.args[1], n, "}")
+                node = seq("\\frac{", d, n, app.args[0], "}{", spc("over"), d, app.args[1], n, "}")
             }
         }
         else if(isLetterOrAt(app.fncName)){
@@ -477,11 +447,11 @@ export function makeFlow(trm : TexNode | Term | string) : TexNode {
             else if(app.fncName == "sqrt"){
 
                 assert(app.args.length == 1);
-                return sync("\\sqrt{", app.args[0], "}");
+                return seq("\\sqrt{", app.args[0], "}");
             }
             else{
 
-                node = seq( app.fnc, sync("(", join(app.args, ","), ")") )
+                node = seq( app.fnc, seq("(", join(app.args, ","), ")") )
             }
         }
         else{
@@ -513,7 +483,7 @@ export function makeFlow(trm : TexNode | Term | string) : TexNode {
                 else{
                     assert(app.args.length == 2);
                 }
-                node = sync("\\frac{", app.args[0], "}{", spc("over"), app.args[1], "}");
+                node = seq("\\frac{", app.args[0], "}{", spc("over"), app.args[1], "}");
                 break;
 
             case "^":
@@ -531,11 +501,11 @@ export function makeFlow(trm : TexNode | Term | string) : TexNode {
                 if(app.args[0] instanceof App && ["sin","cos","tan"].includes(app.args[0].fncName)){
 
                     const app2 = app.args[0];
-                    node = seq("{", sync(app2.fncName, `}^{`, exponent, "}"), app2.args[0] )
+                    node = seq("{", app2.fncName, `}^{`, exponent, "}", app2.args[0] )
                 }
                 else{
 
-                    node = sync("{", app.args[0], "}^{", exponent, "}");
+                    node = seq("{", app.args[0], "}^{", exponent, "}");
                 }
                 break
 
@@ -549,14 +519,14 @@ export function makeFlow(trm : TexNode | Term | string) : TexNode {
 
             if((app.isAdd() || app.isMul()) && app.parent.fncName == "lim"){
 
-                node = sync("(", node, ")");
+                node = seq("(", node, ")");
             }
             else if(app.isOperator() && app.parent.isOperator() && !app.parent.isDiv()){
                 if(app.parent.fncName == "^" && app.parent.args[1] == app){
                     ;
                 }
                 else if(app.parent.precedence() <= app.precedence()){
-                    node = sync("(", node, ")");
+                    node = seq("(", node, ")");
                 }            
             }
         }
