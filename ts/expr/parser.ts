@@ -3,6 +3,7 @@ namespace casts {
 export let termDic : { [id : number] : Term } = {};
 
 export const pathSep = ":";
+export const refData : { [name: string]: Term | ShapeM } = {};
 
 export function Zero() : ConstNum {
     return new ConstNum(0);
@@ -31,7 +32,7 @@ export function isGreek(text : string) : boolean {
     if(text.length == 0){
         return false;
     }
-    
+
     const greeks = [
         "alpha", "beta", "gamma", "delta", "epsilon", "varepsilon", "zeta", "eta", "theta", 
         "vartheta", "iota", "kappa", "lambda", "mu", "nu", "xi", "pi", "varpi", "rho", "varrho", 
@@ -444,6 +445,38 @@ export abstract class Term {
 
     depend(dvar : RefVar) : boolean {
         return allTerms(this).some(x => dvar.eq(x));
+    }
+
+    calc() : number {
+        if(this instanceof Rational){
+            return this.fval();
+        }
+        else if(this instanceof ConstNum){
+            return this.value.fval();
+        }
+        else if(this instanceof RefVar){
+            const data = refData[this.name];
+            if(data == undefined){
+                throw new MyError();
+            }
+            else if(data instanceof Term){
+                return data.calc();
+            }
+            else{
+                throw new MyError("unimplemented");
+            }
+        }
+        else if(this instanceof App){
+            const app = this;
+            if(app.isApp("sqrt")){
+                assert(app.args.length == 1);
+                return Math.sqrt(app.args[0].calc());
+            }
+            else{
+                throw new MyError("unimplemented");
+            }
+        }
+        throw new MyError("unimplemented");
     }
 }
 

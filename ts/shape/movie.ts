@@ -3,53 +3,11 @@ namespace casts {
 const fgColor = "black";
 const focusColor = "red";
 const strokeWidth = 4;
-
-const refData : { [name: string]: Term | ShapeM } = {};
+const fontSize = 10;
 
 function toTerm(x : Term | ShapeM) : Term {
     assert(x instanceof Term);
     return x as Term;
-}
-
-function calc(trm : Term) : number {
-    if(trm instanceof Rational){
-        return trm.fval();
-    }
-    else if(trm instanceof ConstNum){
-        return trm.value.fval();
-    }
-    else if(trm instanceof RefVar){
-        const data = refData[trm.name];
-        if(data == undefined){
-            throw new MyError();
-        }
-        else if(data instanceof Term){
-            return calc(data);
-        }
-        else{
-            throw new MyError("unimplemented");
-        }
-    }
-    else if(trm instanceof App){
-        const app = trm;
-        if(app.isApp("sqrt")){
-            assert(app.args.length == 1);
-            return Math.sqrt(calc(app.args[0]));
-        }
-        else{
-            throw new MyError("unimplemented");
-        }
-    }
-    throw new MyError("unimplemented");
-}
-
-class ShapeM {
-    color : string = "black";
-    focused : boolean = false;
-
-    focus(is_focused : boolean){
-        this.focused = is_focused;
-    }
 }
 
 class PointM extends ShapeM {
@@ -59,17 +17,17 @@ class PointM extends ShapeM {
     point : SVGCircleElement;
 
     constructor(x : Term, y : Term){
-        super();
+        super(movie);
         this.x = x;
         this.y = y;
 
         this.point = document.createElementNS("http://www.w3.org/2000/svg","circle");
-        this.point.setAttribute("cx", `${calc(this.x)}`);
-        this.point.setAttribute("cy", `${calc(this.y)}`);
+        this.point.setAttribute("cx", `${this.x.calc()}`);
+        this.point.setAttribute("cy", `${this.y.calc()}`);
         this.point.setAttribute("fill", this.color);        
         this.point.setAttribute("r", `${movie.toSvg2(5)}`);
 
-        msg(`point cx:${calc(this.x)} cy:${calc(this.y)} r:${movie.toSvg2(5)}`)
+        msg(`point cx:${this.x.calc()} cy:${this.y.calc()} r:${movie.toSvg2(5)}`)
         movie.svg.appendChild(this.point);
     }
 
@@ -78,13 +36,17 @@ class PointM extends ShapeM {
         const color = is_focused ? focusColor : this.color;
         this.point.setAttribute("fill", color);
     }
+
+    getCenterXY() : Vec2{
+        return new Vec2(this.x.calc(), this.y.calc());
+    }
 }
 
 abstract class AbstractStraightLineM extends ShapeM {
     line : SVGLineElement;
 
     constructor(){
-        super();
+        super(movie);
         this.line = document.createElementNS("http://www.w3.org/2000/svg","line");
         this.line.setAttribute("stroke", this.color);
         this.line.setAttribute("stroke-width", `${movie.toSvg2(strokeWidth)}`);
@@ -101,13 +63,13 @@ class LineSegmentM extends AbstractStraightLineM {
         this.p2 = p2;
 
 
-        this.line.setAttribute("x1", `${calc(p1.x)}`);
-        this.line.setAttribute("y1", `${calc(p1.y)}`);
+        this.line.setAttribute("x1", `${p1.x.calc()}`);
+        this.line.setAttribute("y1", `${p1.y.calc()}`);
 
-        this.line.setAttribute("x2", `${calc(p2.x)}`);
-        this.line.setAttribute("y2", `${calc(p2.y)}`);
+        this.line.setAttribute("x2", `${p2.x.calc()}`);
+        this.line.setAttribute("y2", `${p2.y.calc()}`);
 
-        msg(`line:(${calc(p1.x)}, ${calc(p1.y)}) (${calc(p2.x)}, ${calc(p2.y)})`)
+        msg(`line:(${p1.x.calc()}, ${p1.y.calc()}) (${p2.x.calc()}, ${p2.y.calc()})`)
         movie.svg.appendChild(this.line);
     }
 }
@@ -119,18 +81,26 @@ class HalfLineM extends AbstractStraightLineM {
 }
 
 abstract class CircleArcM extends ShapeM {
+    center : PointM;
+
+    constructor(center_ref : RefVar){
+        super(movie);
+        this.center = refData[center_ref.name] as PointM;
+        assert(this.center instanceof PointM);
+    }
+
+    getCenterXY() : Vec2{
+        return new Vec2(this.center.x.calc(), this.center.y.calc());
+    }
 }
 
 class CircleM extends CircleArcM {
-    center : PointM;
     radius : Term;
 
     circle: SVGCircleElement;
 
     constructor(center_ref : RefVar, radius : Term){
-        super();
-        this.center = refData[center_ref.name] as PointM;
-        assert(this.center instanceof PointM);
+        super(center_ref);
         this.radius = radius;
 
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
@@ -140,12 +110,53 @@ class CircleM extends CircleArcM {
         this.circle.setAttribute("fill-opacity", "0");
         this.circle.style.cursor = "move";
 
-        this.circle.setAttribute("cx", `${calc(this.center.x)}`);
-        this.circle.setAttribute("cy", `${calc(this.center.y)}`);
-        this.circle.setAttribute("r", `${calc(radius)}`);
+        this.circle.setAttribute("cx", `${this.center.x.calc()}`);
+        this.circle.setAttribute("cy", `${this.center.y.calc()}`);
+        this.circle.setAttribute("r", `${radius.calc()}`);
 
-        msg(`circle cx:${calc(this.center.x)} cy:${calc(this.center.y)} r:${calc(radius)}`)
+        msg(`circle cx:${this.center.x.calc()} cy:${this.center.y.calc()} r:${radius.calc()}`)
         movie.svg.appendChild(this.circle);
+    }
+}
+
+
+class ArcM extends CircleArcM {
+    radius : Term;
+    start  : Term;
+    end    : Term;
+
+    arc: SVGPathElement;
+
+    constructor(center_ref : RefVar, radius : Term, start : Term, end : Term){
+        super(center_ref);
+        this.center = refData[center_ref.name] as PointM;
+        assert(this.center instanceof PointM);
+        this.radius = radius;
+        this.start  = start;
+        this.end    = end;
+
+        this.arc = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        this.arc.setAttribute("fill", "none");
+        this.arc.setAttribute("stroke", this.color);
+        this.arc.setAttribute("stroke-width", `${movie.toSvg2(strokeWidth)}`);
+        // this.arc.setAttribute("fill-opacity", "0");
+        this.arc.style.cursor = "move";
+
+        const cx = this.center.x.calc();
+        const cy = this.center.y.calc();
+        const r  = radius.calc();
+        const start_th = start.calc();
+        const end_th = end.calc();
+        const x1 = cx + r * Math.cos(start_th);
+        const y1 = cy + r * Math.sin(start_th);
+        const x2 = cx + r * Math.cos(end_th);
+        const y2 = cy + r * Math.sin(end_th);
+
+        const d = `M ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2}`
+        this.arc.setAttribute("d", d);
+
+        msg(`arc cx:${cx} cy:${cy} r:${r}`)
+        movie.svg.appendChild(this.arc);
     }
 }
 
@@ -157,7 +168,7 @@ class TriangleM extends ShapeM {
     lines  : LineSegmentM[];
 
     constructor(p0_ref : RefVar, p1_ref : RefVar, p2_ref : RefVar){
-        super();
+        super(movie);
         const p0 = refData[p0_ref.name] as PointM;
         const p1 = refData[p1_ref.name] as PointM;
         const p2 = refData[p2_ref.name] as PointM;
@@ -167,7 +178,18 @@ class TriangleM extends ShapeM {
 
         this.lines = [ new LineSegmentM(p0, p1), new LineSegmentM(p1, p2), new LineSegmentM(p2, p0)];
     }
+
+    getCenterXY() : Vec2{
+        const xs = this.points.map(pt => pt.x.calc());
+        const ys = this.points.map(pt => pt.y.calc());
+
+        const cx = sum(xs) / xs.length;
+        const cy = sum(ys) / ys.length;
+
+        return new Vec2(cx, cy);
+    }
 }
+
 
 class Mark {
     shape : ShapeM;
@@ -180,46 +202,17 @@ class Mark {
     }
 }
 
-class Movie {
-    width      : number = 0;
-    height     : number = 0;
-    svg : SVGSVGElement;
-    CTMInv : DOMMatrix | null = null;
-    svgRatio: number = 0;
+class Movie extends ViewM {
     lines : string[] = [];
     speech! : Speech;
     marks : Mark[] = [];
 
     constructor(width : number, height : number, x1 : number, y1 : number, x2 : number, y2 : number){
-        this.width = width;
-        this.height = height;
-
-        this.svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
-        this.svg.style.backgroundColor = "cornsilk";
-        this.svg.style.width  = `${this.width}px`;
-        this.svg.style.height = `${this.height}px`;
-        this.svg.setAttribute("viewBox", `${x1} ${y1} ${x2 - x1} ${y2 - y1}`);
-
-        document.body.appendChild(this.svg);
-
-        this.setCTMInv();
+        super(width, height, x1, y1, x2, y2);
     }
 
     toSvg2(x:number) : number{
         return x * this.svgRatio;
-    }
-
-    setCTMInv(){
-        const CTM = this.svg.getCTM()!;
-        if(CTM != null){
-
-            this.CTMInv = CTM.inverse();
-        }
-
-        const rc = this.svg.getBoundingClientRect();
-        this.svgRatio = this.svg.viewBox.baseVal.width / rc.width;
-
-        msg(`\n${"-".repeat(10)} update Ratio ${"-".repeat(10)}\n`);
     }
 
     makeLine(x1: number, y1: number, x2: number, y2: number){
@@ -322,6 +315,10 @@ class Movie {
                     const ref = app.args[0] as RefVar;
                     const val = exec(app.args[1]);
                     refData[ref.name] = val;
+                    if(val instanceof ShapeM){
+                        val.name = ref.name;
+                        val.makeCaptionDiv();
+                    }
                 }
                 else if(app.fncName == "focus"){
                     assert(app.args.length == 1 && app.args[0] instanceof RefVar);
@@ -355,6 +352,14 @@ function exec(trm : Term) : Term | ShapeM {
         else if(app.fncName == "Circle"){
             assert(args.length == 2 && args[0] instanceof RefVar);
             return new CircleM(args[0] as RefVar, toTerm(args[1]))
+        }
+        else if(app.fncName == "Arc"){
+            assert(args.length == 4 && args[0] instanceof RefVar);
+            const center = toTerm(args[0]) as RefVar;
+            const radius = toTerm(args[1]);
+            const start  = toTerm(args[2]);
+            const end    = toTerm(args[3]);
+            return new ArcM(center, radius, start, end);
         }
         else if(app.fncName == "Triangle"){
             assert(args.length == 3  && args.every(x => x instanceof RefVar));
