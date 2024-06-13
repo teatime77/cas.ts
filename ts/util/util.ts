@@ -30,6 +30,18 @@ export function last<T>(v : Array<T>) : T {
     return v[v.length - 1];
 }
 
+export function unique<T>(v : Array<T>) : T[] {
+    let set = new Set<T>();
+    const ret : T[] = [];
+    for(const x of v){
+        if(!set.has(x)){
+            set.add(x);
+            ret.push(x);
+        }
+    }
+    return ret;
+}
+
 export function remove<T>(v : Array<T>, x : T){
     const idx = v.indexOf(x);
     assert(idx != undefined);

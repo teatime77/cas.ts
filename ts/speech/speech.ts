@@ -183,7 +183,10 @@ function setVoiceList(){
         }
 
         voices[voice.lang].push(voice);
-        msg(`${voice.lang} [${voice.name}] ${voice.default} ${voice.localService} ${voice.voiceURI}`);
+        if(voice.lang == "ja-JP" || voice.lang == "en-US"){
+
+            msg(`${voice.lang} [${voice.name}] ${voice.default} ${voice.localService} ${voice.voiceURI}`);
+        }
     }
 
     voice_lang_select.addEventListener("change", (ev:Event)=>{

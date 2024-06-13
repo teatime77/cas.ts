@@ -3,8 +3,28 @@ namespace casts {
 export let termDic : { [id : number] : Term } = {};
 
 export const pathSep = ":";
-export const refData : { [name: string]: Term | ShapeM } = {};
+export let variables : Variable[] = [];
 
+export function isShapeName(name : string) : boolean {
+    const names = [
+        "Point", "Circle", "Arc", "Triangle"
+    ];
+    return names.includes(name);
+}
+
+export function isSystemName(name : string) : boolean {
+    const names = [
+        "range",
+        "sqrt"
+    ];
+    return isShapeName(name) || names.includes(name);
+}
+
+export function getVariable(name : string) : Variable {
+    const va = variables.find(x => x.name == name)!;
+    assert(va != undefined);
+    return va;
+}
 export function Zero() : ConstNum {
     return new ConstNum(0);
 }
@@ -26,6 +46,13 @@ export function parseMath(text: string) : Term {
     return trm;
 }
 
+export function setRefVars(root : Term){
+    const all_refs = allTerms(root).filter(x => x instanceof RefVar && isLetter(x.name[0]) && !isSystemName(x.name)) as RefVar[];
+    for(const ref of all_refs){
+        ref.refVar = variables.find(x => x.name == ref.name);
+        assert(ref.refVar != undefined);
+    }
+}
 
 export function isGreek(text : string) : boolean {
     assert(typeof text == "string");
@@ -455,11 +482,8 @@ export abstract class Term {
             return this.value.fval();
         }
         else if(this instanceof RefVar){
-            const data = refData[this.name];
-            if(data == undefined){
-                throw new MyError();
-            }
-            else if(data instanceof Term){
+            const data = this.refVar!.expr;
+            if(data instanceof Term){
                 return data.calc();
             }
             else{
@@ -471,6 +495,9 @@ export abstract class Term {
             if(app.isApp("sqrt")){
                 assert(app.args.length == 1);
                 return Math.sqrt(app.args[0].calc());
+            }
+            else if(app.entity != undefined){
+                return app.entity.getNumber();
             }
             else{
                 throw new MyError("unimplemented");
@@ -532,8 +559,39 @@ export class Path extends Term {
     }
 }
 
+
+export class Variable {
+    name : string;
+    expr : Term;
+    depVars : Variable[];
+
+    constructor(name : string, expr : Term){
+        this.name = name;
+        this.expr = expr;
+
+        const refs = allTerms(expr).filter(x => x instanceof RefVar && !(x.parent instanceof App && x.parent.fnc == x)) as RefVar[];
+        this.depVars = refs.map(ref => variables.find(v => v.name == ref.name)) as Variable[];
+        assert(this.depVars.every(x => x != undefined));
+
+        if(this.depVars.length != 0){
+            msg(`${this.name} depends ${this.depVars.map(x => x.name).join(" ")}`);
+        }
+    }
+
+    getEntity() : Entity {
+        if(this.expr instanceof App && this.expr.entity != undefined){
+            return this.expr.entity;
+        }
+        else{
+            throw new MyError();
+        }
+    }
+}
+
 export class RefVar extends Term{
     name: string;
+    depends : string[] = [];
+    refVar! : Variable | undefined;
 
     constructor(name: string){
         super();
@@ -558,6 +616,15 @@ export class RefVar extends Term{
 
     tex2() : string {
         return texName(this.name);
+    }
+
+    getEntity() : Entity {
+        if(this.refVar != undefined){
+            return this.refVar.getEntity();
+        }
+        else{
+            throw new MyError();
+        }
     }
 }
 
@@ -600,6 +667,7 @@ export class ConstNum extends Term{
 export class App extends Term{
     fnc : Term;
     args: Term[];
+    entity : Entity | undefined;
 
     static startEnd : { [start : string] : string } = {
         "(" : ")",
