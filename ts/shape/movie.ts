@@ -379,7 +379,7 @@ class Movie extends ViewM {
             for(const va of variables){
                 if(changed_vars.has(va)){
                     recalc(va.expr);
-                    va.depVars.forEach(x => changed_vars.add(x));
+                    variables.filter(x => x.depVars.includes(va)).forEach(x => changed_vars.add(x));
                 }
             }
 
