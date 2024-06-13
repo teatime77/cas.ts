@@ -6,6 +6,24 @@ const strokeWidth = 4;
 const fontSize = 10;
 let rangeDic : { [id : number] : Range } = {};
 
+function toPointM(trm : Term) : PointM{
+    let pt : PointM | undefined;
+
+    if(trm instanceof RefVar){
+        pt = trm.getEntity() as PointM;
+    }
+    else if(trm instanceof App){
+        pt = trm.entity as PointM;
+    }
+
+    if(pt instanceof PointM){
+        return pt;
+    }
+    else{
+        throw new MyError();
+    }
+}
+
 class PointM extends ShapeM {
     x : Term;
     y : Term;
@@ -47,11 +65,14 @@ abstract class AbstractStraightLineM extends ShapeM {
     p2 : PointM;
     line : SVGLineElement;
 
-    constructor(p1_ref : RefVar, p2_ref : RefVar){
+    constructor(p1_ref : Term, p2_ref : Term){
         super(movie);
 
-        this.p1 = p1_ref.getEntity() as PointM;
-        this.p2 = p2_ref.getEntity() as PointM;
+        if(p1_ref instanceof RefVar){
+
+        }
+        this.p1 = toPointM(p1_ref);
+        this.p2 = toPointM(p2_ref);
 
         this.line = document.createElementNS("http://www.w3.org/2000/svg","line");
         this.line.setAttribute("stroke", this.color);
@@ -73,7 +94,7 @@ abstract class AbstractStraightLineM extends ShapeM {
 }
 
 class LineSegmentM extends AbstractStraightLineM {
-    constructor(p1_ref : RefVar, p2_ref : RefVar){
+    constructor(p1_ref : Term, p2_ref : Term){
         super(p1_ref, p2_ref);
         this.recalcShape();
     }
@@ -88,7 +109,7 @@ class LineSegmentM extends AbstractStraightLineM {
 }
 
 class LineM extends AbstractStraightLineM {
-    constructor(p1_ref : RefVar, p2_ref : RefVar){
+    constructor(p1_ref : Term, p2_ref : Term){
         super(p1_ref, p2_ref);
         this.recalcShape();
     }
@@ -108,7 +129,7 @@ class LineM extends AbstractStraightLineM {
 }
 
 class HalfLineM extends AbstractStraightLineM {
-    constructor(p1_ref : RefVar, p2_ref : RefVar){        
+    constructor(p1_ref : Term, p2_ref : Term){        
         super(p1_ref, p2_ref);
         this.recalcShape();
     }
@@ -418,7 +439,7 @@ class Movie extends ViewM {
             const changed_vars = new Set<Variable>(ranges.map(x => x.rootLeftVar));
             for(const va of variables){
                 if(changed_vars.has(va)){
-                    recalc(va.expr);
+                    updateShape(va.expr);
                     variables.filter(x => x.depVars.includes(va)).forEach(x => changed_vars.add(x));
                 }
             }
@@ -519,16 +540,16 @@ function setEntity(va : Variable, trm : Term) : void {
                 app.entity = new PointM(app.args[0], app.args[1])
             }
             else if(app.fncName == "LineSegment"){
-                assert(app.args.length == 2 && app.args.every(x => x instanceof RefVar));
-                app.entity = new LineSegmentM(app.args[0] as RefVar, app.args[1] as RefVar)
+                assert(app.args.length == 2);
+                app.entity = new LineSegmentM(app.args[0], app.args[1])
             }
             else if(app.fncName == "HalfLine"){
-                assert(app.args.length == 2 && app.args.every(x => x instanceof RefVar));
-                app.entity = new HalfLineM(app.args[0] as RefVar, app.args[1] as RefVar)
+                assert(app.args.length == 2);
+                app.entity = new HalfLineM(app.args[0], app.args[1])
             }
             else if(app.fncName == "Line"){
-                assert(app.args.length == 2 && app.args.every(x => x instanceof RefVar));
-                app.entity = new LineM(app.args[0] as RefVar, app.args[1] as RefVar)
+                assert(app.args.length == 2);
+                app.entity = new LineM(app.args[0], app.args[1])
             }
             else if(app.fncName == "Circle"){
                 assert(app.args.length == 2 && app.args[0] instanceof RefVar);
@@ -560,18 +581,12 @@ function setEntity(va : Variable, trm : Term) : void {
     }
 }
 
-function recalc(trm : Term) {
+function updateShape(trm : Term) {
     if(trm instanceof App){
         const app = trm;
+        trm.args.forEach(x => updateShape(x));
         if(app.entity instanceof ShapeM){
             app.entity.recalcShape();
-            return app;
-        }
-        else if(app.entity instanceof Range){
-            return app.entity.get();
-        }
-        else{
-            trm.args.forEach(x => recalc(x));
         }
     }
 }
