@@ -102,11 +102,18 @@ namespace casts {
             this.divCaption.style.color = this.color;
             this.divCaption.textContent = caption;
     
-            let [x, y] = this.getCaptionXY();
-            this.divCaption.style.left  = `${x}px`;
-            this.divCaption.style.top   = `${y}px`;
+            this.adjustCaption();
     
             this.parentView.div.appendChild(this.divCaption);
+        }
+
+        adjustCaption(){
+            if(this.divCaption != null){
+
+                let [x, y] = this.getCaptionXY();
+                this.divCaption.style.left  = `${x}px`;
+                this.divCaption.style.top   = `${y}px`;
+            }
         }
     
         focus(is_focused : boolean){

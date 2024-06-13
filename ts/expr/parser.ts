@@ -9,7 +9,7 @@ export function isShapeName(name : string) : boolean {
     const names = [
         "Point", "Circle", "Arc", "Triangle", 
         "LineSegment", "HalfLine", "Line",
-        "Intersection"
+        "Intersection", "Foot"
     ];
     return names.includes(name);
 }
@@ -507,6 +507,18 @@ export abstract class Term {
         }
         throw new MyError("unimplemented");
     }
+
+    getEntity() : Entity {
+        if(this instanceof RefVar){
+            if(this.refVar != undefined){
+                return this.refVar.getEntity();
+            }                 
+        }
+        else if(this instanceof App && this.entity != undefined){
+            return this.entity;
+        }
+        throw new MyError();
+    }
 }
 
 export class Path extends Term {
@@ -618,15 +630,6 @@ export class RefVar extends Term{
 
     tex2() : string {
         return texName(this.name);
-    }
-
-    getEntity() : Entity {
-        if(this.refVar != undefined){
-            return this.refVar.getEntity();
-        }
-        else{
-            throw new MyError();
-        }
     }
 }
 

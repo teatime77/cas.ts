@@ -7,17 +7,13 @@ const fontSize = 10;
 let rangeDic : { [id : number] : Range } = {};
 
 function toPointM(trm : Term) : PointM{
-    let pt : PointM | undefined;
+    const shape = trm.getEntity() as ShapeM;
 
-    if(trm instanceof RefVar){
-        pt = trm.getEntity() as PointM;
+    if(shape instanceof PointM){
+        return shape;
     }
-    else if(trm instanceof App){
-        pt = trm.entity as PointM;
-    }
-
-    if(pt instanceof PointM){
-        return pt;
+    else if(shape instanceof FootOfPerpendicularM){
+        return shape.foot;
     }
     else{
         throw new MyError();
@@ -47,6 +43,8 @@ export class PointM extends ShapeM {
     recalcShape() : void {        
         this.point.setAttribute("cx", `${this.x.calc()}`);
         this.point.setAttribute("cy", `${this.y.calc()}`);
+
+        this.adjustCaption();
     }
 
     focus(is_focused : boolean){
@@ -57,6 +55,13 @@ export class PointM extends ShapeM {
 
     getCenterXY() : Vec2{
         return new Vec2(this.x.calc(), this.y.calc());
+    }
+
+    toVec() : Vec2 {
+        const x = this.x.calc();
+        const y = this.y.calc();
+    
+        return new Vec2(x, y);    
     }
 }
 
@@ -105,6 +110,8 @@ export class LineSegmentM extends AbstractStraightLineM {
 
         this.line.setAttribute("x2", `${this.p2.x.calc()}`);
         this.line.setAttribute("y2", `${this.p2.y.calc()}`);
+
+        this.adjustCaption();
     }
 }
 
@@ -125,6 +132,8 @@ class LineM extends AbstractStraightLineM {
 
         this.line.setAttribute("x2", `${x1 + 10000 * (x2 - x1)}`);
         this.line.setAttribute("y2", `${y1 + 10000 * (y2 - y1)}`);
+
+        this.adjustCaption();
     }
 }
 
@@ -145,6 +154,8 @@ class HalfLineM extends AbstractStraightLineM {
 
         this.line.setAttribute("x2", `${x1 + 10000 * (x2 - x1)}`);
         this.line.setAttribute("y2", `${y1 + 10000 * (y2 - y1)}`);
+
+        this.adjustCaption();
     }
 }
 
@@ -188,6 +199,8 @@ class CircleM extends CircleArcM {
         this.circle.setAttribute("cx", `${this.center.x.calc()}`);
         this.circle.setAttribute("cy", `${this.center.y.calc()}`);
         this.circle.setAttribute("r" , `${this.radius.calc()}`);
+
+        this.adjustCaption();
     }
 }
 
@@ -234,6 +247,7 @@ class ArcM extends CircleArcM {
         this.arc.setAttribute("d", d);
 
         msg(`arc cx:${cx} cy:${cy} r:${r}`)
+        this.adjustCaption();
     }
 }
 
@@ -319,6 +333,32 @@ class IntersectionM extends ShapeM {
 
     getCenterXY() : Vec2{
         return this.point.getCenterXY();
+    }
+}
+
+class FootOfPerpendicularM extends ShapeM {
+    point : PointM;
+    line  : AbstractStraightLineM;
+    foot  : PointM;
+
+    constructor(point_ref : Term, line_ref : Term){
+        super(movie);
+        this.point = point_ref.getEntity() as PointM;
+        this.line  = line_ref.getEntity() as AbstractStraightLineM;
+        this.foot  = new PointM(Zero(), Zero());
+
+        this.recalcShape();
+    }
+
+    recalcShape() : void {
+        const foot_pos = calcFootOfPerpendicularM(this.point, this.line);
+        this.foot.x.value.set(foot_pos.x);
+        this.foot.y.value.set(foot_pos.y);
+        this.foot.recalcShape();
+    }
+
+    getCenterXY() : Vec2{
+        return this.foot.getCenterXY();
     }
 }
 
@@ -622,6 +662,10 @@ function setEntity(va : Variable, trm : Term) : void {
             else if(app.fncName == "Intersection"){
                 assert(app.args.length == 2);
                 app.entity = new IntersectionM(app.args[0], app.args[1])
+            }
+            else if(app.fncName == "Foot"){
+                assert(app.args.length == 2);
+                app.entity = new FootOfPerpendicularM(app.args[0], app.args[1])
             }
             else{
                 throw new MyError();

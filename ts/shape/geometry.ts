@@ -1,18 +1,12 @@
 namespace casts {
 //
-function Point2Vec(pt : PointM) : Vec2 {
-    const x = pt.x.calc();
-    const y = pt.y.calc();
-
-    return new Vec2(x, y);
-}
 
 export function linesIntersectionM(l1:AbstractStraightLineM, l2:AbstractStraightLineM) : Vec2 {
-    const l1_p1 = Point2Vec(l1.p1);
-    const l1_p2 = Point2Vec(l1.p2);
+    const l1_p1 = l1.p1.toVec();
+    const l1_p2 = l1.p2.toVec();
 
-    const l2_p1 = Point2Vec(l2.p1);
-    const l2_p2 = Point2Vec(l2.p2);
+    const l2_p1 = l2.p1.toVec();
+    const l2_p2 = l2.p2.toVec();
 
     const l1_p12 = l1_p2.sub(l1_p1);
     const l2_p12 = l2_p2.sub(l2_p1);
@@ -35,5 +29,22 @@ export function linesIntersectionM(l1:AbstractStraightLineM, l2:AbstractStraight
 
     return l1_p1.add(l1_p12.mul(u));
 }
+
+
+export function calcFootOfPerpendicularM(pos:PointM, line: AbstractStraightLineM) : Vec2 {
+    const p1 = line.p1.toVec();
+    const p2 = line.p2.toVec();
+
+    const e = p2.sub(p1).unit();
+    const v = pos.toVec().sub(p1);
+    const h = e.dot(v);
+
+    const foot = p1.add(e.mul(h));
+
+    return foot;
+}
+
+
+
 
 }
