@@ -44,6 +44,38 @@ export function calcFootOfPerpendicularM(pos:PointM, line: AbstractStraightLineM
     return foot;
 }
 
+export function lineArcIntersectionM(line:AbstractStraightLineM, arc:CircleArcM) : Vec2[] {
+    // 円/弧の中心
+    const center_pos = arc.getCenterXY();
+
+    // 円/弧の中心から線分に垂線をおろして、その足をfootとする。
+    const foot = calcFootOfPerpendicularM(arc.center, line);
+
+    // 円/弧の中心から垂線の足までの距離。
+    const h = foot.sub(center_pos).len();
+
+    // 円/弧の半径
+    let r = arc.radius.calc();
+
+    if(r < h ){
+        // 半径が垂線の足までの距離より小さい場合
+
+        return [];
+    }
+
+    // 垂線の足から交点までの距離
+    let t = Math.sqrt(r*r - h * h);
+
+    // 線分の単位方向ベクトル
+    const e = line.p2.toVec().sub(line.p1.toVec()).unit();
+    
+    // 交点の座標
+    let p1 = foot.add(e.mul(t));
+    let p2 = foot.add(e.mul(-t));
+
+    return [p1, p2];
+}
+
 
 
 

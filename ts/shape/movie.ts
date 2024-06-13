@@ -5,6 +5,7 @@ const focusColor = "red";
 const strokeWidth = 4;
 const fontSize = 10;
 let rangeDic : { [id : number] : Range } = {};
+let data_id : string = "1";
 
 function toPointM(trm : Term) : PointM{
     const shape = trm.getEntity() as ShapeM;
@@ -18,6 +19,16 @@ function toPointM(trm : Term) : PointM{
     else{
         throw new MyError();
     }
+}
+
+function meanPos(points: PointM[]) : Vec2 {
+    const xs = points.map(pt => pt.x.calc());
+    const ys = points.map(pt => pt.y.calc());
+
+    const cx = sum(xs) / xs.length;
+    const cy = sum(ys) / ys.length;
+
+    return new Vec2(cx, cy);
 }
 
 export class PointM extends ShapeM {
@@ -86,15 +97,7 @@ export abstract class AbstractStraightLineM extends ShapeM {
     }
 
     getCenterXY() : Vec2{
-        const points = [this.p1, this.p2];
-
-        const xs = points.map(pt => pt.x.calc());
-        const ys = points.map(pt => pt.y.calc());
-
-        const cx = sum(xs) / xs.length;
-        const cy = sum(ys) / ys.length;
-
-        return new Vec2(cx, cy);
+        return meanPos([this.p1, this.p2]);
     }
 }
 
@@ -159,13 +162,15 @@ class HalfLineM extends AbstractStraightLineM {
     }
 }
 
-abstract class CircleArcM extends ShapeM {
+export abstract class CircleArcM extends ShapeM {
     center : PointM;
+    radius : Term;
 
-    constructor(center_ref : RefVar){
+    constructor(center : Term, radius : Term){
         super(movie);
-        this.center = center_ref.getEntity() as PointM;
+        this.center = center.getEntity() as PointM;
         assert(this.center instanceof PointM);
+        this.radius = radius;
     }
 
     getCenterXY() : Vec2{
@@ -174,13 +179,11 @@ abstract class CircleArcM extends ShapeM {
 }
 
 class CircleM extends CircleArcM {
-    radius : Term;
 
     circle: SVGCircleElement;
 
-    constructor(center_ref : RefVar, radius : Term){
-        super(center_ref);
-        this.radius = radius;
+    constructor(center : Term, radius : Term){
+        super(center, radius);
 
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
         this.circle.setAttribute("fill", "none");
@@ -206,17 +209,15 @@ class CircleM extends CircleArcM {
 
 
 class ArcM extends CircleArcM {
-    radius : Term;
     start  : Term;
     end    : Term;
 
     arc: SVGPathElement;
 
-    constructor(center_ref : RefVar, radius : Term, start : Term, end : Term){
-        super(center_ref);
-        this.center = center_ref.getEntity() as PointM;
+    constructor(center : Term, radius : Term, start : Term, end : Term){
+        super(center, radius);
+        this.center = center.getEntity() as PointM;
         assert(this.center instanceof PointM);
-        this.radius = radius;
         this.start  = start;
         this.end    = end;
 
@@ -289,31 +290,19 @@ class TriangleM extends ShapeM {
 class IntersectionM extends ShapeM {
     shape1 : AbstractStraightLineM | CircleArcM;
     shape2 : AbstractStraightLineM | CircleArcM;
-    point  : PointM;
+    points  : PointM[] = [];
 
     constructor(ref1 : Term, ref2 : Term){
         super(movie);
-        this.point = new PointM(Zero(), Zero());
 
-        if(ref1 instanceof RefVar){
-            this.shape1 = ref1.getEntity() as AbstractStraightLineM | CircleArcM;
-        }
-        else if(ref1 instanceof App){
-            this.shape1 = ref1.entity as AbstractStraightLineM | CircleArcM;
-        }
-        else{
-            throw new MyError();
-        }
-        
-        if(ref2 instanceof RefVar){
-            this.shape2 = ref2.getEntity() as AbstractStraightLineM | CircleArcM;
-        }
-        else if(ref2 instanceof App){
-            this.shape2 = ref2.entity as AbstractStraightLineM | CircleArcM;
-        }
-        else{
-            throw new MyError();
-        }
+        this.shape1 = ref1.getEntity() as AbstractStraightLineM | CircleArcM;
+        this.shape2 = ref2.getEntity() as AbstractStraightLineM | CircleArcM;
+
+        if(this.shape1 instanceof CircleArcM && this.shape2 instanceof AbstractStraightLineM){
+            const tmp   = this.shape1;
+            this.shape1 = this.shape2;
+            this.shape2 = tmp;
+        }        
 
         this.recalcShape();
     }
@@ -322,9 +311,30 @@ class IntersectionM extends ShapeM {
         if(this.shape1 instanceof AbstractStraightLineM && this.shape2 instanceof AbstractStraightLineM){
             const pos = linesIntersectionM(this.shape1, this.shape2);
 
-            this.point.x.value.set(pos.x);
-            this.point.y.value.set(pos.y);
-            this.point.recalcShape();
+            let point : PointM;
+            if(this.points.length == 0){
+
+                point = new PointM(Zero(), Zero());
+                this.points.push(point);
+            }
+            else{
+                point = this.points[0];
+            }
+
+            point.x.value.set(pos.x);
+            point.y.value.set(pos.y);
+            point.recalcShape();
+        }
+        else if(this.shape1 instanceof AbstractStraightLineM && this.shape2 instanceof CircleArcM){
+            const ps = lineArcIntersectionM(this.shape1, this.shape2);
+            while(this.points.length < ps.length){
+                this.points.push( new PointM(Zero(), Zero()) );
+            }
+            for(const [i, point] of this.points.entries()){
+                point.x.value.set(ps[i].x);
+                point.y.value.set(ps[i].y);
+                point.recalcShape();    
+            }
         }
         else{
             throw new MyError();
@@ -332,7 +342,7 @@ class IntersectionM extends ShapeM {
     }
 
     getCenterXY() : Vec2{
-        return this.point.getCenterXY();
+        return meanPos(this.points);
     }
 }
 
@@ -514,7 +524,8 @@ class Movie extends ViewM {
     }
 
     async getLines(){
-        const texts = await fetchText(`../data/script/1.py`);
+
+        const texts = await fetchText(`../data/script/${data_id}.py`);
         this.lines = texts.replaceAll('\r', "").split('\n');
         
         const head = this.lines.shift();
@@ -643,12 +654,12 @@ function setEntity(va : Variable, trm : Term) : void {
                 app.entity = new LineM(app.args[0], app.args[1])
             }
             else if(app.fncName == "Circle"){
-                assert(app.args.length == 2 && app.args[0] instanceof RefVar);
-                app.entity = new CircleM(app.args[0] as RefVar, app.args[1])
+                assert(app.args.length == 2);
+                app.entity = new CircleM(app.args[0], app.args[1])
             }
             else if(app.fncName == "Arc"){
-                assert(app.args.length == 4 && app.args[0] instanceof RefVar);
-                const center = app.args[0] as RefVar;
+                assert(app.args.length == 4);
+                const center = app.args[0];
                 const radius = app.args[1];
                 const start  = app.args[2];
                 const end    = app.args[3];
@@ -698,6 +709,13 @@ async function startMovie(ev:MouseEvent){
 }
 
 export async function bodyOnLoadMovie(){
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+    const id = params.get("id");
+    if(id != null){
+        data_id = id;
+    }
+
     await includeDialog();
 
     movie = new Movie(480, 480, -5, -5, 5, 5);
