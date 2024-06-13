@@ -73,12 +73,9 @@ abstract class AbstractStraightLineM extends ShapeM {
 }
 
 class LineSegmentM extends AbstractStraightLineM {
-
     constructor(p1_ref : RefVar, p2_ref : RefVar){
         super(p1_ref, p2_ref);
         this.recalcShape();
-
-        msg(`line:(${this.p1.x.calc()}, ${this.p1.y.calc()}) (${this.p2.x.calc()}, ${this.p2.y.calc()})`)
     }
 
     recalcShape() : void {        
@@ -90,8 +87,23 @@ class LineSegmentM extends AbstractStraightLineM {
     }
 }
 
-class StraightLineM extends AbstractStraightLineM {
-    recalcShape() : void {        
+class LineM extends AbstractStraightLineM {
+    constructor(p1_ref : RefVar, p2_ref : RefVar){
+        super(p1_ref, p2_ref);
+        this.recalcShape();
+    }
+
+    recalcShape() : void {     
+        const x1 = this.p1.x.calc();
+        const y1 = this.p1.y.calc();
+        const x2 = this.p2.x.calc();
+        const y2 = this.p2.y.calc();
+           
+        this.line.setAttribute("x1", `${x1 - 10000 * (x2 - x1)}`);
+        this.line.setAttribute("y1", `${y1 - 10000 * (y2 - y1)}`);
+
+        this.line.setAttribute("x2", `${x1 + 10000 * (x2 - x1)}`);
+        this.line.setAttribute("y2", `${y1 + 10000 * (y2 - y1)}`);
     }
 }
 
@@ -513,6 +525,10 @@ function setEntity(va : Variable, trm : Term) : void {
             else if(app.fncName == "HalfLine"){
                 assert(app.args.length == 2 && app.args.every(x => x instanceof RefVar));
                 app.entity = new HalfLineM(app.args[0] as RefVar, app.args[1] as RefVar)
+            }
+            else if(app.fncName == "Line"){
+                assert(app.args.length == 2 && app.args.every(x => x instanceof RefVar));
+                app.entity = new LineM(app.args[0] as RefVar, app.args[1] as RefVar)
             }
             else if(app.fncName == "Circle"){
                 assert(app.args.length == 2 && app.args[0] instanceof RefVar);
