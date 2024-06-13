@@ -114,7 +114,7 @@ namespace casts {
         }
     
         getCenterXY() : Vec2{
-            throw new Error();
+            throw new MyError();
         }
     
         getCaptionXY(){

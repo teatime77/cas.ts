@@ -179,7 +179,7 @@ export class Mat {
             return new Mat4(this.zeroDt());            
         }
 
-        throw new Error();
+        throw new MyError();
     }
 
     copy() : Mat2 | Mat3{

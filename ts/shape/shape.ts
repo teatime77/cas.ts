@@ -1436,7 +1436,7 @@ export abstract class Shape extends Widget {
     }
 
     getCenterXY() : Vec2{
-        throw new Error();
+        throw new MyError();
     }
 
     getNameXY(){

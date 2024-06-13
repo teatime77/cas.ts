@@ -329,7 +329,7 @@ abstract class MapItem {
 
             switch(this.display){
             case Display.hide:
-                throw new Error();
+                throw new MyError();
             
             case Display.title:
                 this.width  = title_width;
@@ -352,7 +352,7 @@ abstract class MapItem {
                 break;
 
             default:
-                throw new Error();
+                throw new MyError();
             }
         }
         assert(!isNaN(this.width) && !isNaN(this.height));

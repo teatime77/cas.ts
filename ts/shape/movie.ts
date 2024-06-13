@@ -43,29 +43,42 @@ class PointM extends ShapeM {
 }
 
 abstract class AbstractStraightLineM extends ShapeM {
+    p1 : PointM;
+    p2 : PointM;
     line : SVGLineElement;
 
-    constructor(){
+    constructor(p1_ref : RefVar, p2_ref : RefVar){
         super(movie);
+
+        this.p1 = p1_ref.getEntity() as PointM;
+        this.p2 = p2_ref.getEntity() as PointM;
+
         this.line = document.createElementNS("http://www.w3.org/2000/svg","line");
         this.line.setAttribute("stroke", this.color);
         this.line.setAttribute("stroke-width", `${movie.toSvg2(strokeWidth)}`);
+        movie.svg.appendChild(this.line);
+    }
+
+    getCenterXY() : Vec2{
+        const points = [this.p1, this.p2];
+
+        const xs = points.map(pt => pt.x.calc());
+        const ys = points.map(pt => pt.y.calc());
+
+        const cx = sum(xs) / xs.length;
+        const cy = sum(ys) / ys.length;
+
+        return new Vec2(cx, cy);
     }
 }
 
 class LineSegmentM extends AbstractStraightLineM {
-    p1 : PointM;
-    p2 : PointM;
 
-    constructor(p1 : PointM, p2 : PointM){
-        super();
-        this.p1 = p1;
-        this.p2 = p2;
-
+    constructor(p1_ref : RefVar, p2_ref : RefVar){
+        super(p1_ref, p2_ref);
         this.recalcShape();
 
-        msg(`line:(${p1.x.calc()}, ${p1.y.calc()}) (${p2.x.calc()}, ${p2.y.calc()})`)
-        movie.svg.appendChild(this.line);
+        msg(`line:(${this.p1.x.calc()}, ${this.p1.y.calc()}) (${this.p2.x.calc()}, ${this.p2.y.calc()})`)
     }
 
     recalcShape() : void {        
@@ -83,7 +96,22 @@ class StraightLineM extends AbstractStraightLineM {
 }
 
 class HalfLineM extends AbstractStraightLineM {
-    recalcShape() : void {        
+    constructor(p1_ref : RefVar, p2_ref : RefVar){        
+        super(p1_ref, p2_ref);
+        this.recalcShape();
+    }
+
+    recalcShape() : void {     
+        const x1 = this.p1.x.calc();
+        const y1 = this.p1.y.calc();
+        const x2 = this.p2.x.calc();
+        const y2 = this.p2.y.calc();
+           
+        this.line.setAttribute("x1", `${x1}`);
+        this.line.setAttribute("y1", `${y1}`);
+
+        this.line.setAttribute("x2", `${x1 + 10000 * (x2 - x1)}`);
+        this.line.setAttribute("y2", `${y1 + 10000 * (y2 - y1)}`);
     }
 }
 
@@ -193,7 +221,7 @@ class TriangleM extends ShapeM {
         this.points = [ p0, p1, p2];
         assert(this.points.every(x => x instanceof PointM));
 
-        this.lines = [ new LineSegmentM(p0, p1), new LineSegmentM(p1, p2), new LineSegmentM(p2, p0)];
+        this.lines = [ new LineSegmentM(p0_ref, p1_ref), new LineSegmentM(p1_ref, p2_ref), new LineSegmentM(p2_ref, p0_ref)];
     }
 
     recalcShape() : void {        
@@ -477,6 +505,14 @@ function setEntity(va : Variable, trm : Term) : void {
             if(app.fncName == "Point"){
                 assert(app.args.length == 2);
                 app.entity = new PointM(app.args[0], app.args[1])
+            }
+            else if(app.fncName == "LineSegment"){
+                assert(app.args.length == 2 && app.args.every(x => x instanceof RefVar));
+                app.entity = new LineSegmentM(app.args[0] as RefVar, app.args[1] as RefVar)
+            }
+            else if(app.fncName == "HalfLine"){
+                assert(app.args.length == 2 && app.args.every(x => x instanceof RefVar));
+                app.entity = new HalfLineM(app.args[0] as RefVar, app.args[1] as RefVar)
             }
             else if(app.fncName == "Circle"){
                 assert(app.args.length == 2 && app.args[0] instanceof RefVar);

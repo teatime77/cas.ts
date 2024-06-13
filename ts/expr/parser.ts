@@ -7,7 +7,8 @@ export let variables : Variable[] = [];
 
 export function isShapeName(name : string) : boolean {
     const names = [
-        "Point", "Circle", "Arc", "Triangle"
+        "Point", "Circle", "Arc", "Triangle", 
+        "LineSegment", "HalfLine", "Line"
     ];
     return names.includes(name);
 }
@@ -38,7 +39,7 @@ export function parseMath(text: string) : Term {
     let parser = new Parser(text);
     let trm = parser.LogicalExpression();
     if(parser.token.typeTkn != TokenType.eot){
-        throw new Error();
+        throw new MyError();
     }
 
     trm.setParent(null);
@@ -779,7 +780,7 @@ export class App extends Term{
     
                 case "/":
                     if(this.args.length != 2){
-                        throw new Error();
+                        throw new MyError();
                     }
                     text = `${args[0]} / ${args[1]}`;
                     break
@@ -864,7 +865,7 @@ export class App extends Term{
 
             case "/":
                 if(this.args.length != 2){
-                    throw new Error();
+                    throw new MyError();
                 }
                 text = `\\frac{${args[0]}}{${args[1]}}`;
                 break
@@ -995,7 +996,7 @@ export class Parser {
     nextToken(text : string){
         if(this.token.text != text){
             this.showError(text);
-            throw new Error();
+            throw new MyError();
         }
 
         this.next();
@@ -1049,7 +1050,7 @@ export class Parser {
         else if(this.token.typeTkn == TokenType.Number){
             let n = parseFloat(this.token.text);
             if(isNaN(n)){
-                throw new Error();
+                throw new MyError();
             }
 
             trm = new ConstNum(n);
@@ -1075,7 +1076,7 @@ export class Parser {
             trm = this.RelationalExpression();
 
             if(this.current() != ')'){
-                throw new Error();
+                throw new MyError();
             }
             this.next();
 
@@ -1090,7 +1091,7 @@ export class Parser {
             return trm;
         }
         else{
-            throw new Error();
+            throw new MyError();
         }
 
         return trm;
