@@ -307,34 +307,30 @@ class IntersectionM extends ShapeM {
         this.recalcShape();
     }
 
+    recalcPoints(ps : Vec2[]){
+        while(this.points.length < ps.length){
+            this.points.push( new PointM(Zero(), Zero()) );
+        }
+
+        for(const [i, point] of this.points.entries()){
+            point.x.value.set(ps[i].x);
+            point.y.value.set(ps[i].y);
+            point.recalcShape();    
+        }
+    }
+
     recalcShape() : void {
         if(this.shape1 instanceof AbstractStraightLineM && this.shape2 instanceof AbstractStraightLineM){
             const pos = linesIntersectionM(this.shape1, this.shape2);
-
-            let point : PointM;
-            if(this.points.length == 0){
-
-                point = new PointM(Zero(), Zero());
-                this.points.push(point);
-            }
-            else{
-                point = this.points[0];
-            }
-
-            point.x.value.set(pos.x);
-            point.y.value.set(pos.y);
-            point.recalcShape();
+            this.recalcPoints([pos]);
         }
         else if(this.shape1 instanceof AbstractStraightLineM && this.shape2 instanceof CircleArcM){
             const ps = lineArcIntersectionM(this.shape1, this.shape2);
-            while(this.points.length < ps.length){
-                this.points.push( new PointM(Zero(), Zero()) );
-            }
-            for(const [i, point] of this.points.entries()){
-                point.x.value.set(ps[i].x);
-                point.y.value.set(ps[i].y);
-                point.recalcShape();    
-            }
+            this.recalcPoints(ps);
+        }
+        else if(this.shape1 instanceof CircleArcM && this.shape2 instanceof CircleArcM){
+            const ps = ArcArcIntersectionM(this.shape1, this.shape2);
+            this.recalcPoints(ps);
         }
         else{
             throw new MyError();
