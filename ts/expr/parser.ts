@@ -8,7 +8,8 @@ export let variables : Variable[] = [];
 export function isShapeName(name : string) : boolean {
     const names = [
         "Point", "Circle", "Arc", "Triangle", 
-        "LineSegment", "HalfLine", "Line"
+        "LineSegment", "HalfLine", "Line",
+        "Intersection"
     ];
     return names.includes(name);
 }

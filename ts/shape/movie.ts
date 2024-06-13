@@ -24,7 +24,7 @@ function toPointM(trm : Term) : PointM{
     }
 }
 
-class PointM extends ShapeM {
+export class PointM extends ShapeM {
     x : Term;
     y : Term;
 
@@ -60,7 +60,7 @@ class PointM extends ShapeM {
     }
 }
 
-abstract class AbstractStraightLineM extends ShapeM {
+export abstract class AbstractStraightLineM extends ShapeM {
     p1 : PointM;
     p2 : PointM;
     line : SVGLineElement;
@@ -93,7 +93,7 @@ abstract class AbstractStraightLineM extends ShapeM {
     }
 }
 
-class LineSegmentM extends AbstractStraightLineM {
+export class LineSegmentM extends AbstractStraightLineM {
     constructor(p1_ref : Term, p2_ref : Term){
         super(p1_ref, p2_ref);
         this.recalcShape();
@@ -228,8 +228,9 @@ class ArcM extends CircleArcM {
         const y1 = cy + r * Math.sin(start_th);
         const x2 = cx + r * Math.cos(end_th);
         const y2 = cy + r * Math.sin(end_th);
+        const large_arc_flag = end_th - start_th < Math.PI ? 0 : 1
 
-        const d = `M ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2}`
+        const d = `M ${x1} ${y1} A ${r} ${r} 0 ${large_arc_flag} 1 ${x2} ${y2}`
         this.arc.setAttribute("d", d);
 
         msg(`arc cx:${cx} cy:${cy} r:${r}`)
@@ -268,6 +269,56 @@ class TriangleM extends ShapeM {
         const cy = sum(ys) / ys.length;
 
         return new Vec2(cx, cy);
+    }
+}
+
+class IntersectionM extends ShapeM {
+    shape1 : AbstractStraightLineM | CircleArcM;
+    shape2 : AbstractStraightLineM | CircleArcM;
+    point  : PointM;
+
+    constructor(ref1 : Term, ref2 : Term){
+        super(movie);
+        this.point = new PointM(Zero(), Zero());
+
+        if(ref1 instanceof RefVar){
+            this.shape1 = ref1.getEntity() as AbstractStraightLineM | CircleArcM;
+        }
+        else if(ref1 instanceof App){
+            this.shape1 = ref1.entity as AbstractStraightLineM | CircleArcM;
+        }
+        else{
+            throw new MyError();
+        }
+        
+        if(ref2 instanceof RefVar){
+            this.shape2 = ref2.getEntity() as AbstractStraightLineM | CircleArcM;
+        }
+        else if(ref2 instanceof App){
+            this.shape2 = ref2.entity as AbstractStraightLineM | CircleArcM;
+        }
+        else{
+            throw new MyError();
+        }
+
+        this.recalcShape();
+    }
+
+    recalcShape() : void {
+        if(this.shape1 instanceof AbstractStraightLineM && this.shape2 instanceof AbstractStraightLineM){
+            const pos = linesIntersectionM(this.shape1, this.shape2);
+
+            this.point.x.value.set(pos.x);
+            this.point.y.value.set(pos.y);
+            this.point.recalcShape();
+        }
+        else{
+            throw new MyError();
+        }
+    }
+
+    getCenterXY() : Vec2{
+        return this.point.getCenterXY();
     }
 }
 
@@ -567,6 +618,10 @@ function setEntity(va : Variable, trm : Term) : void {
                 assert(app.args.length == 3  && app.args.every(x => x instanceof RefVar));
                 const arg_refs = app.args as RefVar[];
                 app.entity = new TriangleM(arg_refs[0], arg_refs[1], arg_refs[2]);
+            }
+            else if(app.fncName == "Intersection"){
+                assert(app.args.length == 2);
+                app.entity = new IntersectionM(app.args[0], app.args[1])
             }
             else{
                 throw new MyError();
