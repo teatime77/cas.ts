@@ -6,6 +6,8 @@ const strokeWidth = 4;
 const fontSize = 10;
 let rangeDic : { [id : number] : Range } = {};
 let data_id : string = "1";
+const rangeInterval = 3;
+const angleRadius = 4;
 
 function toPointM(trm : Term) : PointM{
     const shape = trm.getEntity() as ShapeM;
@@ -166,9 +168,9 @@ export abstract class CircleArcM extends ShapeM {
     center : PointM;
     radius : Term;
 
-    constructor(center : Term, radius : Term){
+    constructor(center : PointM, radius : Term){
         super(movie);
-        this.center = center.getEntity() as PointM;
+        this.center = center;
         assert(this.center instanceof PointM);
         this.radius = radius;
     }
@@ -183,7 +185,7 @@ class CircleM extends CircleArcM {
     circle: SVGCircleElement;
 
     constructor(center : Term, radius : Term){
-        super(center, radius);
+        super(center.getEntity() as PointM, radius);
 
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
         this.circle.setAttribute("fill", "none");
@@ -214,10 +216,8 @@ class ArcM extends CircleArcM {
 
     arc: SVGPathElement;
 
-    constructor(center : Term, radius : Term, start : Term, end : Term){
+    constructor(center : PointM, radius : Term, start : Term, end : Term){
         super(center, radius);
-        this.center = center.getEntity() as PointM;
-        assert(this.center instanceof PointM);
         this.start  = start;
         this.end    = end;
 
@@ -242,18 +242,58 @@ class ArcM extends CircleArcM {
         const y1 = cy + r * Math.sin(start_th);
         const x2 = cx + r * Math.cos(end_th);
         const y2 = cy + r * Math.sin(end_th);
-        const large_arc_flag = end_th - start_th < Math.PI ? 0 : 1
+        const large_arc_flag = Math.abs(end_th - start_th) < Math.PI ? 0 : 1;
+        const sweep_flag = start_th < end_th ? 1 : 0;
 
-        const d = `M ${x1} ${y1} A ${r} ${r} 0 ${large_arc_flag} 1 ${x2} ${y2}`
+        const d = `M ${x1} ${y1} A ${r} ${r} 0 ${large_arc_flag} ${sweep_flag} ${x2} ${y2}`
         this.arc.setAttribute("d", d);
 
-        msg(`arc cx:${cx} cy:${cy} r:${r}`)
+        msg(`arc cx:${cx} cy:${cy} r:${r} th:${(start_th*180/Math.PI).toFixed()}-${(end_th*180/Math.PI).toFixed()}`)
         this.adjustCaption();
     }
 }
 
-class AngleM extends ShapeM {
-    recalcShape() : void {        
+function makeAngleParams(points : PointM[]) : [PointM, ConstNum, ConstNum, ConstNum]{
+    const poss = points.map(x => x.toVec());
+
+    const center = points[1];
+    const radius = new ConstNum(angleRadius);
+
+    const p10 = poss[0].sub(poss[1]);
+    const start_th = Math.atan2(p10.y, p10.x);
+    const start = new ConstNum(start_th);
+
+    const p12 = poss[2].sub(poss[1]);
+    const end_th = Math.atan2(p12.y, p12.x);
+    const end = new ConstNum(end_th);
+
+    return [center, radius, start, end];
+}
+
+class AngleM extends ArcM {
+    points : PointM[];
+    
+    constructor(points_ref : Term[]){
+        const points = points_ref.map(x => x.getEntity()) as PointM[];
+        assert(points.every(x => x instanceof PointM));
+
+        const [center, radius, start, end] = makeAngleParams(points);
+        super(center, radius, start, end);
+        this.points = points;
+
+        this.recalcShape();
+    }
+
+    recalcShape() : void {       
+        if(this.points == undefined){
+            // If this is called from the constructor of ArcM
+            return;
+        }
+        const [center, radius, start, end] = makeAngleParams(this.points);
+        this.radius.copyValue(radius);
+        this.start.copyValue(start);
+        this.end.copyValue(end);
+        super.recalcShape();
     }
 }
 
@@ -390,7 +430,7 @@ class Range extends Entity {
     finished : boolean = false;
     lineIdx : number;
 
-    constructor(root_left_var: Variable, start : Term, end : Term, interval : number = 1){
+    constructor(root_left_var: Variable, start : Term, end : Term, interval : number = rangeInterval){
         super();
         this.startTime = new Date().getTime();
         this.rootLeftVar = root_left_var;
@@ -577,7 +617,6 @@ class Movie extends ViewM {
                     const rhs = app.args[1] as App;
                     assert(rhs instanceof App);
                     const va = new Variable(ref.name, rhs);
-                    variables.push(va);
                     ref.refVar = va;
                     setRefVars(app);
                     setEntity(va, rhs);
@@ -588,7 +627,18 @@ class Movie extends ViewM {
                             msg(`${ref.name} depends ${ref.depends.join(" ")}`);
                         }
                         
-                        if(rhs.entity instanceof ShapeM){
+                        if(rhs.entity instanceof IntersectionM){
+                            for(const [i, point] of rhs.entity.points.entries()){
+                                const name = `${ref.name}${i+1}`;
+                                const va2 = new Variable(name, Zero());
+                                va2.entity = point;
+                                va2.depVars.push(va);
+
+                                point.name = name;
+                                point.makeCaptionDiv();
+                            }
+                        }
+                        else if(rhs.entity instanceof ShapeM){
                             rhs.entity.name = ref.name;
                             rhs.entity.makeCaptionDiv();
                         }
@@ -655,11 +705,15 @@ function setEntity(va : Variable, trm : Term) : void {
             }
             else if(app.fncName == "Arc"){
                 assert(app.args.length == 4);
-                const center = app.args[0];
+                const center = app.args[0].getEntity() as PointM;
                 const radius = app.args[1];
                 const start  = app.args[2];
                 const end    = app.args[3];
                 app.entity = new ArcM(center, radius, start, end);
+            }
+            else if(app.fncName == "Angle"){
+                assert(app.args.length == 3);
+                app.entity = new AngleM(app.args)
             }
             else if(app.fncName == "Triangle"){
                 assert(app.args.length == 3  && app.args.every(x => x instanceof RefVar));
@@ -668,7 +722,7 @@ function setEntity(va : Variable, trm : Term) : void {
             }
             else if(app.fncName == "Intersection"){
                 assert(app.args.length == 2);
-                app.entity = new IntersectionM(app.args[0], app.args[1])
+                app.entity = new IntersectionM(app.args[0], app.args[1]);
             }
             else if(app.fncName == "Foot"){
                 assert(app.args.length == 2);

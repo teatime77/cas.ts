@@ -9,7 +9,7 @@ export function isShapeName(name : string) : boolean {
     const names = [
         "Point", "Circle", "Arc", "Triangle", 
         "LineSegment", "HalfLine", "Line",
-        "Intersection", "Foot"
+        "Intersection", "Foot", "Angle"
     ];
     return names.includes(name);
 }
@@ -519,6 +519,11 @@ export abstract class Term {
         }
         throw new MyError();
     }
+
+    copyValue(cns : ConstNum){
+        assert(this instanceof ConstNum);
+        this.value.set(cns.value.numerator, cns.value.denominator);
+    }
 }
 
 export class Path extends Term {
@@ -578,8 +583,10 @@ export class Variable {
     name : string;
     expr : Term;
     depVars : Variable[];
+    entity : Entity | undefined;
 
     constructor(name : string, expr : Term){
+        variables.push(this);
         this.name = name;
         this.expr = expr;
 
@@ -593,7 +600,10 @@ export class Variable {
     }
 
     getEntity() : Entity {
-        if(this.expr instanceof App && this.expr.entity != undefined){
+        if(this.entity != undefined){
+            return this.entity;
+        }
+        else if(this.expr instanceof App && this.expr.entity != undefined){
             return this.expr.entity;
         }
         else{
