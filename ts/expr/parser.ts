@@ -9,7 +9,7 @@ export function isShapeName(name : string) : boolean {
     const names = [
         "Point", "Circle", "Arc", "Triangle", 
         "LineSegment", "HalfLine", "Line",
-        "Intersection", "Foot", "Angle", "Parallel"
+        "Intersection", "Foot", "Angle", "Parallel", "Thumb"
     ];
     return names.includes(name);
 }

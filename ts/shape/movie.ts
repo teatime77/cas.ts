@@ -452,6 +452,32 @@ class Parallel extends LineM {
     }
 }
 
+class ThumbLine extends PointM {
+    line  : AbstractStraightLineM;
+    value : Term;
+
+    constructor(line : AbstractStraightLineM, value : Term){
+        super(Zero(), Zero());
+        this.line  = line;
+        this.value = value;
+    }
+
+    recalcShape() : void {
+        if(this.line == undefined){
+            // If this is called from the constructor of PointM
+            return;
+        }
+        const p1 = this.line.p1.toVec();
+        const p2 = this.line.p2.toVec();
+        const e12 = p2.sub(p1).unit();
+        const value = this.value.calc();
+        const pos = p1.add(e12.mul(value));
+        this.x.value.set(pos.x);
+        this.y.value.set(pos.y);
+        super.recalcShape();
+    }
+}
+
 
 class Mark {
     shape : ShapeM;
@@ -730,6 +756,18 @@ function setEntity(va : Variable, trm : Term) : void {
             if(app.fncName == "Point"){
                 assert(app.args.length == 2);
                 app.entity = new PointM(app.args[0], app.args[1])
+            }
+            else if(app.fncName == "Thumb"){
+                assert(app.args.length == 2);
+                const shape = app.args[0].getEntity();
+                if(shape instanceof AbstractStraightLineM){
+
+                    app.entity = new ThumbLine(shape, app.args[1])
+                }
+                else{
+
+                    throw new MyError();
+                }
             }
             else if(app.fncName == "LineSegment"){
                 assert(app.args.length == 2);
