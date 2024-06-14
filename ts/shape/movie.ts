@@ -83,14 +83,26 @@ export abstract class AbstractStraightLineM extends ShapeM {
     p2 : PointM;
     line : SVGLineElement;
 
-    constructor(p1_ref : Term, p2_ref : Term){
+    constructor(p1_ref : Term | PointM, p2_ref : Term | PointM){
         super(movie);
 
-        if(p1_ref instanceof RefVar){
+        if(p1_ref instanceof Term){
 
+            this.p1 = toPointM(p1_ref);
         }
-        this.p1 = toPointM(p1_ref);
-        this.p2 = toPointM(p2_ref);
+        else{
+
+            this.p1 = p1_ref;
+        }
+
+        if(p2_ref instanceof Term){
+
+            this.p2 = toPointM(p2_ref);
+        }
+        else{
+
+            this.p2 = p2_ref;
+        }
 
         this.line = document.createElementNS("http://www.w3.org/2000/svg","line");
         this.line.setAttribute("stroke", this.color);
@@ -104,7 +116,7 @@ export abstract class AbstractStraightLineM extends ShapeM {
 }
 
 export class LineSegmentM extends AbstractStraightLineM {
-    constructor(p1_ref : Term, p2_ref : Term){
+    constructor(p1_ref : Term | PointM, p2_ref : Term | PointM){
         super(p1_ref, p2_ref);
         this.recalcShape();
     }
@@ -121,7 +133,7 @@ export class LineSegmentM extends AbstractStraightLineM {
 }
 
 class LineM extends AbstractStraightLineM {
-    constructor(p1_ref : Term, p2_ref : Term){
+    constructor(p1_ref : Term | PointM, p2_ref : Term | PointM){
         super(p1_ref, p2_ref);
         this.recalcShape();
     }
@@ -405,6 +417,38 @@ class FootOfPerpendicularM extends ShapeM {
 
     getCenterXY() : Vec2{
         return this.foot.getCenterXY();
+    }
+}
+
+class Parallel extends LineM {
+    line1  : AbstractStraightLineM;
+    point1  : PointM;
+    point2  : PointM;
+
+    constructor(line_ref : Term, point_ref : Term){
+        const line1  = line_ref.getEntity() as AbstractStraightLineM;
+        const point1 = point_ref.getEntity() as PointM;
+        const point2 = new PointM(Zero(), Zero());
+        super(point1, point2);
+        this.line1 = line1;
+        this.point1 = point1;
+        this.point2 = point2;
+
+        this.recalcShape();
+    }
+
+    recalcShape() : void {
+        if(this.line1 == undefined){
+            // If this is called from the constructor of LineM
+            return;
+        }
+        const p12 = this.line1.p2.toVec().sub(this.line1.p1.toVec());
+        const point2_pos = this.point1.toVec().add(p12);
+        this.point2.x.value.set(point2_pos.x);
+        this.point2.y.value.set(point2_pos.y);
+        this.point2.recalcShape();
+
+        super.recalcShape();
     }
 }
 
@@ -698,6 +742,10 @@ function setEntity(va : Variable, trm : Term) : void {
             else if(app.fncName == "Line"){
                 assert(app.args.length == 2);
                 app.entity = new LineM(app.args[0], app.args[1])
+            }
+            else if(app.fncName == "Parallel"){
+                assert(app.args.length == 2);
+                app.entity = new Parallel(app.args[0], app.args[1])
             }
             else if(app.fncName == "Circle"){
                 assert(app.args.length == 2);
