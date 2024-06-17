@@ -433,6 +433,10 @@ export abstract class Term {
         return this instanceof App && (this.fncName == "==" || this.fncName == "=");
     }
 
+    isList() : boolean {
+        return this instanceof App && this.fncName == "[]";
+    }
+
     isAdd() : boolean {
         return this instanceof App && this.fncName == "+";
     }
@@ -626,7 +630,6 @@ export class Variable {
 
 export class RefVar extends Term{
     name: string;
-    depends : string[] = [];
     refVar! : Variable | undefined;
 
     constructor(name: string){
@@ -1036,8 +1039,8 @@ export class Parser {
         return this.tokens.length == 0 ? null : this.tokens[0];
     }
 
-    readArgs(app : App){
-        this.nextToken("(");
+    readArgs(start: string, end : string, app : App){
+        this.nextToken(start);
 
         while(true){
             const trm = this.RelationalExpression();
@@ -1051,7 +1054,7 @@ export class Parser {
             }
         }
 
-        this.nextToken(")");
+        this.nextToken(end);
     }
 
     PrimaryExpression() : Term {
@@ -1064,7 +1067,7 @@ export class Parser {
             if(this.token.text == '('){
 
                 let app = new App(refVar, []);
-                this.readArgs(app);
+                this.readArgs("(", ")", app);
 
                 return app;
             }
@@ -1109,7 +1112,7 @@ export class Parser {
             if(this.token.text == '('){
 
                 let app = new App(trm, []);
-                this.readArgs(app);
+                this.readArgs("(", ")", app);
 
                 return app;
             }
@@ -1277,7 +1280,18 @@ export class Parser {
             return this.VariableDeclaration();
         }
 
-        let trm1 = this.ArithmeticExpression();
+        let trm1 : Term;
+        if(this.token.text == "["){
+
+            const ref = new RefVar("[]");
+            trm1 = new App(ref, []);
+            this.readArgs("[", "]", trm1 as App);
+        }
+        else{
+
+            trm1 = this.ArithmeticExpression();
+        }
+
         while([ "==", "=", "!=", "<", "<=", "in" ].includes(this.token.text)){
             let app = new App(operator(this.token.text), [trm1]);
             this.next();

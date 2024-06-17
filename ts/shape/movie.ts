@@ -703,47 +703,60 @@ class Movie extends ViewM {
                 const app = expr;
                 if(app.isEq()){
     
-                    assert(app.args.length == 2 && app.args[0] instanceof RefVar);
-                    const ref = app.args[0] as RefVar;
+                    assert(app.args.length == 2);
                     if(app.args[1] instanceof RefVar){
+                        const ref = app.args[0] as RefVar;
+                        assert(ref instanceof RefVar);
                         const rhs = app.args[1];
 
                         const va = getVariable(rhs.name);
                         va.rename(ref.name);
                     }
                     else{
-
                         const rhs = app.args[1] as App;
                         assert(rhs instanceof App);
-                        const va = new Variable(ref.name, rhs);
-                        ref.refVar = va;
-                        setRefVars(app);
-                        setEntity(va, rhs);
-                        if(rhs instanceof App && rhs.entity instanceof ShapeM){
+                        setRefVars(rhs);
 
-                            setDepends(ref, app.args[1]);
-                            if(ref.depends.length != 0){
-                                msg(`${ref.name} depends ${ref.depends.join(" ")}`);
-                            }
-                            
-                            if(rhs.entity instanceof IntersectionM){
-                                for(const [i, point] of rhs.entity.points.entries()){
-                                    const name = `${ref.name}${i+1}`;
-                                    const va2 = new Variable(name, Zero());
-                                    va2.entity = point;
-                                    va2.depVars.push(va);
+                        if(app.args[0].isList()){
+                            const lst = app.args[0] as App;
 
-                                    point.name = name;
-                                    point.makeCaptionDiv();
-                                }
+                            const va = new Variable(`dummy-${variables.length}`, rhs);
+                            setEntity(va, rhs);
+                            if(! (rhs.entity instanceof IntersectionM)){
+                                throw new MyError();
                             }
-                            else if(rhs.entity instanceof ShapeM){
-                                rhs.entity.name = ref.name;
-                                rhs.entity.makeCaptionDiv();
+
+                            assert(lst.args.length == rhs.entity.points.length)
+                            for(const [i, point] of rhs.entity.points.entries()){
+                                const ref = lst.args[i] as RefVar;
+                                assert(ref instanceof RefVar);
+
+                                const va2 = new Variable(ref.name, Zero());
+                                va2.entity = point;
+                                va2.depVars.push(va);
+
+                                point.name = ref.name;
+                                point.makeCaptionDiv();
                             }
                         }
                         else{
-                            throw new MyError();
+                            assert(app.args[0] instanceof RefVar);
+
+                            const ref = app.args[0] as RefVar;
+
+                            const va = new Variable(ref.name, rhs);
+                            ref.refVar = va;
+                            setEntity(va, rhs);
+                            if(rhs instanceof App && rhs.entity instanceof ShapeM){
+                                
+                                if(rhs.entity instanceof ShapeM){
+                                    rhs.entity.name = ref.name;
+                                    rhs.entity.makeCaptionDiv();
+                                }
+                            }
+                            else{
+                                throw new MyError();
+                            }
                         }
                     }
                 }
@@ -768,13 +781,6 @@ class Movie extends ViewM {
 }
 
 let movie : Movie;
-
-function setDepends(ref : RefVar, expr : Term){
-    const refs = allTerms(expr).filter(x => x instanceof RefVar && !(x.parent instanceof App && x.parent.fnc == x) && !ref.depends.includes(x.name)) as RefVar[];
-    const ref_names = refs.map(x => x.name);
-
-    ref.depends = ref.depends.concat(ref_names);
-}
 
 function setEntity(va : Variable, trm : Term) : void {
     if(trm instanceof App){
