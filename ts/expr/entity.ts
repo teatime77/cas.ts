@@ -90,6 +90,9 @@ namespace casts {
         }
     
         makeCaptionDiv(){
+            if(this.constructor.name != "PointM"){
+                return;
+            }
             assert(this.name != "");
             const caption = this.caption != "" ? this.caption : this.name;
     

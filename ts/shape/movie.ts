@@ -9,6 +9,10 @@ let data_id : string = "1";
 const rangeInterval = 3;
 const angleRadius = 4;
 
+function radian(degree : number) : number {
+    return degree * Math.PI / 180;
+}
+
 function toPointM(trm : Term) : PointM{
     const shape = trm.getEntity() as ShapeM;
 
@@ -248,8 +252,8 @@ class ArcM extends CircleArcM {
         const cx = this.center.x.calc();
         const cy = this.center.y.calc();
         const r  = this.radius.calc();
-        const start_th = this.start.calc();
-        const end_th = this.end.calc();
+        const start_th = radian(this.start.calc());
+        const end_th = radian(this.end.calc());
         const x1 = cx + r * Math.cos(start_th);
         const y1 = cy + r * Math.sin(start_th);
         const x2 = cx + r * Math.cos(end_th);
@@ -688,7 +692,9 @@ class Movie extends ViewM {
                     this.lineIdx++;
                 }
                 movie.speakM(speech_texts);
-                yield;
+                while(movie.speech.speaking){
+                    yield;
+                }
                 continue;
             }
             msg(`parse:${line}`);
@@ -699,37 +705,46 @@ class Movie extends ViewM {
     
                     assert(app.args.length == 2 && app.args[0] instanceof RefVar);
                     const ref = app.args[0] as RefVar;
-                    const rhs = app.args[1] as App;
-                    assert(rhs instanceof App);
-                    const va = new Variable(ref.name, rhs);
-                    ref.refVar = va;
-                    setRefVars(app);
-                    setEntity(va, rhs);
-                    if(rhs instanceof App && rhs.entity instanceof ShapeM){
+                    if(app.args[1] instanceof RefVar){
+                        const rhs = app.args[1];
 
-                        setDepends(ref, app.args[1]);
-                        if(ref.depends.length != 0){
-                            msg(`${ref.name} depends ${ref.depends.join(" ")}`);
-                        }
-                        
-                        if(rhs.entity instanceof IntersectionM){
-                            for(const [i, point] of rhs.entity.points.entries()){
-                                const name = `${ref.name}${i+1}`;
-                                const va2 = new Variable(name, Zero());
-                                va2.entity = point;
-                                va2.depVars.push(va);
-
-                                point.name = name;
-                                point.makeCaptionDiv();
-                            }
-                        }
-                        else if(rhs.entity instanceof ShapeM){
-                            rhs.entity.name = ref.name;
-                            rhs.entity.makeCaptionDiv();
-                        }
+                        const va = getVariable(rhs.name);
+                        va.rename(ref.name);
                     }
                     else{
-                        throw new MyError();
+
+                        const rhs = app.args[1] as App;
+                        assert(rhs instanceof App);
+                        const va = new Variable(ref.name, rhs);
+                        ref.refVar = va;
+                        setRefVars(app);
+                        setEntity(va, rhs);
+                        if(rhs instanceof App && rhs.entity instanceof ShapeM){
+
+                            setDepends(ref, app.args[1]);
+                            if(ref.depends.length != 0){
+                                msg(`${ref.name} depends ${ref.depends.join(" ")}`);
+                            }
+                            
+                            if(rhs.entity instanceof IntersectionM){
+                                for(const [i, point] of rhs.entity.points.entries()){
+                                    const name = `${ref.name}${i+1}`;
+                                    const va2 = new Variable(name, Zero());
+                                    va2.entity = point;
+                                    va2.depVars.push(va);
+
+                                    point.name = name;
+                                    point.makeCaptionDiv();
+                                }
+                            }
+                            else if(rhs.entity instanceof ShapeM){
+                                rhs.entity.name = ref.name;
+                                rhs.entity.makeCaptionDiv();
+                            }
+                        }
+                        else{
+                            throw new MyError();
+                        }
                     }
                 }
                 else if(app.fncName == "focus"){

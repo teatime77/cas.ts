@@ -611,6 +611,17 @@ export class Variable {
             throw new MyError();
         }
     }
+
+    rename(new_name : string){
+        this.name = new_name;
+        const shape = this.getEntity();
+        if(shape instanceof ShapeM){
+            shape.name = new_name;
+            if(shape.divCaption != null){
+                shape.divCaption.textContent = new_name;
+            }
+        }
+    }
 }
 
 export class RefVar extends Term{
