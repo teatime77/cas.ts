@@ -194,7 +194,7 @@ class Graph {
         return doc;
     }
 
-    addSection(title : string){
+    addSection(title : string) : Section{
         let next_id = 1;
         for(const sec of this.sections){
             if(next_id < sec.id){
@@ -208,6 +208,8 @@ class Graph {
 
         this.docs.filter(x => x.selected).forEach(x => x.parent = section);
         this.clearSelections();
+
+        return section;
     }
 
     async removeFromSection(ev : MouseEvent){
@@ -274,6 +276,7 @@ export class Section extends MapItem {
         ev.stopPropagation();
         ev.preventDefault();
 
+        $("add-section-to-section").onclick = this.addSectionToSection.bind(this);
         $("add-item-to-section").onclick = this.addItemToSection.bind(this);
         $("append-to-section").onclick = this.appendToSection.bind(this);
         showDlg(ev, "graph-section-menu-dlg");
@@ -287,6 +290,18 @@ export class Section extends MapItem {
 
         const doc = graph.addDoc(title);
         doc.parent = this;
+
+        await updateGraph();
+    }
+
+    async addSectionToSection(ev : MouseEvent){
+        const title = await inputBox();
+        msg(`input ${title}`);
+        if(title == null){
+            return;
+        }
+        const sec = graph.addSection(title);
+        sec.parent = this;
 
         await updateGraph();
     }
@@ -310,7 +325,15 @@ export class Section extends MapItem {
         lines.push(`    penwidth  = 2;`);
 
         graph.sections.filter(sec => sec.parent == this).forEach(sec => sec.makeDot(lines));
-        graph.docs.filter(sec => sec.parent == this).forEach(doc => doc.makeDot(lines));
+        const docs = graph.docs.filter(sec => sec.parent == this);
+        if(docs.length == 0){
+            // If there is no children, subgraph is not created.
+            
+            lines.push(`b${this.id}dummy [ label="dummy" style="invis" ];` );
+        }
+        else{
+            docs.forEach(doc => doc.makeDot(lines));
+        }
 
         lines.push(`}`);
     }

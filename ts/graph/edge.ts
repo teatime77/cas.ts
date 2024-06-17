@@ -506,6 +506,13 @@ export class Doc extends MapItem {
 
             msg(`viz: ${this.title}`);
         }
+        else{
+
+            const new_url = `./movie.html?id=${this.id}`
+            msg(`click doc: ${this.id} ${this.title} url:${new_url}`);
+
+            window.open(new_url, "_blank");
+        }
     }
 
     makeDot(lines : string[]){
