@@ -550,6 +550,21 @@ class Range extends Entity {
     }
 }
 
+class Length extends Entity {
+    points : PointM[];
+
+    constructor(p1 : Term, p2 : Term){
+        super();
+        this.points = [p1, p2].map(x => x.getEntity()) as PointM[];
+        assert(this.points.every(x => x instanceof PointM));
+    }
+
+    getNumber() : number {
+        const poss = this.points.map(x => x.toVec());
+        return poss[0].sub(poss[1]).len();
+    }
+}
+
 class Movie extends ViewM {
     lines : string[] = [];
     lineIdx : number = 0;
@@ -823,6 +838,10 @@ function setEntity(va : Variable, trm : Term) : void {
             const rng = new Range(va, app.args[0], app.args[1]);
             app.entity = rng;
             rangeDic[app.id] = rng;
+        }
+        else if(app.fncName == "length"){
+            assert(app.args.length == 2);
+            app.entity = new Length(app.args[0], app.args[1]);
         }
     }
 }

@@ -17,7 +17,8 @@ export function isShapeName(name : string) : boolean {
 export function isSystemName(name : string) : boolean {
     const names = [
         "range",
-        "sqrt"
+        "sqrt",
+        "length"
     ];
     return isShapeName(name) || names.includes(name);
 }
