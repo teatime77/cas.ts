@@ -61,7 +61,7 @@ export class PointM extends ShapeM {
         this.point.setAttribute("cx", `${this.x.calc()}`);
         this.point.setAttribute("cy", `${this.y.calc()}`);
 
-        this.adjustCaption();
+        this.updateCaptionPos();
     }
 
     focus(is_focused : boolean){
@@ -132,7 +132,7 @@ export class LineSegmentM extends AbstractStraightLineM {
         this.line.setAttribute("x2", `${this.p2.x.calc()}`);
         this.line.setAttribute("y2", `${this.p2.y.calc()}`);
 
-        this.adjustCaption();
+        this.updateCaptionPos();
     }
 }
 
@@ -154,7 +154,7 @@ class LineM extends AbstractStraightLineM {
         this.line.setAttribute("x2", `${x1 + 10000 * (x2 - x1)}`);
         this.line.setAttribute("y2", `${y1 + 10000 * (y2 - y1)}`);
 
-        this.adjustCaption();
+        this.updateCaptionPos();
     }
 }
 
@@ -176,7 +176,7 @@ class HalfLineM extends AbstractStraightLineM {
         this.line.setAttribute("x2", `${x1 + 10000 * (x2 - x1)}`);
         this.line.setAttribute("y2", `${y1 + 10000 * (y2 - y1)}`);
 
-        this.adjustCaption();
+        this.updateCaptionPos();
     }
 }
 
@@ -221,7 +221,7 @@ class CircleM extends CircleArcM {
         this.circle.setAttribute("cy", `${this.center.y.calc()}`);
         this.circle.setAttribute("r" , `${this.radius.calc()}`);
 
-        this.adjustCaption();
+        this.updateCaptionPos();
     }
 }
 
@@ -265,7 +265,7 @@ class ArcM extends CircleArcM {
         this.arc.setAttribute("d", d);
 
         msg(`arc cx:${cx} cy:${cy} r:${r} th:${(start_th*180/Math.PI).toFixed()}-${(end_th*180/Math.PI).toFixed()}`)
-        this.adjustCaption();
+        this.updateCaptionPos();
     }
 }
 

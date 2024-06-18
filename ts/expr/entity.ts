@@ -1,5 +1,22 @@
 namespace casts {
-    //
+//
+class Glb {
+    eventPos!: Vec2;
+    orgPos!: Vec2;    
+}
+
+let glb = new Glb();
+
+
+/**
+ * ShapeのCaptionのイベント処理
+ */
+export function setCaptionEventListener(shape: ShapeM){
+    shape.divCaption!.addEventListener("pointerdown", shape.captionPointerdown);
+    shape.divCaption!.addEventListener("pointermove", shape.captionPointermove);
+    shape.divCaption!.addEventListener("pointerup"  , shape.captionPointerup);
+}
+
     export class ViewM {
         width      : number = 0;
         height     : number = 0;
@@ -10,6 +27,7 @@ namespace casts {
         divView : HTMLDivElement;
         div : HTMLDivElement;
         FlipY : boolean = true;
+        capture: ShapeM | null = null;
     
     
         constructor(width : number, height : number, x1 : number, y1 : number, x2 : number, y2 : number){
@@ -105,12 +123,21 @@ namespace casts {
             this.divCaption.style.color = this.color;
             this.divCaption.textContent = caption;
     
-            this.adjustCaption();
+            this.updateCaptionPos();
     
             this.parentView.div.appendChild(this.divCaption);
+
+            setCaptionEventListener(this);
         }
 
-        adjustCaption(){
+        setCaptionPos(ev: MouseEvent | PointerEvent){
+            this.captionPos.x = glb.orgPos.x + (ev.screenX - glb.eventPos.x);
+            this.captionPos.y = glb.orgPos.y + (ev.screenY - glb.eventPos.y);
+    
+            this.updateCaptionPos();
+        }
+    
+        updateCaptionPos(){
             if(this.divCaption != null){
 
                 let [x, y] = this.getCaptionXY();
@@ -119,6 +146,31 @@ namespace casts {
             }
         }
     
+        captionPointerdown =(ev: PointerEvent)=>{    
+            glb.eventPos = new Vec2(ev.screenX, ev.screenY);
+            glb.orgPos   = this.captionPos.copy();
+    
+            this.parentView.capture = this;
+            this.divCaption!.setPointerCapture(ev.pointerId);
+        }
+    
+        captionPointermove =(ev: PointerEvent)=>{
+            if(this.parentView.capture != this){
+                return;
+            }
+            
+            this.setCaptionPos(ev);
+        }
+    
+        captionPointerup =(ev: PointerEvent)=>{    
+            this.divCaption!.releasePointerCapture(ev.pointerId);
+            this.parentView.capture = null;
+    
+            this.setCaptionPos(ev);
+        }
+    
+
+
         focus(is_focused : boolean){
             this.focused = is_focused;
         }
