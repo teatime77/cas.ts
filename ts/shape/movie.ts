@@ -884,6 +884,46 @@ async function startMovie(ev:MouseEvent){
     await doGenerator(movie.run(), 1);
 }
 
+function* startPlaySub(startTime : number, lines: string[]){
+    for(let line of lines){
+        line = line.trim();
+        if(line.length == 0){
+            yield;
+            continue;
+        }
+        msg(`[${line}]`);
+        movie.speech.speak(line);
+        while(movie.speech.speaking){
+            yield;
+        }
+
+        const duration_sec = (new Date().getTime() - startTime) / 1000;
+        msg(`${duration_sec.toFixed(1)}秒`)
+    }
+}
+
+async function startPlay(ev:MouseEvent){
+    const startTime = new Date().getTime();
+
+    movie.speech = new Speech();
+    setVoice("ja-JP", "Microsoft Nanami Online (Natural) - Japanese (Japan)");
+
+    const texts = await fetchText(`../data/demo.txt`);
+    const lines = texts.replaceAll('\r', "").split('\n');
+
+    const iterator = startPlaySub(startTime, lines);
+    const timer_id = setInterval(()=>{
+        if(iterator.next().done){
+            // ジェネレータが終了した場合
+    
+            clearInterval(timer_id);
+
+            const duration_sec = (new Date().getTime() - startTime) / 1000;
+            msg(`ジェネレータ 終了 ${duration_sec.toFixed(1)}秒`)
+        }        
+    }, 10);
+}
+
 export async function bodyOnLoadMovie(){
     const url = new URL(window.location.href);
     const params = url.searchParams;
@@ -901,5 +941,6 @@ export async function bodyOnLoadMovie(){
     $dlg("speech-dlg").show();
 
     $("start-movie").addEventListener("click", startMovie);
+    $("start-play").addEventListener("click", startPlay);
 }   
 }

@@ -229,6 +229,11 @@ export async function asyncInitSpeech() : Promise<void> {
     });
 }
 
+export function setVoice(lang: string, voice_name : string){
+    uttrVoice = voices[lang].find(voice => voice.name == voice_name);
+    assert(uttrVoice != undefined);
+
+}
 
 export function speak(text : string){
     assert(uttrVoice != null);
