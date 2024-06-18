@@ -7,6 +7,8 @@ class Glb {
 
 let glb = new Glb();
 
+export let captionShift : { [name: string]: [number, number] } = {};
+
 
 /**
  * ShapeのCaptionのイベント処理
@@ -122,6 +124,12 @@ export function setCaptionEventListener(shape: ShapeM){
             this.divCaption.style.zIndex = "4";
             this.divCaption.style.color = this.color;
             this.divCaption.textContent = caption;
+
+            const pos = captionShift[this.name];
+            if(pos != undefined){
+                this.captionPos.x = pos[0];
+                this.captionPos.y = pos[1];
+            }
     
             this.updateCaptionPos();
     
@@ -167,9 +175,9 @@ export function setCaptionEventListener(shape: ShapeM){
             this.parentView.capture = null;
     
             this.setCaptionPos(ev);
-        }
-    
-
+            captionShift[this.name] = [ this.captionPos.x, this.captionPos.y ];
+            msg(`caption pos:[${JSON.stringify(captionShift)}]`);
+        }    
 
         focus(is_focused : boolean){
             this.focused = is_focused;

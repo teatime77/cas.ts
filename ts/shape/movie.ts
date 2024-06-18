@@ -579,6 +579,22 @@ class Movie extends ViewM {
         super(width, height, x1, y1, x2, y2);
     }
 
+    async saveMovie(){
+        const lines = this.lines.slice();
+        lines.unshift(`#pos:${JSON.stringify(captionShift)}`);
+        lines.unshift("from lib import *");
+
+        const data = {
+            "command" : "write-movie",
+            "id"      : data_id,
+            "text"    : lines.join("\n")
+        };
+    
+        const res =  await postData("/db", data);
+        const status = res["status"];
+        msg(`write movie status:[${status}]`);
+    }
+
     toSvg2(x:number) : number{
         return x * this.svgRatio;
     }
@@ -655,6 +671,12 @@ class Movie extends ViewM {
         
         const head = this.lines.shift();
         assert(head!.startsWith("from"));
+
+        if(this.lines[0].startsWith("#pos:")){
+
+            const pos = this.lines.shift()!;
+            captionShift = JSON.parse(pos.substring(5));
+        }
     }
 
     *stepRanges(){
@@ -942,5 +964,6 @@ export async function bodyOnLoadMovie(){
 
     $("start-movie").addEventListener("click", startMovie);
     $("start-play").addEventListener("click", startPlay);
+    $("save-movie").addEventListener("click", movie.saveMovie.bind(movie));
 }   
 }

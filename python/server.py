@@ -27,7 +27,21 @@ def write_index(data):
     with open(path, 'w', encoding='UTF-8') as f:
         f.write(text)
 
+def write_movie(data):
+    text = data["text"]
+    print(f"text:[{text}]")
 
+    id   = data["id"]
+    path = f"public/data/script/{id}.py"
+    print(path)
+    print(text)
+
+    dt = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+    dst = f"{backup_dir}/script/{id}-{dt}.py"
+    shutil.copy2(path, dst)
+
+    with open(path, 'w', encoding='UTF-8') as f:
+        f.write(text)
 
 @app.route("/db", methods=["POST"])
 def hello_world():
@@ -38,5 +52,8 @@ def hello_world():
     if command == "write-index":
 
         write_index(data)
+
+    elif command == "write-movie":
+        write_movie(data)
 
     return { "status" : "write OK"}
