@@ -259,6 +259,15 @@ export function stopDocGen(){
 
 
 export function readAllDoc(){
+    const use_speech_chk = document.getElementById("use-speech") as HTMLInputElement;
+    if(use_speech_chk != undefined && !use_speech_chk.checked){
+        useSpeech = false;
+    }
+    const use_flow_chk = document.getElementById("use-flow") as HTMLInputElement;
+    if(use_flow_chk != undefined && !use_flow_chk.checked){
+        useFlow = false;
+    }
+
     const iterator = genDocPath(docsIndex);
 
     const timer_id = setInterval(()=>{
@@ -268,7 +277,7 @@ export function readAllDoc(){
             clearInterval(timer_id);
             console.log("ジェネレータ 終了");
         }        
-    }, 100);
+    }, 1);
 }
 
 function makeIndex(parent_ul : HTMLUListElement | HTMLDivElement, parent_dir : any){
@@ -379,7 +388,7 @@ function mergeJson(js1 : any, js2 : any){
 
 async function main(page : string) {    
     await includeDialog();
-
+    
     mathDivRoot = document.getElementById("math-div-root") as HTMLDivElement;
 
     const translation_text = await fetchText(`../data/translation.json`);

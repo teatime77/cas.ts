@@ -128,7 +128,7 @@ abstract class TexNode {
         return "";
     }
 
-    *genTex(speech : Speech) : IterableIterator<string> {
+    *genTex(speech : Speech | null) : IterableIterator<string> {
         yield "";
     }
 
@@ -157,7 +157,7 @@ class TexSeq extends TexBlock {
         super(nodes);
     }
 
-    *genTex(speech : Speech) : IterableIterator<string> {
+    *genTex(speech : Speech | null) : IterableIterator<string> {
         const arg_strs = this.nodes.map(x => x.initString());
 
         for(let [idx, node] of this.nodes.entries()){
@@ -200,10 +200,10 @@ abstract class TexLeaf extends TexNode {
         }
     }
 
-    *genTex(speech : Speech) : IterableIterator<string> {
+    *genTex(speech : Speech | null) : IterableIterator<string> {
         const tex_text = this.texText()
 
-        if(this.phrase != undefined){
+        if(speech != null && this.phrase != undefined){
             while(speech.speaking && speech.prevCharIndex < this.phrase.start){
                 yield tex_text;
             }
@@ -289,7 +289,7 @@ class TexSpeech extends TexStr {
         super(text);
     }
 
-    *genTex(speech : Speech) : IterableIterator<string> {
+    *genTex(speech : Speech | null) : IterableIterator<string> {
         yield "";
     }
 }

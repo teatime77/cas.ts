@@ -1,5 +1,8 @@
 namespace casts {
 //
+export let useSpeech = true;
+export let useFlow = true;
+
 export function makeMathDiv(){
     mathDiv = document.createElement("div");
     mathDiv.className = "math-div";
@@ -129,6 +132,10 @@ export function* showRoot(root : Term){
 
     makeMathDiv();
 
+    if(!useFlow){
+        return;
+    }
+
     const node = makeFlow(root);
     const phrases : PhraseF[] = [];
     node.makeSpeech(phrases);
@@ -147,8 +154,12 @@ export function* showRoot(root : Term){
         phrase.end = text.length;
     }
 
-    const speech = new Speech();
-    speech.speak(text);
+    let speech : Speech | null = null;
+    if(useSpeech){
+
+        speech = new Speech();
+        speech.speak(text);
+    }
 
     for(const s of node.genTex(speech)){
         if(stopGen){
@@ -158,7 +169,7 @@ export function* showRoot(root : Term){
         yield;
     }
 
-    while(speech.speaking){
+    while(speech != null && speech.speaking){
         yield;
     }
 }
