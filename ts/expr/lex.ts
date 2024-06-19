@@ -110,7 +110,7 @@ var IdList : Array<string> = new  Array<string> (
 );
 
 export function isLetter(s : string) : boolean {
-    return s.length === 1 && ("a" <= s && s <= "z" || "A" <= s && s <= "Z");
+    return s.length === 1 && ("a" <= s && s <= "z" || "A" <= s && s <= "Z" || s == "_");
 }
 
 function isDigit(s : string) : boolean {
@@ -118,7 +118,7 @@ function isDigit(s : string) : boolean {
 }
 
 function isIdLetter(s : string) : boolean {
-    return isLetter(s) || isDigit(s) || s == "_";
+    return isLetter(s) || isDigit(s);
 }
 
 export function isLetterOrAt(s : string) : boolean {

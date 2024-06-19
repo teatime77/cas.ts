@@ -752,6 +752,9 @@ class Movie extends ViewM {
                             for(const [i, point] of rhs.entity.points.entries()){
                                 const ref = lst.args[i] as RefVar;
                                 assert(ref instanceof RefVar);
+                                if(ref.name == "_"){
+                                    continue;
+                                }
 
                                 const va2 = new Variable(ref.name, Zero());
                                 va2.entity = point;
