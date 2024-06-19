@@ -64,6 +64,10 @@ export class PointM extends ShapeM {
         this.updateCaptionPos();
     }
 
+    hide(){
+        this.point.setAttribute("visibility", "hidden");
+    }
+
     focus(is_focused : boolean){
         super.focus(is_focused);
         const color = is_focused ? focusColor : this.color;
@@ -753,6 +757,7 @@ class Movie extends ViewM {
                                 const ref = lst.args[i] as RefVar;
                                 assert(ref instanceof RefVar);
                                 if(ref.name == "_"){
+                                    point.hide();
                                     continue;
                                 }
 
@@ -959,7 +964,7 @@ export async function bodyOnLoadMovie(){
 
     await includeDialog();
 
-    movie = new Movie(480, 480, -5, -5, 5, 5);
+    movie = new Movie(1280, 720, -8, -4.5, 8, 4.5);
 
     await asyncInitSpeech();
 

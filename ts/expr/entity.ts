@@ -179,6 +179,10 @@ export function setCaptionEventListener(shape: ShapeM){
             msg(`caption pos:[${JSON.stringify(captionShift)}]`);
         }    
 
+        hide(){
+            throw new MyError();
+        }
+
         focus(is_focused : boolean){
             this.focused = is_focused;
         }
