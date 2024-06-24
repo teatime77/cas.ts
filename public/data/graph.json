@@ -301,24 +301,24 @@
         { "id" : 299, "title" : "三角形のコピー:::", "parent" : 14 },
         { "id" : 300, "title" : "垂線:perpendicular:수직선:垂直", "parent" : 14, "wiki":"Perpendicular" },
         { "id" : 301, "title" : "角の二等分線:angle bisector:모서리의 이등분선:角平分线", "parent" : 14 },
-        { "id" : 302, "title" : "平行線:parallel lines:평행선:平行线", "parent" : 14 , "wiki":"" }
+        { "id" : 302, "title" : "平行線:parallel lines:평행선:平行线", "parent" : 14 }
     ]
     ,
     "sections" : [
         { "id" : 1, "title" : "平面図形" },
-        { "id" : 2, "title" : "三角形:triangle:삼각형:三角形", "parent" : 1 , "wiki":"Triangle" },
-        { "id" : 3, "title" : "四角形:quadrilateral:사각형:四边形", "parent" : 1 , "wiki":"Quadrilateral" },
-        { "id" : 4, "title" : "角度:measure of angle:각도:角度", "parent" : 1 , "wiki":"" },
-        { "id" : 5, "title" : "角:angle:각:角", "parent" : 1 , "wiki":"Angle" },
-        { "id" : 6, "title" : "二次の行列:::" , "wiki":"" },
-        { "id" : 7, "title" : "複素数:complex number:복소수:复数" , "wiki":"Complex_number" },
-        { "id" : 8, "title" : "自然数:natural number:자연수:自然数" , "wiki":"Natural_number" },
-        { "id" : 9, "title" : "整数:integer:정수:整数" , "wiki":"Integer" },
-        { "id" : 10, "title" : "分数:fraction:분수:分數" , "wiki":"Fraction" },
-        { "id" : 11, "title" : "二次の複素行列:::" , "wiki":"" },
-        { "id" : 12, "title" : "３次元ベクトル:::" , "wiki":"" },
-        { "id" : 13, "title" : "2次元ベクトル:::" , "wiki":"" },
-        { "id" : 14, "title" : "作図:::", "parent" : 1 , "wiki":"" }
+        { "id" : 2, "title" : "三角形:triangle:삼각형:三角形", "parent" : 1, "wiki":"Triangle" },
+        { "id" : 3, "title" : "四角形:quadrilateral:사각형:四边形", "parent" : 1, "wiki":"Quadrilateral" },
+        { "id" : 4, "title" : "角度:measure of angle:각도:角度", "parent" : 1 },
+        { "id" : 5, "title" : "角:angle:각:角", "parent" : 1, "wiki":"Angle" },
+        { "id" : 6, "title" : "二次の行列:::" },
+        { "id" : 7, "title" : "複素数:complex number:복소수:复数", "wiki":"Complex_number" },
+        { "id" : 8, "title" : "自然数:natural number:자연수:自然数", "wiki":"Natural_number" },
+        { "id" : 9, "title" : "整数:integer:정수:整数", "wiki":"Integer" },
+        { "id" : 10, "title" : "分数:fraction:분수:分數", "wiki":"Fraction" },
+        { "id" : 11, "title" : "二次の複素行列:::" },
+        { "id" : 12, "title" : "３次元ベクトル:::" },
+        { "id" : 13, "title" : "2次元ベクトル:::" },
+        { "id" : 14, "title" : "作図:::", "parent" : 1 }
     ]
     ,
     "edges" : [
