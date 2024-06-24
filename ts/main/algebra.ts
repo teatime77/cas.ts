@@ -157,7 +157,7 @@ export function* showRoot(root : Term){
     let speech : Speech | null = null;
     if(useSpeech){
 
-        speech = new Speech();
+        speech = new Speech(undefined);
         speech.speak(text);
     }
 

@@ -37,8 +37,11 @@ export class Speech {
     lang2 : string;
     callback! : (idx:number)=>void;
     speaking : boolean = false;
+    subtitle : HTMLDivElement | undefined;
 
-    constructor(){        
+    constructor(subtitle : HTMLDivElement | undefined){        
+        this.subtitle = subtitle;
+
         this.lang = $sel("voice-lang-select").value;
         this.lang2 = this.lang.substring(0, 2);
 
@@ -62,6 +65,10 @@ export class Speech {
             
         speechSynthesis.speak(uttr);
         this.speaking = true;
+
+        if(this.subtitle != undefined){
+            this.subtitle.textContent = text;
+        }
     }
 
     onBoundary(ev: SpeechSynthesisEvent) : void {
@@ -77,8 +84,8 @@ export class Speech {
         if(this.callback != undefined){
             this.callback(ev.charIndex);
         }
+
         this.prevCharIndex = ev.charIndex;
-    
     }
 
     onEnd(ev: SpeechSynthesisEvent) : void {
@@ -87,6 +94,10 @@ export class Speech {
             this.callback(ev.utterance.text.length);
         }
         this.speaking = false;
+
+        if(this.subtitle != undefined){
+            this.subtitle.innerHTML = "";
+        }
     }
     
     onMark(ev: SpeechSynthesisEvent) : void {

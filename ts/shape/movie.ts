@@ -908,7 +908,7 @@ function updateShape(trm : Term) {
 }
 
 async function startMovie(ev:MouseEvent){
-    movie.speech = new Speech();
+    movie.speech = new Speech(movie.subtitle);
     
     await movie.getLines();
     await doGenerator(movie.run(), 1);
@@ -935,7 +935,7 @@ function* startPlaySub(startTime : number, lines: string[]){
 async function startPlay(ev:MouseEvent){
     const startTime = new Date().getTime();
 
-    movie.speech = new Speech();
+    movie.speech = new Speech(movie.subtitle);
     setVoice("ja-JP", "Microsoft Nanami Online (Natural) - Japanese (Japan)");
 
     const texts = await fetchText(`../data/demo.txt`);

@@ -28,6 +28,7 @@ export function setCaptionEventListener(shape: ShapeM){
     
         divView : HTMLDivElement;
         div : HTMLDivElement;
+        subtitle : HTMLDivElement;
         FlipY : boolean = true;
         capture: ShapeM | null = null;
     
@@ -70,7 +71,24 @@ export function setCaptionEventListener(shape: ShapeM){
             this.div.style.backgroundColor = "transparent";
     
             this.divView.appendChild(this.div);
+
+
+            const subtitle_height = 50; 
+            this.subtitle = document.createElement("div");
+            this.subtitle.style.position = "absolute";
+            this.subtitle.style.left = `${this.rect.x}px`;
+            this.subtitle.style.top  = `${this.rect.y + this.height - subtitle_height}px`;
+            this.subtitle.style.width  = `${this.width}px`;
+            this.subtitle.style.height = `${subtitle_height}px`;
+            this.subtitle.style.pointerEvents = "none";
+            this.subtitle.style.backgroundColor = "white";
+            this.subtitle.style.fontSize = "24pt";
+            this.subtitle.style.fontWeight = "bold";
+            this.subtitle.style.textAlign = "center";
     
+            this.divView.appendChild(this.subtitle);
+
+
             const rc = this.svg.getBoundingClientRect();
             this.svgRatio = this.svg.viewBox.baseVal.width / rc.width;
         }
@@ -123,6 +141,8 @@ export function setCaptionEventListener(shape: ShapeM){
             this.divCaption.style.pointerEvents = "all";
             this.divCaption.style.zIndex = "4";
             this.divCaption.style.color = this.color;
+            this.divCaption.style.fontSize = "24pt";
+            this.divCaption.style.fontWeight = "bold";
             this.divCaption.textContent = caption;
 
             const pos = captionShift[this.name];
