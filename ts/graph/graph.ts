@@ -180,7 +180,7 @@ class Graph {
         this.edges().filter(edge => edge.selected).forEach(edge => edge.select(false));
     }
 
-    addDoc(title : string) : Doc {
+    addDoc(title : string, wiki : string | undefined) : Doc {
         let next_id = 1;
         for(const doc of this.docs){
             if(next_id < doc.id){
@@ -188,7 +188,7 @@ class Graph {
             }
             next_id++;
         }
-        const doc = new Doc(next_id, title);
+        const doc = new Doc(next_id, title, wiki);
         this.docs.push(doc);
 
         this.docs.sort((a:Doc, b:Doc) => a.id - b.id);
@@ -196,7 +196,7 @@ class Graph {
         return doc;
     }
 
-    addSection(title : string) : Section{
+    addSection(title : string, wiki : string | undefined) : Section{
         let next_id = 1;
         for(const sec of this.sections){
             if(next_id < sec.id){
@@ -205,7 +205,7 @@ class Graph {
             next_id++;
         }
 
-        const section = new Section(next_id, title);
+        const section = new Section(next_id, title, wiki);
         this.sections.push(section);
 
         this.docs.filter(x => x.selected).forEach(x => x.parent = section);
@@ -249,8 +249,8 @@ export let graph : Graph;
 export class Section extends MapItem {
     polygon : SVGPolygonElement | undefined;
 
-    constructor(id: number, title : string){
-        super(id, title);
+    constructor(id: number, title : string, wiki : string | undefined){
+        super(id, title, wiki);
     }
 
     select(selected : boolean){
@@ -290,7 +290,7 @@ export class Section extends MapItem {
             return;
         }
 
-        const doc = graph.addDoc(title);
+        const doc = graph.addDoc(title, undefined);
         doc.parent = this;
 
         await updateGraph();
@@ -302,7 +302,7 @@ export class Section extends MapItem {
         if(title == null){
             return;
         }
-        const sec = graph.addSection(title);
+        const sec = graph.addSection(title, undefined);
         sec.parent = this;
 
         await updateGraph();
@@ -408,7 +408,7 @@ export async function addGraphItem(){
     if(title == null){
         return;
     }
-    graph.addDoc(title);
+    graph.addDoc(title, undefined);
     await updateGraph();
 }
 
@@ -418,7 +418,7 @@ export async function addGraphSection(){
     if(title == null){
         return;
     }
-    graph.addSection(title);
+    graph.addSection(title, undefined);
     await updateGraph();
 }
 

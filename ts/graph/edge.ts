@@ -106,7 +106,7 @@ export function makeDocsFromJson(data : any) : [Doc[], Section[], Map<string, Ed
 
         const sec_to_parent_id : [Section, number][] = [];
         for(const obj of data["sections"]){
-            const section = new Section(obj["id"], obj["title"]);
+            const section = new Section(obj["id"], obj["title"], obj["wiki"]);
             sections.push(section);
             sec_map.set(section.id, section);
 
@@ -128,7 +128,7 @@ export function makeDocsFromJson(data : any) : [Doc[], Section[], Map<string, Ed
 
     const doc_map = new Map<number, Doc>();
     for(const obj of data["docs"]){
-        const doc = new Doc(obj["id"], obj["title"]);
+        const doc = new Doc(obj["id"], obj["title"], obj["wiki"]);
 
         const parent_id = obj["parent"];
         if(parent_id != undefined){
@@ -321,11 +321,13 @@ export class MapItem {
     id       : number;
     parent   : Section | undefined;
     title    : string;
+    wiki     : string | undefined = undefined;
     selected : boolean = false;
 
-    constructor(id : number, title : string){
+    constructor(id : number, title : string, wiki : string | undefined){
         this.id    = id;
         this.title = title;
+        this.wiki  = wiki;
     }
 
     localTitle() : string {
@@ -339,13 +341,15 @@ export class MapItem {
     }
 
     jsonStr() : string {
+        let wiki = this.wiki == undefined ? "" : `, "wiki":"${this.wiki}"`;
+
         if(this.parent == undefined){
 
-            return `{ "id" : ${this.id}, "title" : "${this.title}" }`;
+            return `{ "id" : ${this.id}, "title" : "${this.title}"${wiki} }`;
         }
         else{
 
-            return `{ "id" : ${this.id}, "title" : "${this.title}", "parent" : ${this.parent.id} }`;
+            return `{ "id" : ${this.id}, "title" : "${this.title}", "parent" : ${this.parent.id}${wiki} }`;
         }
     }
 }
@@ -366,8 +370,8 @@ export class Doc extends MapItem {
     width  : number = NaN;
     height : number = NaN;
 
-    constructor(id : number, title : string){
-        super(id, title);
+    constructor(id : number, title : string, wiki : string | undefined){
+        super(id, title, wiki);
     }
 
     init(tree: Tree){
