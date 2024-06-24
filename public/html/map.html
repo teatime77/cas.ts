@@ -75,7 +75,13 @@
 </style>
 </head>
 <body onload="casts.bodyOnLoadGraph()" style="margin: 0; padding: 0; overflow: scroll;">
-<div style="height: 30px;" style="text-align: center;">
+<div style="display: flex; float:right; ">
+  <button class="lang" id="lang-en" >English</button>
+  <button class="lang" id="lang-ja" >日本語</button>
+  <button class="lang" id="lang-zh" >中文</button>
+  <button class="lang" id="lang-ko" >한국어</button>
+</div>
+<div style="display: none; height: 30px; text-align: center;" >
   <button onclick="casts.copyMap()" ">copy</button>
   <span ></span>全体を見るにはマウスでドラッグしてください。
 </div>

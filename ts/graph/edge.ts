@@ -328,6 +328,16 @@ export class MapItem {
         this.title = title;
     }
 
+    localTitle() : string {
+        const titles = this.title.split(":");
+        if(langIdx < titles.length && titles[langIdx] != ""){
+            return titles[langIdx];
+        }
+        else{
+            return titles[0];
+        }
+    }
+
     jsonStr() : string {
         if(this.parent == undefined){
 
@@ -516,7 +526,7 @@ export class Doc extends MapItem {
     }
 
     makeDot(lines : string[]){
-        lines.push(`b${this.id} [ label="${this.title}" id="${this.id}" class="doc" tooltip="　" fontsize="10" , fontcolor="blue" ];` );
+        lines.push(`b${this.id} [ label="${this.localTitle()}" id="${this.id}" class="doc" tooltip="　" fontsize="10" , fontcolor="blue" ];` );
     }
 }
 

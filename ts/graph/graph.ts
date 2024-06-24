@@ -1,6 +1,9 @@
 declare var Viz: any;
 
 namespace casts {
+let langList : string[] = [ "ja", "en", "ko", "zh" ];
+export let langIdx : number = 0;
+
 let showSubgraph : boolean = true;
 
 class Graph {
@@ -32,7 +35,7 @@ class Graph {
         }
     }
 
-    async makeViz(){
+    makeViz(){
         let doc_map = new Map<string, Doc>();
         this.docs.forEach(doc => doc_map.set(`${doc.id}`, doc));
 
@@ -68,8 +71,7 @@ class Graph {
         }
         `;
 
-        const viz = await Viz.instance();
-        // Viz.instance().then(function(viz:any) {
+        Viz.instance().then(function(viz:any) {
             var svg = viz.renderSVGElement(dot) as SVGSVGElement;
 
             svg.addEventListener("contextmenu", onMenu);
@@ -97,7 +99,7 @@ class Graph {
 
             const edges = Array.from(svg.getElementsByClassName("edge")) as SVGGElement[];
             for(const g of edges){
-                const edge = this.edgeMap.get(g.id);
+                const edge = graph.edgeMap.get(g.id);
                 if(edge == undefined){
 
                     msg(`edge NG: ${g.id} [${g.textContent}]`);
@@ -144,7 +146,7 @@ class Graph {
 
             map_div.style.width = `${rc.width.toFixed()}px`;
             map_div.style.height = `${rc.height.toFixed()}px`;
-        // });
+        });
     }
 
 
@@ -317,7 +319,7 @@ export class Section extends MapItem {
     makeDot(lines : string[]){
         lines.push(`subgraph cluster_${this.id} {`);
         lines.push(`    id = "s${this.id}";`);
-        lines.push(`    label = "${this.title}";`);
+        lines.push(`    label = "${this.localTitle()}";`);
         lines.push(`    labelloc  = "b";`);
         lines.push(`    labeljust = "l";`);
         lines.push(`    bgcolor   = "cornsilk";`);
@@ -347,7 +349,27 @@ async function onMenu(ev : MouseEvent){
     showDlg(ev, "graph-menu-dlg");
 }
 
+function setLangHandler(){
+    const lang_buttons = Array.from(document.getElementsByClassName("lang")) as HTMLButtonElement[];
+    for(const lang_button of lang_buttons){
+        lang_button.addEventListener("click", (ev: MouseEvent)=>{
+            const lang = lang_button.id.substring(5);
+            langIdx = langList.indexOf(lang);
+            msg(`lang:${langIdx} ${lang}`);
+            if(langIdx == undefined){
+                throw new MyError();
+            }
+
+            graph.makeViz();
+        })
+
+    }
+
+}
+
 export async function bodyOnLoadGraph(){
+    setLangHandler();
+
     await includeDialog();
 
     $("map-svg").style.display = "none";
@@ -362,11 +384,11 @@ export async function bodyOnLoadGraph(){
     $("connect-edge").addEventListener("click", graph.connectEdge.bind(graph));
     document.body.addEventListener("keydown", graph.onKeyDown.bind(graph));
 
-    await graph.makeViz();        
+    graph.makeViz();        
 }
 
 async function updateGraph(){
-    await graph.makeViz();        
+    graph.makeViz();        
 
     const text = makeIndexJson(graph.docs, graph.sections, graph.edges());
 
@@ -402,7 +424,7 @@ export async function addGraphSection(){
 
 export async function changeDisplay(){
     showSubgraph = ! showSubgraph;
-    await graph.makeViz();      
+    graph.makeViz();      
 }
 
 function allMapItems() : MapItem[] {

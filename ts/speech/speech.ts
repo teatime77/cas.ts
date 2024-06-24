@@ -1,7 +1,7 @@
 namespace casts{
 let uttrVoice : SpeechSynthesisVoice |  undefined;
-// const defaultLang = "ja-JP";
-const defaultLang = "en-US"
+// const voiceLang = "ja-JP";
+let voiceLang = "en-US"
 const voiceNamesDic : { [lang: string]: string[] } = {
     "ja-JP" : [
         "Microsoft Nanami Online (Natural) - Japanese (Japan)",
@@ -187,7 +187,7 @@ function setVoiceList(){
             const opt = document.createElement("option");
             opt.text = voice.lang;
             opt.value = voice.lang;
-            if(voice.lang == defaultLang){
+            if(voice.lang == voiceLang){
                 opt.selected = true;
             }
             voice_lang_select.add(opt);
@@ -205,7 +205,7 @@ function setVoiceList(){
         setVoiceByLang(lang);
     });
 
-    setVoiceByLang(defaultLang);
+    setVoiceByLang(voiceLang);
 }
 
 function initSpeechSub(){
