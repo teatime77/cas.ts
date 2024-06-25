@@ -153,10 +153,16 @@ export function makeDocsFromJson(data : any) : [Doc[], Section[], Map<string, Ed
         addEdge(edge_map, src_doc, dst_doc);
     }    
 
-    const orphaned_docs = docs.filter(x => x.parent == undefined && x.srcs.length == 0 && x.dsts.length == 0);
+    const orphaned_docs = docs.filter(x => x.srcs.length == 0 && x.dsts.length == 0);
     for(const doc of orphaned_docs){
-        msg(`orphaned doc: ${doc.title}`);
+        msg(`orphaned doc:${doc.id} ${doc.title}`);
         // remove(docs, doc);
+    }
+    for(const doc of docs){
+        const words = doc.title.split(":");
+        if(words.length < 4 || !words.every(x => x.length != 0)){
+            msg(`翻訳:${doc.title}`);
+        }
     }
 
     return [docs, sections, edge_map];
