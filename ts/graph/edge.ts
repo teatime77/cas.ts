@@ -531,16 +531,19 @@ export class Doc extends MapItem {
             msg(`viz: ${this.title}`);
         }
         else{
+            if(this.wiki != undefined){
 
-            const new_url = `./movie.html?id=${this.id}`
-            msg(`click doc: ${this.id} ${this.title} url:${new_url}`);
+                const new_url = `https://en.wikipedia.org/wiki/${this.wiki}`;
+                msg(`click doc: ${this.id} ${this.title} url:${new_url}`);
 
-            window.open(new_url, "_blank");
+                window.open(new_url, "_blank");
+            }
         }
     }
 
     makeDot(lines : string[]){
-        lines.push(`b${this.id} [ label="${this.localTitle()}" id="${this.id}" class="doc" tooltip="　" fontsize="10" , fontcolor="blue" ];` );
+        const color = (this.wiki == undefined ? "black" : "blue");
+        lines.push(`b${this.id} [ label="${this.localTitle()}" id="${this.id}" class="doc" tooltip="　" fontsize="10" , fontcolor="${color}" ];` );
     }
 }
 
