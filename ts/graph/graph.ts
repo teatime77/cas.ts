@@ -2,7 +2,7 @@ declare var Viz: any;
 
 namespace casts {
 let langList : string[] = [ "ja", "en", "ko", "zh" ];
-export let langIdx : number = 0;
+export let langIdx : number = 1;
 
 let showSubgraph : boolean = true;
 
@@ -367,7 +367,22 @@ function setLangHandler(){
 
 }
 
+function getSearchParams(){
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+
+    const lang = params.get("lang");
+    if(lang != undefined){
+        const lang_idx = langList.indexOf(lang);
+        if(lang_idx != -1){
+            langIdx = lang_idx;
+        }
+    }
+}
+
 export async function bodyOnLoadGraph(){
+    getSearchParams();
+
     setLangHandler();
 
     await includeDialog();
