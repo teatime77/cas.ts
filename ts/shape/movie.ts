@@ -37,6 +37,20 @@ function meanPos(points: PointM[]) : Vec2 {
     return new Vec2(cx, cy);
 }
 
+function isDrawing(trm : Term) : boolean {
+    if(trm.isEq()){
+        const app = trm as App;
+        if(app.args[1] instanceof App){
+            const rhs = app.args[1] as App;            
+            if(isSystemName(rhs.fncName)){
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 export class PointM extends ShapeM {
     x : Term;
     y : Term;
@@ -701,6 +715,70 @@ class Movie extends ViewM {
         }
     }
 
+    drawShape(app:App){
+        assert(app.isEq() && app.args.length == 2);
+        if(app.args[1] instanceof RefVar){
+            assert(false);
+            const ref = app.args[0] as RefVar;
+            assert(ref instanceof RefVar);
+            const rhs = app.args[1];
+
+            const va = getVariable(rhs.name);
+            va.rename(ref.name);
+        }
+        else{
+            const rhs = app.args[1] as App;
+            assert(rhs instanceof App);
+            setRefVars(rhs);
+
+            if(app.args[0].isList()){
+                const lst = app.args[0] as App;
+
+                const va = new Variable(`dummy-${variables.length}`, rhs);
+                setEntity(va, rhs);
+                if(! (rhs.entity instanceof IntersectionM)){
+                    throw new MyError();
+                }
+
+                assert(lst.args.length == rhs.entity.points.length)
+                for(const [i, point] of rhs.entity.points.entries()){
+                    const ref = lst.args[i] as RefVar;
+                    assert(ref instanceof RefVar);
+                    if(ref.name == "_"){
+                        point.hide();
+                        continue;
+                    }
+
+                    const va2 = new Variable(ref.name, Zero());
+                    va2.entity = point;
+                    va2.depVars.push(va);
+
+                    point.name = ref.name;
+                    point.makeCaptionDiv();
+                }
+            }
+            else{
+                assert(app.args[0] instanceof RefVar);
+
+                const ref = app.args[0] as RefVar;
+
+                const va = new Variable(ref.name, rhs);
+                ref.refVar = va;
+                setEntity(va, rhs);
+                if(rhs instanceof App && rhs.entity instanceof ShapeM){
+                    
+                    if(rhs.entity instanceof ShapeM){
+                        rhs.entity.name = ref.name;
+                        rhs.entity.makeCaptionDiv();
+                    }
+                }
+                else{
+                    throw new MyError();
+                }
+            }
+        }
+    }
+
     *run(){
         this.lineIdx = 0;
         while(this.lineIdx < this.lines.length){
@@ -727,68 +805,8 @@ class Movie extends ViewM {
             const expr = parseMath(line);
             if(expr instanceof App){
                 const app = expr;
-                if(app.isEq()){
-    
-                    assert(app.args.length == 2);
-                    if(app.args[1] instanceof RefVar){
-                        const ref = app.args[0] as RefVar;
-                        assert(ref instanceof RefVar);
-                        const rhs = app.args[1];
-
-                        const va = getVariable(rhs.name);
-                        va.rename(ref.name);
-                    }
-                    else{
-                        const rhs = app.args[1] as App;
-                        assert(rhs instanceof App);
-                        setRefVars(rhs);
-
-                        if(app.args[0].isList()){
-                            const lst = app.args[0] as App;
-
-                            const va = new Variable(`dummy-${variables.length}`, rhs);
-                            setEntity(va, rhs);
-                            if(! (rhs.entity instanceof IntersectionM)){
-                                throw new MyError();
-                            }
-
-                            assert(lst.args.length == rhs.entity.points.length)
-                            for(const [i, point] of rhs.entity.points.entries()){
-                                const ref = lst.args[i] as RefVar;
-                                assert(ref instanceof RefVar);
-                                if(ref.name == "_"){
-                                    point.hide();
-                                    continue;
-                                }
-
-                                const va2 = new Variable(ref.name, Zero());
-                                va2.entity = point;
-                                va2.depVars.push(va);
-
-                                point.name = ref.name;
-                                point.makeCaptionDiv();
-                            }
-                        }
-                        else{
-                            assert(app.args[0] instanceof RefVar);
-
-                            const ref = app.args[0] as RefVar;
-
-                            const va = new Variable(ref.name, rhs);
-                            ref.refVar = va;
-                            setEntity(va, rhs);
-                            if(rhs instanceof App && rhs.entity instanceof ShapeM){
-                                
-                                if(rhs.entity instanceof ShapeM){
-                                    rhs.entity.name = ref.name;
-                                    rhs.entity.makeCaptionDiv();
-                                }
-                            }
-                            else{
-                                throw new MyError();
-                            }
-                        }
-                    }
+                if(isDrawing(app)){
+                    this.drawShape(app);
                 }
                 else if(app.fncName == "focus"){
                     assert(app.args.length == 1 && app.args[0] instanceof RefVar);

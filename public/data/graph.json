@@ -27,6 +27,7 @@
         { "id" : 25, "title" : "複素数の指数関数" },
         { "id" : 26, "title" : "三角関数:trigonometric functions:삼각함수:三角函数", "parent" : 16 },
         { "id" : 27, "title" : "オイラーの公式:Euler's formula:오일러 공식:欧拉公式", "wiki":"Euler%27s_formula" },
+        { "id" : 28, "title" : "加法:addition:덧셈:加法", "parent" : 41 },
         { "id" : 29, "title" : "ベクトルの勾配:gradient:기울기:梯度", "parent" : 23, "wiki":"Gradient" },
         { "id" : 30, "title" : "ベクトルの回転:curl:회전:旋度", "parent" : 23, "wiki":"Curl_(mathematics)" },
         { "id" : 31, "title" : "ベクトルの発散:divergence:발산:散度", "parent" : 23, "wiki":"Divergence" },
@@ -49,7 +50,10 @@
         { "id" : 48, "title" : "二項分布:binomial distribution:이항 분포:二項式分布", "parent" : 18, "wiki":"Binomial_distribution" },
         { "id" : 49, "title" : "ポアソン分布:Poisson distribution:푸아송 분포:卜瓦松分布", "parent" : 18, "wiki":"Poisson_distribution" },
         { "id" : 50, "title" : "組合せ:combination:조합:組合", "wiki":"Combination" },
+        { "id" : 51, "title" : "乗法:multiplication:곱셈:乘法", "parent" : 41 },
         { "id" : 52, "title" : "クーロンの法則:Coulomb's law:쿨롱 법칙:库仑定律", "parent" : 32, "wiki":"Coulomb%27s_law" },
+        { "id" : 53, "title" : "除法:division:나눗셈:除法", "parent" : 41 },
+        { "id" : 54, "title" : "スカラー倍:scalar multiplication:스칼라 곱셈:标量乘法", "parent" : 41 },
         { "id" : 55, "title" : "特殊相対性理論:special relativity:특수 상대성이론:狭义相对论", "parent" : 32, "wiki":"Special_relativity" },
         { "id" : 58, "title" : "シュレーディンガー方程式:Schrödinger equation:슈뢰딩거 방정식:薛定谔方程", "parent" : 34, "wiki":"Schrödinger_equation" },
         { "id" : 59, "title" : "井戸型ポテンシャル:particle in a box:상자 속 입자:無限深方形阱", "parent" : 34, "wiki":"Particle_in_a_box" },
@@ -324,7 +328,8 @@
         { "id" : 37, "title" : "3次元:::" },
         { "id" : 38, "title" : "n次元:::" },
         { "id" : 39, "title" : "正規分布", "parent" : 18 },
-        { "id" : 40, "title" : "外積", "parent" : 12 }
+        { "id" : 40, "title" : "外積", "parent" : 12 },
+        { "id" : 41, "title" : "基本公式:basic formula:기본 공식:基本公式", "parent" : 21 }
     ]
     ,
     "edges" : [

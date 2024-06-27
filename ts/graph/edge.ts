@@ -530,12 +530,16 @@ export class Doc extends MapItem {
 
             msg(`viz: ${this.title}`);
         }
+        else if(ev.shiftKey){
+            const new_url = `./movie.html?id=${this.id}`
+            msg(`open movie: ${this.id} ${this.title} url:${new_url}`);
+            window.open(new_url, "_blank");
+        }
         else{
             if(this.wiki != undefined){
 
                 const new_url = `https://en.wikipedia.org/wiki/${this.wiki}`;
-                msg(`click doc: ${this.id} ${this.title} url:${new_url}`);
-
+                msg(`open wiki: ${this.id} ${this.title} url:${new_url}`);
                 window.open(new_url, "_blank");
             }
         }
