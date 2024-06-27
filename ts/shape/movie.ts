@@ -8,6 +8,7 @@ let rangeDic : { [id : number] : Range } = {};
 let data_id : string = "1";
 const rangeInterval = 3;
 const angleRadius = 4;
+let ViewSizeLine : string = "";
 
 function radian(degree : number) : number {
     return degree * Math.PI / 180;
@@ -593,12 +594,19 @@ class Movie extends ViewM {
     speech! : Speech;
     marks : Mark[] = [];
 
-    constructor(width : number, height : number, x1 : number, y1 : number, x2 : number, y2 : number){
-        super(width, height, x1, y1, x2, y2);
+    constructor(){
+        super();
     }
 
+    setViewSize(args : string){
+        const params = args.split(",").map(x => x.trim()).map(x => parseFloat(x)) as [number,number,number,number,number,number];
+        assert(params.length == 6);
+        this.initView(...params);
+    }
+    
     async saveMovie(){
         const lines = this.lines.slice();
+        lines.unshift(ViewSizeLine);
         lines.unshift(`#pos:${JSON.stringify(captionShift)}`);
         lines.unshift("from lib import *");
 
@@ -694,6 +702,12 @@ class Movie extends ViewM {
 
             const pos = this.lines.shift()!;
             captionShift = JSON.parse(pos.substring(5));
+        }
+        
+        if(this.lines[0].startsWith("#view")){
+            const line = this.lines.shift()!;
+            ViewSizeLine = line;
+            this.setViewSize(line.substring(5).trim());
         }
     }
 
@@ -982,7 +996,7 @@ export async function bodyOnLoadMovie(){
 
     await includeDialog();
 
-    movie = new Movie(1280, 720, -8, -4.5, 8, 4.5);
+    movie = new Movie();
 
     await asyncInitSpeech();
 

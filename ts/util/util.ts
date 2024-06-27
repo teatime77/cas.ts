@@ -121,5 +121,17 @@ export function sum(v : number[]) : number {
     return v.reduce((acc, cur) => acc + cur, 0);
 }
 
+export function renderKatexSub(ele: HTMLElement, tex_text: string){
+    ele.innerHTML = "";
+        
+    katex.render(tex_text, ele, {
+        throwOnError: false,
+        displayMode : true,
+        trust : true,
+        strict : false, // "ignore", // false, // handler,
+        // newLineInDisplayMode : "ignore",
+        macros : getUserMacros()
+    });
+}
 
 }

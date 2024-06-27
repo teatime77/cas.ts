@@ -13,17 +13,7 @@ function handler(errorCode : any, errorMsg : any, token : any){
 }
 export function renderKatex(ele: HTMLElement, tex_text: string){
     try{
-        ele.innerHTML = "";
-        
-        katex.render(tex_text, ele, {
-            throwOnError: false,
-            displayMode : true,
-            trust : true,
-            strict : false, // "ignore", // false, // handler,
-            // newLineInDisplayMode : "ignore",
-            macros : getUserMacros()
-        });
-
+        renderKatexSub(ele, tex_text);
         
         const term_spans = Array.from(ele.getElementsByClassName("enclosing")) as HTMLSpanElement[];
         for(const span of term_spans){

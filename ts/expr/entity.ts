@@ -24,7 +24,7 @@ export function setCaptionEventListener(shape: ShapeM){
         height     : number = 0;
         svg : SVGSVGElement;
         svgRatio: number = 0;
-        rect : DOMRect;
+        rect! : DOMRect;
     
         divView : HTMLDivElement;
         div : HTMLDivElement;
@@ -32,62 +32,45 @@ export function setCaptionEventListener(shape: ShapeM){
         FlipY : boolean = true;
         capture: ShapeM | null = null;
     
-    
-        constructor(width : number, height : number, x1 : number, y1 : number, x2 : number, y2 : number){
-            this.width = width;
-            this.height = height;
-    
+        constructor(){
             this.divView = document.createElement("div");
-            // this.divView.style.position = "relative";
             this.divView.style.padding = "0px";
-            this.divView.style.width  = `${this.width}px`;
-            this.divView.style.height = `${this.height}px`;
-            // this.divView.style.zIndex = "1";
-            // this.divView.style.cssFloat = "right";
-            // this.divView.style.backgroundColor = "black";
             $div("movie-div").appendChild(this.divView);
-    
     
             this.svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
             this.svg.style.backgroundColor = "cornsilk";
             this.svg.style.position = "sticky";
             this.svg.style.left = "0px";
             this.svg.style.top = "0px";
-            this.svg.style.width  = `${this.width}px`;
-            this.svg.style.height = `${this.height}px`;
-            this.svg.setAttribute("viewBox", `${x1} ${y1} ${x2 - x1} ${y2 - y1}`);
-            this.svg.setAttribute("transform", "scale(1, -1)");
-    
             this.divView.appendChild(this.svg);
-    
-            this.rect = this.divView.getBoundingClientRect();
+
             this.div = document.createElement("div");
             this.div.style.position = "absolute";
-            this.div.style.left = `${this.rect.x}px`;
-            this.div.style.top  = `${this.rect.y}px`;
-            this.div.style.width  = `${this.width}px`;
-            this.div.style.height = `${this.height}px`;
             this.div.style.pointerEvents = "none";
             this.div.style.backgroundColor = "transparent";
     
             this.divView.appendChild(this.div);
 
-
-            const subtitle_height = 50; 
-            this.subtitle = document.createElement("div");
-            this.subtitle.style.position = "absolute";
-            this.subtitle.style.left = `${this.rect.x}px`;
-            this.subtitle.style.top  = `${this.rect.y + this.height - subtitle_height}px`;
-            this.subtitle.style.width  = `${this.width}px`;
-            this.subtitle.style.height = `${subtitle_height}px`;
-            this.subtitle.style.pointerEvents = "none";
-            this.subtitle.style.backgroundColor = "white";
-            this.subtitle.style.fontSize = "24pt";
-            this.subtitle.style.fontWeight = "bold";
-            this.subtitle.style.textAlign = "center";
+            this.subtitle = $div("subtitle");
+        }
     
-            this.divView.appendChild(this.subtitle);
-
+        initView(width : number, height : number, x1 : number, y1 : number, x2 : number, y2 : number){
+            this.width = width;
+            this.height = height;
+    
+            this.divView.style.width  = `${this.width}px`;
+            this.divView.style.height = `${this.height}px`;
+    
+            this.svg.style.width  = `${this.width}px`;
+            this.svg.style.height = `${this.height}px`;
+            this.svg.setAttribute("viewBox", `${x1} ${y1} ${x2 - x1} ${y2 - y1}`);
+            this.svg.setAttribute("transform", "scale(1, -1)");
+        
+            this.rect = this.divView.getBoundingClientRect();
+            this.div.style.left = `${this.rect.x}px`;
+            this.div.style.top  = `${this.rect.y}px`;
+            this.div.style.width  = `${this.width}px`;
+            this.div.style.height = `${this.height}px`;
 
             const rc = this.svg.getBoundingClientRect();
             this.svgRatio = this.svg.viewBox.baseVal.width / rc.width;
