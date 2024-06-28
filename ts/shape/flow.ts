@@ -367,11 +367,11 @@ function     putValueF(trm : Term, text : string) : string {
         }
     }
 
-    if(trm.color){
+    if(trm.colored){
         return `{\\color{red} ${val}}`;
     }
 
-    if(trm.cancel){
+    if(trm.canceled){
         return `\\cancel{${val}}`
     }
     else{

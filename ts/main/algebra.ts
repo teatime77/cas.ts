@@ -197,7 +197,7 @@ export function* subst(app: App, root : Term){
         }
         else{
 
-            t.replace(dst);
+            t.replaceTerm(dst);
         }
 
         yield* showRoot(root);
@@ -412,8 +412,8 @@ function getMultipliersDivisors(mul : App) : [Term[], Term[]]{
 function* cancelOut(root : Term, app : App, multipliers : Term[], divisors : Term[]){
 
     // 乗数や除数のリストからキャンセルされた項を取り除く。
-    multipliers = multipliers.filter(x => ! x.cancel);
-    divisors = divisors.filter(x => ! x.cancel);
+    multipliers = multipliers.filter(x => ! x.canceled);
+    divisors = divisors.filter(x => ! x.canceled);
 
     for(const m of multipliers){
         // すべての乗数に対し
@@ -431,8 +431,8 @@ function* cancelOut(root : Term, app : App, multipliers : Term[], divisors : Ter
         // msg(`cancel m:[${m.str2()}] d:[${d.str2()}]`)
 
         // 対応する乗数と除数をキャンセルする。
-        m.cancel = true;
-        d.cancel = true;
+        m.canceled = true;
+        d.canceled = true;
 
         assert(d.value.abs() == 1 || m.value.abs() == d.value.abs());
         app.value.setmul(m.value);
@@ -515,15 +515,15 @@ export function* cancelAdd(root : Term){
         for(const [idx, trm] of add.args.entries()){
             // 加算の引数に対し
 
-            if(trm.cancel){
+            if(trm.canceled){
                 continue;
             }
 
             // 係数以外が一致し、キャンセル済みでなく、係数の正負が逆の項を探す。
-            const trm2 = add.args.slice(idx + 1).find(x => x.str2() == trm.str2() && ! x.cancel && x.value.fval() == - trm.value.fval());
+            const trm2 = add.args.slice(idx + 1).find(x => x.str2() == trm.str2() && ! x.canceled && x.value.fval() == - trm.value.fval());
             if(trm2 != undefined){
-                trm.cancel = true;
-                trm2.cancel = true;
+                trm.canceled = true;
+                trm2.canceled = true;
 
                 yield* showRoot(root);
                 yield;
@@ -539,10 +539,10 @@ export function* cancelAdd(root : Term){
  * @description 指定された項をハイライト表示する。
  */
 export function* highlight(trm : Term, root : Term){
-    trm.color = true;
+    trm.colored = true;
     yield* showRoot(root);
     yield;
-    trm.color = false;
+    trm.colored = false;
 }
 
 /**
@@ -550,11 +550,11 @@ export function* highlight(trm : Term, root : Term){
  * @param root ルート
  * @description キャンセルされた項を取り除く。
  */
-export function* remCancel(root : Term){
+export function* removeCanceledTerms(root : Term){
     addHtml("キャンセルされた項を取り除く。");
 
     // キャンセルされた項のリスト
-    const canceled = allTerms(root).filter(x => x.cancel);
+    const canceled = allTerms(root).filter(x => x.canceled);
 
     for(const can of canceled){
         // すべてのキャンセルされた項に対し
@@ -602,14 +602,14 @@ export function* remCancel(root : Term){
  * 
  * @description 引数が1個だけの加算や乗算を、唯一の引数で置き換える。
  */
-function oneArg(app : App) {
+function simplifyOneArgApp(app : App) {
     assert(app.args.length == 1, "one arg");
 
     // 唯一の引数
     const arg1 = app.args[0];
 
     // 加算や乗算を唯一の引数で置き換える。
-    app.replace(arg1);
+    app.replaceTerm(arg1);
 
     // 唯一の引数の係数に、加算や乗算の係数をかける。
     arg1.value.setmul(app.value);
@@ -620,7 +620,7 @@ function oneArg(app : App) {
  * @param add_child 子の加算
  * @description 加算の中の加算を、親の加算にまとめる。
  */
-export function resolveAdd(add : App, add_child : App){
+export function simplifyNestedAdd(add : App, add_child : App){
     // 引数の中の加算の位置
     const idx = add.args.indexOf(add_child);
 
@@ -639,7 +639,7 @@ export function resolveAdd(add : App, add_child : App){
  * @param root ルート
  * @description 加算の中の加算を、親の加算にまとめる。
  */
-export function* resolveAddAll(root : Term){
+export function* simplifyNestedAddAll(root : Term){
     addHtml("加算の整理をする。");
 
     // すべての加算のリスト
@@ -660,7 +660,7 @@ export function* resolveAddAll(root : Term){
             }
 
             // 加算の中の加算を、親の加算にまとめる。
-            resolveAdd(add, add_child);
+            simplifyNestedAdd(add, add_child);
 
             yield* showRoot(root);
             yield;
@@ -678,7 +678,7 @@ export function* zeroOneAddMul(root : App){
             // 引数が１つしかない加算や乗算がある場合
 
             // 引数が1個だけの加算や乗算を、唯一の引数で置き換える。
-            oneArg(bin1 as App);
+            simplifyOneArgApp(bin1 as App);
 
             yield* showRoot(root);
             yield;
@@ -695,7 +695,7 @@ export function* zeroOneAddMul(root : App){
                 // 引数がない乗算が、除算の分子か分母の場合
 
                 // その除算の分子か分母を1で置き換える。
-                mul0.replace(new ConstNum(1));
+                mul0.replaceTerm(new ConstNum(1));
             }
             else if(mul0.parent!.isMul()){
                 // 引数のない乗算が、乗算の引数の場合
@@ -729,7 +729,7 @@ export function* trimMul(root : App){
             // 分母が1の除算がある場合
 
             // その除算を分子で置き換える。
-            div.replace(div.args[0]);
+            div.replaceTerm(div.args[0]);
 
             // 分子の係数に、除算の係数をかける。
             div.args[0].value.setmul(div.value);
@@ -881,7 +881,7 @@ export function* splitdiv(cmd : App, root : App){
     const add3 = new App(operator("+"), []);
 
     // 元の除算を新しい加算で置き換える。
-    div.replace(add3);
+    div.replaceTerm(add3);
 
     // 新しい加算に2つの除算を追加する。
     add3.addArg(div);
@@ -935,7 +935,7 @@ export function* factor_out_div(cmd : App, root : App){
         const parent_mul = new App(operator("*"), []);
 
         // 除算を乗算で置き換える。
-        div.replace(parent_mul);
+        div.replaceTerm(parent_mul);
         
         // 乗算に除算を追加する。
         parent_mul.addArg(div);
@@ -967,7 +967,7 @@ export function* transpose(cmd : App, root : Term){
     addHtml(`$${trm.tex()}$ を移項する。`)
 
     // 移動する項をキャンセルする。
-    trm.cancel = true;
+    trm.canceled = true;
     yield* showRoot(root);
     yield;
 
@@ -984,14 +984,14 @@ export function* transpose(cmd : App, root : Term){
             // 移動元の項の親の加算の引数が1個の場合
     
             // 引数が1個だけの加算や乗算を、唯一の引数で置き換える。
-            oneArg(trm_parent_add);
+            simplifyOneArgApp(trm_parent_add);
         }
     }
     else if(trm_parent_add.isEq()){
         // 移動元の項の親が等式の場合(移動元が辺の場合)
 
         // 辺の0を入れる。
-        trm.replace(new ConstNum(0));
+        trm.replaceTerm(new ConstNum(0));
     }
     else{
 
@@ -1014,12 +1014,12 @@ export function* transpose(cmd : App, root : Term){
         // 移動先の親が加算でない場合
 
         add = new App(operator("+"), []);
-        parent.replace(add);
+        parent.replaceTerm(add);
         add.addArg(parent);
     }
 
     // 移動する項のキャンセルをはずす。
-    trm.cancel = false;
+    trm.canceled = false;
 
     // 移項したので符号を反転する。
     trm.value.numerator *= -1;
@@ -1064,7 +1064,7 @@ export function* distribute(cmd : App, root : App){
     addHtml(`$${multiplier.tex()}$ を $${add.tex()}$ の各項にかける。`)
 
     // 乗算を加算に置き換える。
-    mul.replace(add);
+    mul.replaceTerm(add);
 
     // mul.args[0].cancel = true;
     yield* showRoot(root);
@@ -1158,7 +1158,7 @@ export function* greatestCommonFactor(cmd : App, root : App){
     if(mul_parent_add.args.length == 1){
 
         // 引数が1個だけの加算や乗算を、唯一の引数で置き換える。
-        oneArg(mul_parent_add);
+        simplifyOneArgApp(mul_parent_add);
     }
 }
 
@@ -1272,10 +1272,10 @@ export function* greatestCommonFactor2(cmd : App, root : App){
     }
 
     // 共通乗数に含まれる乗数はキャンセルする。
-    all_multipliers.filter(x => common_multipliers.some(y => x.str2() == y.str2())).forEach(x => x.cancel = true);
+    all_multipliers.filter(x => common_multipliers.some(y => x.str2() == y.str2())).forEach(x => x.canceled = true);
 
     // 共通除数に含まれる除数はキャンセルする。
-    all_divisors.filter(x => common_divisors.some(y => x.str2() == y.str2())).forEach(x => x.cancel = true);
+    all_divisors.filter(x => common_divisors.some(y => x.str2() == y.str2())).forEach(x => x.canceled = true);
 
     // 共通化するすべての項のみで、新たに加算を作る。
     const add_args = new App(operator("+"), args);
@@ -1290,7 +1290,7 @@ export function* greatestCommonFactor2(cmd : App, root : App){
         // 共通化する項の親の加算の引数が1個だけの場合
 
         // 引数が1個だけの加算や乗算を、唯一の引数で置き換える。
-        oneArg(mul_parent_add);
+        simplifyOneArgApp(mul_parent_add);
     }
 }
 

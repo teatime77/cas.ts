@@ -40,7 +40,7 @@ export function* pulloutDiff(root : App){
         else{
 
             const mul2 = new App(operator("*"), no_depends);
-            diff.replace(mul2);
+            diff.replaceTerm(mul2);
             mul2.addArg(diff);
         }
 
@@ -80,7 +80,7 @@ export function* lowerdiff(cmd : App, root : App){
 
     const diff = new App(operator(lo_diff.fncName), [ lo_diff, dvar.clone() ]);
 
-    hi_diff.replace(diff);
+    hi_diff.replaceTerm(diff);
 }
 
 function diffmul(mul_arg : App, dvar : RefVar) : Term {
@@ -162,7 +162,7 @@ export function* calc_diff(cmd : App, root : App){
     assert(dvar instanceof RefVar);
 
     const result = diff(trm, dvar);
-    diff_app.replace(result);
+    diff_app.replaceTerm(result);
 }
 
 function square(trm : Term) : Term {

@@ -4,25 +4,6 @@ let focusTimerId : number = 0;
 class FormulaError extends Error {    
 }
 
-export function matchFormula(formula : App, app : App) : boolean {
-
-    allTerms(formula).filter(x => x instanceof App && x.fncName == app.fncName);
-
-    return true;
-}
-
-export function splitAddMul(app: App, cnt : number){
-    assert( (app.fncName == "+" || app.fncName == "*") && cnt + 1 < app.args.length);
-
-    app.args.forEach(x => x.remArg());
-    assert(app.args.length == 0);
-
-    const app1 = new App(operator(app.fncName), app.args.slice(0, cnt));
-    const app2 = new App(operator(app.fncName), app.args.slice(cnt));
-
-    app.addArgs( [app1, app2] );
-}
-
 export abstract class Transformation {
     commandName : string;
     focus : Term;
@@ -229,7 +210,7 @@ export class ApplyFormula extends Transformation {
     }
 }
 
-export class BasicTransformation extends Transformation {
+export class SimplifyNestedAddMul extends Transformation {
     static fromCommand(cmd : App){
         assert(cmd.args.length == 1);
         assert(cmd.args[0] instanceof Path);
@@ -237,7 +218,7 @@ export class BasicTransformation extends Transformation {
         const focus_path = cmd.args[0] as Path;
         const focus = focus_path.getTerm(Alg.root!);
 
-        const trans = new BasicTransformation(focus);
+        const trans = new SimplifyNestedAddMul(focus);
         return trans.result();
     }
 
@@ -250,7 +231,7 @@ export class BasicTransformation extends Transformation {
 
         if(focus_cp.isAdd()){
 
-            resolveAdd(focus_cp.parent as App, focus_cp);
+            simplifyNestedAdd(focus_cp.parent as App, focus_cp);
         }
         else{
 
@@ -274,7 +255,7 @@ export function substByDic(dic : Map<string, Term>, fdic : Map<string, [App, Ter
         if(trm2.equal(trm2_cp)){
             // 公式側の関数呼び出しと一致する場合
 
-            trm2.replace(trm1_conv.clone());
+            trm2.replaceTerm(trm1_conv.clone());
         }
         else{
             // 公式側の関数呼び出し違う場合
@@ -292,7 +273,7 @@ export function substByDic(dic : Map<string, Term>, fdic : Map<string, [App, Ter
         trm.value.setmul(ref.value);
 
         // 変数参照を変換値で置き換える。
-        ref.replace(trm);
+        ref.replaceTerm(trm);
     }
 }
 
@@ -338,17 +319,24 @@ function elementaryAlgebra(focus : Term){
     if(focus.parent != null){
 
         if(focus.isAdd() && focus.parent.isAdd() || focus.isMul() && focus.parent.isMul()){
-            const trans = new BasicTransformation(focus);
+            // 対象がネストした加算か乗算の場合
+
+            const trans = new SimplifyNestedAddMul(focus);
             trans.showCandidate();
         }
+
         if(1 <= focus.index() && (focus.parent.isAdd() || focus.parent.isMul()) && 3 <= focus.parent.args.length){
+            // 対象が加算や乗算の途中の引数の場合
+
             const trans = new SplitAddMul(focus);
             trans.showCandidate();
         }
         
         const value = unifyValue(focus, new Rational(1), true, false);
         if(! value.is(1)){
+            // 係数が1でない場合
 
+            // 係数を整理する。
             const trans = new UnifyValue(focus);
             trans.showCandidate();
         }
@@ -578,7 +566,7 @@ class LinearSplit extends LinearTransformation {
             return add;
         }
 
-        focus_cp.replace(add);
+        focus_cp.replaceTerm(add);
         return root_cp;
     }
 
@@ -610,7 +598,7 @@ class LinearJoin extends LinearTransformation {
             return joint_fnc;
         }
 
-        focus_cp.replace(joint_fnc);
+        focus_cp.replaceTerm(joint_fnc);
         return root_cp;
 
     }

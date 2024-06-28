@@ -202,8 +202,8 @@ export abstract class Term {
     // 係数
     value : Rational = new Rational(1);
 
-    cancel : boolean = false;
-    color  : boolean = false;
+    canceled : boolean = false;
+    colored  : boolean = false;
 
     constructor(){
         this.id = termId++;
@@ -226,7 +226,7 @@ export abstract class Term {
 
     copy(dst : Term){
         dst.value  = this.value.clone();
-        dst.cancel = this.cancel;
+        dst.canceled = this.canceled;
     }
 
 
@@ -301,7 +301,7 @@ export abstract class Term {
         this.strval = this.str();
     }
 
-    replace(target : Term){
+    replaceTerm(target : Term){
         const app : App = this.parent!;
         assert(app != null, "replace");
 
@@ -378,11 +378,11 @@ export abstract class Term {
             }
         }
 
-        if(this.color){
+        if(this.colored){
             return `{\\color{red} ${val}}`;
         }
 
-        if(this.cancel){
+        if(this.canceled){
             return `\\cancel{${val}}`
         }
         else{

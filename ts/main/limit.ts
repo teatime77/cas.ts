@@ -43,7 +43,7 @@ export function* splitLim(cmd : App, root : App){
     const add3 = new App(operator(opr), []);
 
     // 元の極限を新しい加算で置き換える。
-    lim.replace(add3);
+    lim.replaceTerm(add3);
 
     // 新しい加算に2つの極限を追加する。
     add3.addArg(lim);
@@ -51,12 +51,12 @@ export function* splitLim(cmd : App, root : App){
 
     if(add.args.length == 1){
         add.args[0].value.setmul(add.value);
-        add.replace(add.args[0]);
+        add.replaceTerm(add.args[0]);
     }
 
     if(add2.args.length == 1){
         add2.args[0].value.setmul(add2.value);
-        add2.replace(add2.args[0]);
+        add2.replaceTerm(add2.args[0]);
     }
     
 }

@@ -131,7 +131,7 @@ function applyFormula(cmd : App) : App {
     }
     else{
         focus_root = focus.getRoot();
-        focus.replace(formula_another_side);
+        focus.replaceTerm(formula_another_side);
     }
 
     return focus_root;
@@ -150,7 +150,7 @@ export function doCommand(cmd : App){
         break;
 
     case "@resolveAddMul":
-        expr = BasicTransformation.fromCommand(cmd);
+        expr = SimplifyNestedAddMul.fromCommand(cmd);
         break;
 
     case "@change_order":

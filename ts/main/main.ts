@@ -155,11 +155,11 @@ function* gen(texts : string){
                     break;
 
                 case "@remcancel":
-                    yield* remCancel(alg.root);
+                    yield* removeCanceledTerms(alg.root);
                     break;
 
                 case "@trimadd":
-                    yield* resolveAddAll(alg.root);
+                    yield* simplifyNestedAddAll(alg.root);
                     break;
 
                 case "@trimmul":
