@@ -467,7 +467,16 @@ export function makeFlow(trm : TexNode | Term | string) : TexNode {
                     break;
 
                 default:
-                    node = join(app.args, ` `);
+                    const nodes : TexNode[] = [];
+                    for(const [i, arg] of app.args.entries()){
+                        if(i != 0 && 0 <= arg.value.fval()){
+                            nodes.push(new TexStr("+"));
+                        }
+            
+                        nodes.push(makeFlow(arg));
+                    }
+            
+                    node = new TexSeq(nodes);
                     break;
                 }
                 break;
@@ -529,6 +538,15 @@ export function makeFlow(trm : TexNode | Term | string) : TexNode {
                     node = seq("(", node, ")");
                 }            
             }
+        }
+
+        const fval = app.value.fval();
+        if(fval == -1){            
+            node = seq("-", node);
+        }
+        else if(fval !=  1){
+            assert(app.value.denominator == 1);
+            node = seq(app.value.numerator.toFixed(), node);
         }
 
         return node;

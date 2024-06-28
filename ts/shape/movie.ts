@@ -793,6 +793,42 @@ class Movie extends ViewM {
         }
     }
 
+    *showFlow(root : App){
+        root.setParent(null);
+        root.setTabIdx();
+    
+        const node = makeFlow(root);
+        const phrases : PhraseF[] = [];
+        node.makeSpeech(phrases);
+    
+        let text = "";
+        for(const phrase of phrases){
+            phrase.start = text.length;
+            for(const word of phrase.words){
+                if(word != ""){
+                    if(text != ""){
+                        text += " ";
+                    }
+                    text += word;
+                }
+            }
+            phrase.end = text.length;
+        }
+    
+        let speech = new Speech(undefined);
+        speech.speak(text);
+
+        const katex_div = $div("katex-div");
+        for(const s of node.genTex(speech)){
+            renderKatexSub(katex_div, s);
+            yield;
+        }
+    
+        while(speech != null && speech.speaking){
+            yield;
+        }
+    }
+
     *run(){
         this.lineIdx = 0;
         while(this.lineIdx < this.lines.length){
@@ -830,7 +866,7 @@ class Movie extends ViewM {
                     data.focus(true);
                 }
                 else{
-                    assert(false);
+                    yield* this.showFlow(app);
                 }
             }
             else{
