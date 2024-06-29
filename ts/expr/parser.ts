@@ -211,6 +211,7 @@ export abstract class Term {
 
     abstract tex2() : string;
     abstract clone() : Term;
+    abstract strid() : string;
 
     eq(trm : Term) : boolean {
         return this.str() == trm.str();
@@ -395,8 +396,12 @@ export abstract class Term {
         return "";
     }
 
-
     str() : string {
+        this.strval = this.strX();
+        return this.strval;
+    }
+
+    strX() : string {
         const text = this.str2();
         return this.putValue(text);
     }
@@ -409,8 +414,15 @@ export abstract class Term {
     
     tex() : string {
         const text = this.tex2();
-        return text;
-        return this.htmldata(this.putValue(text));
+        if(this.colored){
+
+            return `{\\color{red} ${text}}`;
+            return this.htmldata(this.putValue(text));
+        }
+        else{
+
+            return this.putValue(text);
+        }
     }
 
     isApp(fnc_name : string) : boolean {
@@ -543,7 +555,11 @@ export class Path extends Term {
         return super.equal(trm) && trm instanceof Path && range(this.indexes.length).every(i => this.indexes[i] == trm.indexes[i]);
     }
 
-    str() : string {
+    strid() : string{
+        throw new MyError();
+    }
+
+    strX() : string {
         return `#${this.indexes.join(pathSep)}`;
     }
 
@@ -641,6 +657,17 @@ export class RefVar extends Term{
         return super.equal(trm) && trm instanceof RefVar && this.name == trm.name;
     }
 
+    strid() : string{
+        if(this.value.is(1)){
+
+            return `${this.name}`;
+        }
+        else{
+
+            return `${this.value.str()} ${this.name}`;
+        }
+    }
+
     clone() : RefVar {
         const ref = new RefVar(this.name);
         this.copy(ref);
@@ -669,6 +696,10 @@ export class ConstNum extends Term{
         return super.equal(trm);
     }
 
+    strid() : string{
+        return `${this.value.str()}`;
+    }
+
     static fromRational(r : Rational) : ConstNum {
         return new ConstNum(r.numerator, r.denominator);
     }
@@ -685,7 +716,7 @@ export class ConstNum extends Term{
         return this.value.str();        
     }
 
-    str() : string {
+    strX() : string {
         return this.value.str();        
     }
 
@@ -744,6 +775,26 @@ export class App extends Term{
         }
 
         return false;
+    }
+
+
+    strid() : string{
+        let s : string;
+        if(this.fnc.isOprFnc()){
+            s = this.args.map(x => x.strid()).join(this.fncName);
+        }
+        else{
+            s = `${this.fncName}(${this.args.map(x => x.strid()).join(", ")})`;
+
+        }
+        if(this.value.is(1)){
+
+            return s;
+        }
+        else{
+
+            return `${this.value.str()} ${s}`;
+        }
     }
 
     clone() : App {

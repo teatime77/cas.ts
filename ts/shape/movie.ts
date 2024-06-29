@@ -52,6 +52,10 @@ function isDrawing(trm : Term) : boolean {
     return false;
 }
 
+function isAction(trm : Term) : boolean {
+    return trm instanceof App && trm.fncName[0] == '@';
+}
+
 export class PointM extends ShapeM {
     x : Term;
     y : Term;
@@ -593,6 +597,8 @@ class Movie extends ViewM {
     lineIdx : number = 0;
     speech! : Speech;
     marks : Mark[] = [];
+    current : App | undefined;
+    texDiv! : HTMLDivElement;
 
     constructor(){
         super();
@@ -729,6 +735,51 @@ class Movie extends ViewM {
         }
     }
 
+    addTexDiv(){
+        this.texDiv = document.createElement("div");
+        $div("katex-div").appendChild(this.texDiv);
+    }
+
+    getAt(root : App, at : App) : Term {
+        const str = at.args[0].strid();
+        msg(`[${str}]---`)
+        allTerms(root).forEach(x => msg(`[${x.strid()}]`));
+        const trms = allTerms(root).filter(x => x.strid() == str);
+        if(at.args.length == 1){
+            if(trms.length == 1){
+                return trms[0];
+            }
+        }
+        else{
+            if(at.args[1] instanceof ConstNum){
+                const idx = at.args[1].value.int() - 1;
+                if(0 <= idx && idx < trms.length){
+                    return trms[idx];
+                }            
+            }
+        }
+
+        throw new MyError();
+    }
+
+    doAction(cmd : App){
+        if(cmd.fncName == "@highlight"){
+            if(cmd.args.length == 1 && cmd.args[0] instanceof App && cmd.args[0].fncName == "@at"){
+                if(this.current != undefined){
+
+                    const trm = this.getAt(this.current, cmd.args[0]);
+                    trm.colored = true;
+                    const tex = this.current.tex();
+                    renderKatexSub(this.texDiv, tex);
+                    return;
+                }
+            }
+
+        }
+
+        throw new MyError();
+    }
+
     drawShape(app:App){
         assert(app.isEq() && app.args.length == 2);
         if(app.args[1] instanceof RefVar){
@@ -794,6 +845,7 @@ class Movie extends ViewM {
     }
 
     *showFlow(root : App){
+        this.current = root;
         root.setParent(null);
         root.setTabIdx();
     
@@ -818,9 +870,9 @@ class Movie extends ViewM {
         let speech = new Speech(undefined);
         speech.speak(text);
 
-        const katex_div = $div("katex-div");
+        this.addTexDiv();
         for(const s of node.genTex(speech)){
-            renderKatexSub(katex_div, s);
+            renderKatexSub(this.texDiv, s);
             yield;
         }
     
@@ -855,7 +907,14 @@ class Movie extends ViewM {
             const expr = parseMath(line);
             if(expr instanceof App){
                 const app = expr;
-                if(isDrawing(app)){
+                if(isAction(app)){
+                    // コマンドの場合
+
+                    this.doAction(app);
+                }
+                else if(isDrawing(app)){
+                    // 図形描画の場合
+
                     this.drawShape(app);
                 }
                 else if(app.fncName == "focus"){
@@ -866,6 +925,8 @@ class Movie extends ViewM {
                     data.focus(true);
                 }
                 else{
+                    // 数式の場合
+
                     yield* this.showFlow(app);
                 }
             }
@@ -886,6 +947,7 @@ function setEntity(va : Variable, trm : Term) : void {
         app.args.forEach(x => setEntity(va, x));
 
         if(isShapeName(app.fncName)){
+            // 図形の名前の場合
 
             if(app.fncName == "Point"){
                 assert(app.args.length == 2);
