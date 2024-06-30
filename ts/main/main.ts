@@ -1,8 +1,5 @@
 namespace casts {
 
-export let mathDivRoot : HTMLDivElement;
-export let mathDiv : HTMLDivElement;
-export let stopGen : boolean = false;
 let docsIndex : any;
 
 function heading(text : string){

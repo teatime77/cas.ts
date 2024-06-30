@@ -22,8 +22,6 @@ let loginUid : string | null = null;
 let guestUid = defaultUid;
 let firebase: any;
 
-export let actions : Action[];
-
 
 class Glb {
     toolType : string = "";
@@ -47,14 +45,6 @@ function v2app(v : Vec2) : App {
     return new App(operator("vec"), [new ConstNum(v.x), new ConstNum(v.y)]);
 }
 
-export class Action {
-    command : App;
-
-    constructor(command : App){
-        this.command = command;
-    }
-}
-
 export class WidgetAction extends Action {
     constructor(command : App){
         super(command);
@@ -64,10 +54,6 @@ export class WidgetAction extends Action {
 
 let glb : Glb;
 
-
-export function addAction(act : Action){
-    actions.push(act);
-}
 
 /**
  * Viewのイベント処理

@@ -746,17 +746,30 @@ class Movie extends ViewM {
         $div("katex-div").appendChild(this.texDiv);
     }
 
-    getAt(root : App, at : App) : Term {
-        const str = at.args[0].strid();
+    getEqTerms(root : App, trm : Term) : Term[] {
+        const str = trm.strid();
         msg(`[${str}]---`)
         allTerms(root).forEach(x => msg(`[${x.strid()}]`));
         const trms = allTerms(root).filter(x => x.strid() == str);
+
+        return trms
+    }
+
+    getEqTerm(root : App, trm : Term) : Term {
+        const trms = this.getEqTerms(root, trm);
+        if(trms.length == 1){
+            return trms[0];
+        }
+        throw new MyError();
+    }
+
+    getAt(root : App, at : App) : Term {
         if(at.args.length == 1){
-            if(trms.length == 1){
-                return trms[0];
-            }
+            return this.getEqTerm(root, at.args[0])
         }
         else{
+            const trms = this.getEqTerms(root, at.args[0]);
+
             if(at.args[1] instanceof ConstNum){
                 const idx = at.args[1].value.int() - 1;
                 if(0 <= idx && idx < trms.length){
@@ -769,6 +782,10 @@ class Movie extends ViewM {
     }
 
     doAction(cmd : App){
+        if(this.current == undefined){
+            throw new MyError();
+        }
+
         if(cmd.fncName == "@highlight"){
             if(cmd.args.length == 1 && cmd.args[0] instanceof App && cmd.args[0].fncName == "@at"){
                 if(this.current != undefined){
@@ -780,7 +797,10 @@ class Movie extends ViewM {
                     return;
                 }
             }
-
+        }
+        else if(cmd.fncName == "@resolveAddMul"){
+            const trm = this.getEqTerm(this.current, cmd.args[0]);
+            // expr = SimplifyNestedAddMul.fromCommand(cmd);
         }
 
         throw new MyError();

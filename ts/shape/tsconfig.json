@@ -110,6 +110,7 @@
   "references": [
     { "path": "../util" },
     { "path": "../speech" },
-    { "path": "../expr" }
+    { "path": "../expr" },
+    { "path": "../algebra"}
 ]
 }
