@@ -48,6 +48,14 @@ export function renderKatex(ele: HTMLElement, tex_text: string){
     }
 }
 
+export class Action {
+    command : App;
+
+    constructor(command : App){
+        this.command = command;
+    }
+}
+
 export class FormulaAction extends Action {
     expr    : App;
     div  : HTMLDivElement;

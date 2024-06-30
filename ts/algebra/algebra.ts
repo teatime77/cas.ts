@@ -1,7 +1,15 @@
 namespace casts {
 //
+export let mathDiv : HTMLDivElement;
+export let mathDivRoot : HTMLDivElement;
+export let stopGen : boolean = false;
+export let actions : Action[];
 export let useSpeech = true;
 export let useFlow = true;
+
+export function addAction(act : Action){
+    actions.push(act);
+}
 
 export function makeMathDiv(){
     mathDiv = document.createElement("div");
