@@ -8,6 +8,7 @@ function symbol2words(symbol: string) : string {
         "sec" : "secant",
         "cosec" : "cosecant",
         "cot" : "cotangent",
+        "=" : "equals",
         "==" : "equals",
         "!=" : "not equal to",
         "<" : "is less than",

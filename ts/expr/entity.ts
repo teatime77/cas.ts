@@ -55,6 +55,8 @@ export function setCaptionEventListener(shape: ShapeM){
         }
     
         initView(width : number, height : number, x1 : number, y1 : number, x2 : number, y2 : number){
+            $div("movie-div").style.display = "";
+            
             this.width = width;
             this.height = height;
     

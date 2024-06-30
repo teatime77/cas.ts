@@ -735,8 +735,14 @@ class Movie extends ViewM {
         }
     }
 
+    texWidth() : number {
+        return movieWidth - this.width;
+    }
+
     addTexDiv(){
         this.texDiv = document.createElement("div");
+        this.texDiv.style.width = `${this.texWidth()}px`;
+        $div("katex-div").style.display = "";
         $div("katex-div").appendChild(this.texDiv);
     }
 

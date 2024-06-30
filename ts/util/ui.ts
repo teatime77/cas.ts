@@ -1,5 +1,8 @@
 namespace casts {
 
+export const movieWidth  = 1280;
+export const movieHeight = 720;
+
 const $dic = new Map<string, HTMLElement>();
 
 

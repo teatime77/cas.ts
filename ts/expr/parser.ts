@@ -416,7 +416,7 @@ export abstract class Term {
         const text = this.tex2();
         if(this.colored){
 
-            return `{\\color{red} ${text}}`;
+            return `{\\color{red} ${this.putValue(text)}}`;
             return this.htmldata(this.putValue(text));
         }
         else{
