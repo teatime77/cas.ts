@@ -228,6 +228,7 @@ export abstract class Term {
     copy(dst : Term){
         dst.value  = this.value.clone();
         dst.canceled = this.canceled;
+        dst.colored  = this.colored;
     }
 
 
@@ -340,7 +341,7 @@ export abstract class Term {
         this.parent!.args.splice(idx, 1);
     }
 
-    putValue(text : string) : string {
+    putValue(text : string, in_tex : boolean) : string {
         let val : string;
 
         if(this instanceof ConstNum){
@@ -379,16 +380,18 @@ export abstract class Term {
             }
         }
 
-        if(this.colored){
-            return `{\\color{red} ${val}}`;
+        if(in_tex){
+
+            if(this.colored){
+                return `{\\color{red} ${val}}`;
+            }
+
+            if(this.canceled){
+                return `\\cancel{${val}}`
+            }
         }
 
-        if(this.canceled){
-            return `\\cancel{${val}}`
-        }
-        else{
-            return val;
-        }
+        return val;
     }
 
     str2() : string {
@@ -403,7 +406,7 @@ export abstract class Term {
 
     strX() : string {
         const text = this.str2();
-        return this.putValue(text);
+        return this.putValue(text, false);
     }
 
 
@@ -416,12 +419,12 @@ export abstract class Term {
         const text = this.tex2();
         if(this.colored){
 
-            return `{\\color{red} ${this.putValue(text)}}`;
-            return this.htmldata(this.putValue(text));
+            return `{\\color{red} ${this.putValue(text, true)}}`;
+            return this.htmldata(this.putValue(text, true));
         }
         else{
 
-            return this.putValue(text);
+            return this.putValue(text, true);
         }
     }
 

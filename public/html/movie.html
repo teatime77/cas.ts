@@ -21,6 +21,7 @@
     <script type="text/javascript" src="../js/expr.js?ver=0"></script>
     <script type="text/javascript" src="../js/speech.js?ver=0"></script>
     <script type="text/javascript" src="../js/graph.js?ver=0"></script>
+    <script type="text/javascript" src="../js/algebra.js?ver=0"></script>
     <script type="text/javascript" src="../js/shape.js?ver=0"></script>
     <script type="text/javascript" src="../js/db.js?ver=0"></script>
     <script type="text/javascript" src="../js/main.js?ver=0"></script>
@@ -67,20 +68,20 @@
 </style>
 </head>
 <body onload="casts.bodyOnLoadMovie()">
-<p></p>
-<div>
-  <button id="start-movie">start</button>
-  <button id="start-play">play</button>
-  <button id="save-movie">save</button>
-</div>
-<p></p>
-<div style="display: flex; position: absolute; left: 0px; top: 100px; width: 1280px; height: 720px; ">
+<div style="display: flex; position: absolute; left: 0px; top: 0px; width: 1280px; height: 720px; ">
   <div id="katex-div" style="display: none;" ></div>
   <div id="movie-div" style="display: none;" ></div><br/>
 </div>
 
 <div id="subtitle" style="position: absolute; left: 0px; top: 670px; width: 1280px; height: 50px; font-size: 24pt; font-weight: bold; text-align: center; background-color: antiquewhite;"></div>
 
+<p></p>
+<div style="position: absolute; top: 720px;">
+  <button id="start-movie">start</button>
+  <button id="start-play">play</button>
+  <button id="save-movie">save</button>
+</div>
+<p></p>
 <div id="dlg-list"></div>
 
 </body>

@@ -611,10 +611,11 @@ class Movie extends ViewM {
     }
     
     async saveMovie(){
-        const lines = this.lines.slice();
-        lines.unshift(ViewSizeLine);
-        lines.unshift(`#pos:${JSON.stringify(captionShift)}`);
-        lines.unshift("from lib import *");
+        const lines : string[] = [
+            ViewSizeLine,
+            `#pos:${JSON.stringify(captionShift)}`
+        ]
+        .concat(this.lines);
 
         const data = {
             "command" : "write-movie",
@@ -645,14 +646,7 @@ class Movie extends ViewM {
         return line;
     }
 
-    speakM(speech_texts : string[]){
-        const line = speech_texts.find(x => x.startsWith(`# ${this.speech.lang2}`));
-        if(line == undefined){
-            msg(`no translation:${speech_texts[0]}`);
-            return;
-        }
-        const text = line.substring(6);
-
+    speakM(text : string){
         this.marks = [];
         const mark_stack : Mark[] = [];
         let speech_text : string = "";
@@ -698,12 +692,9 @@ class Movie extends ViewM {
 
     async getLines(){
 
-        const texts = await fetchText(`../data/script/${data_id}.py`);
+        const texts = await fetchText(`../data/script/${data_id}.sh`);
         this.lines = texts.replaceAll('\r', "").split('\n');
         
-        const head = this.lines.shift();
-        assert(head!.startsWith("from"));
-
         if(this.lines[0].startsWith("#pos:")){
 
             const pos = this.lines.shift()!;
@@ -799,8 +790,12 @@ class Movie extends ViewM {
             }
         }
         else if(cmd.fncName == "@resolveAddMul"){
-            const trm = this.getEqTerm(this.current, cmd.args[0]);
-            // expr = SimplifyNestedAddMul.fromCommand(cmd);
+            const focus = this.getEqTerm(this.current, cmd.args[0]);            
+            focus.colored = true;
+            this.current = SimplifyNestedAddMul.fromCommand(focus as App);
+            const tex = this.current.tex();
+            renderKatexSub(this.texDiv, tex);
+            return;
         }
 
         throw new MyError();
@@ -915,18 +910,14 @@ class Movie extends ViewM {
                 this.lineIdx++;
                 continue
             }
-            else if(line.startsWith("#")){
+            else if(line.startsWith("# ")){
                 yield* this.stepRanges();
 
-                const speech_texts : string[] = [ line ];
-                while(this.lineIdx < this.lines.length && this.lines[this.lineIdx].trim().startsWith("#")){
-                    speech_texts.push( this.lines[this.lineIdx].trim() );
-                    this.lineIdx++;
-                }
-                movie.speakM(speech_texts);
+                movie.speakM(line.substring(2));
                 while(movie.speech.speaking){
                     yield;
                 }
+                this.lineIdx++;
                 continue;
             }
             msg(`parse:${line}`);

@@ -212,11 +212,18 @@ export class ApplyFormula extends Transformation {
 
 export class SimplifyNestedAddMul extends Transformation {
     static fromCommand(cmd : App){
-        assert(cmd.args.length == 1);
-        assert(cmd.args[0] instanceof Path);
-    
-        const focus_path = cmd.args[0] as Path;
-        const focus = focus_path.getTerm(Alg.root!);
+        let focus : Term;
+
+        if(cmd.args.length == 1 && cmd.args[0] instanceof Path){
+
+        
+            const focus_path = cmd.args[0] as Path;
+            focus = focus_path.getTerm(Alg.root!);
+        }
+        else{
+
+            focus = cmd;
+        }
 
         const trans = new SimplifyNestedAddMul(focus);
         return trans.result();
@@ -232,6 +239,7 @@ export class SimplifyNestedAddMul extends Transformation {
         if(focus_cp.isAdd()){
 
             simplifyNestedAdd(focus_cp.parent as App, focus_cp);
+            focus_cp.args.forEach(x => x.colored = true);
         }
         else{
 
