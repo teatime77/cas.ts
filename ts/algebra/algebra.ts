@@ -547,10 +547,10 @@ export function* cancelAdd(root : Term){
  * @description 指定された項をハイライト表示する。
  */
 export function* highlight(trm : Term, root : Term){
-    trm.colored = true;
+    trm.red();
     yield* showRoot(root);
     yield;
-    trm.colored = false;
+    trm.uncolor();
 }
 
 /**
@@ -881,21 +881,6 @@ export function splitdivPath(cmd : App, root : App) : App {
 
     // 分割位置
     const idx = (cmd.args[1] as ConstNum).value.int();
-
-    return splitdiv(div, idx);
-}
-
-export function splitdivFocus(focus : Term) : App {
-    assert(focus.parent != null && focus.parent.isAdd());
-    
-    const add = focus.parent as App;
-    assert(add.parent != null && add.parent.isDiv());
-    
-    const div = add.parent as App;
-    assert(div.args[0] == add);
-
-    const idx = add.args.indexOf(focus);
-    assert(idx != -1);
 
     return splitdiv(div, idx);
 }

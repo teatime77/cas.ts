@@ -618,13 +618,21 @@ class Movie extends ViewM {
     clearHighlights(){
         while(this.highlights.length != 0){
             const [root, div] = this.highlights.pop()!;
-            allTerms(root).forEach(x => x.colored = false);
+            allTerms(root).forEach(x => x.uncolor());
             root.renderTex(div);
         }
     }
 
     *highlightFocus(focus: Term, text : string){
-        focus.colored = true;
+        focus.red();
+        this.current!.renderTex(this.texDiv);
+        yield* this.speech.genSpeak(text);
+    }
+
+    *highlightSplit(focus: Term, text : string){
+        const idx = focus.parent!.args.indexOf(focus);
+        focus.parent!.args.slice(0, idx).forEach(x => x.blue());
+        focus.parent!.args.slice(idx).forEach(x => x.red());
         this.current!.renderTex(this.texDiv);
         yield* this.speech.genSpeak(text);
     }
@@ -805,7 +813,7 @@ class Movie extends ViewM {
                 if(this.current != undefined){
 
                     const trm = this.getAt(this.current, cmd.args[0]);
-                    trm.colored = true;
+                    trm.red();
                     const tex = this.current.tex();
                     renderKatexSub(this.texDiv, tex);
                     return;
@@ -822,8 +830,8 @@ class Movie extends ViewM {
 
             const [root_cp, focus_cp] = focus.cloneRoot() as [App, App];
             this.current = root_cp;
-            focus_cp.colored = false;
-            focus_cp.args.forEach(x => x.colored = true);
+            focus_cp.uncolor();
+            focus_cp.args.forEach(x => x.red());
 
             simplifyNestedAdd(focus_cp);
             this.addTexDiv();
@@ -843,30 +851,11 @@ class Movie extends ViewM {
             assert(shift instanceof ConstNum);
             const [root_cp, focus_cp] = changeOrder(focus, shift.value.int());
             this.current = root_cp;
-            focus_cp.colored = true;
+            focus_cp.red();
 
             this.addTexDiv();
             this.current.renderTex(this.texDiv);
             yield* this.speech.genSpeak("change the order");
-
-            this.pushHighlights();
-        }
-        else if(cmd.fncName == "@splitdiv"){
-            this.clearHighlights();
-            this.pushHighlights();
-
-            const focus = this.getEqTerm(this.current, cmd.args[0]) as App; 
-            yield* this.highlightFocus(focus, "using the commutative law of division");
-
-            const [root_cp, focus_cp] = focus.cloneRoot() as [App, App];
-            const add = splitdivFocus(focus_cp);
-
-            this.current = root_cp;
-            add.colored = true;
-
-            this.addTexDiv();
-            this.current.renderTex(this.texDiv);
-            yield* this.speech.genSpeak("split divisions");
 
             this.pushHighlights();
         }
@@ -877,13 +866,14 @@ class Movie extends ViewM {
             const focus = this.getEqTerm(this.current, cmd.args[0]) as App; 
             const arg_idx = cmd.args[1] as ConstNum;
 
-            yield* this.highlightFocus(focus, "using the commutative law of linear function");
+            yield* this.highlightSplit(focus, "using the commutative law of linear function");
 
             const [root_cp, focus_cp] = focus.cloneRoot() as [App, App];
             const add = splitLinearFncFocus(focus_cp, arg_idx.value.int());
 
             this.current = root_cp;
-            add.colored = true;
+            add.args[0].blue();
+            add.args[1].red();
 
             this.addTexDiv();
             this.current.renderTex(this.texDiv);
@@ -904,7 +894,7 @@ class Movie extends ViewM {
 
             const [root_cp, focus_cp] = focus.cloneRoot() as [App, App];
             focus_cp.replaceTerm(term);
-            term.colored = true;
+            term.red();
 
             this.current = root_cp;            
 
@@ -1237,7 +1227,7 @@ function *showPartial(tex_div: HTMLDivElement, root : Term, focus : Term){
     root.setParent(null);
     root.setTabIdx();
 
-    allTerms(root).forEach(x => x.colored = false);
+    allTerms(root).forEach(x => x.uncolor());
 
     const node = makeFlow(root);
 
@@ -1259,7 +1249,7 @@ function *showPartial(tex_div: HTMLDivElement, root : Term, focus : Term){
         if(prev_char_index != speech.prevCharIndex){
             prev_char_index = speech.prevCharIndex;
             phrases.filter(x => x.start <= prev_char_index && x.texNode.term() != undefined)
-                .forEach(x => x.texNode.term()!.colored = true);
+                .forEach(x => x.texNode.term()!.red());
 
             const tex = root.tex();
             renderKatexSub(tex_div, tex);

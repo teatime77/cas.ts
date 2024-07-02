@@ -203,7 +203,7 @@ export abstract class Term {
     value : Rational = new Rational(1);
 
     canceled : boolean = false;
-    colored  : boolean = false;
+    colorName  : string | undefined;
 
     constructor(){
         this.id = termId++;
@@ -212,6 +212,22 @@ export abstract class Term {
     abstract tex2() : string;
     abstract clone() : Term;
     abstract strid() : string;
+
+    uncolor(){
+        this.colorName = undefined;
+    }
+
+    red(){
+        this.colorName = "red";
+    }
+
+    blue(){
+        this.colorName = "blue";
+    }
+
+    colored(){
+        return this.colorName != undefined;
+    }
 
     eq(trm : Term) : boolean {
         return this.str() == trm.str();
@@ -228,7 +244,7 @@ export abstract class Term {
     copy(dst : Term){
         dst.value  = this.value.clone();
         dst.canceled = this.canceled;
-        dst.colored  = this.colored;
+        dst.colorName  = this.colorName;
     }
 
 
@@ -382,8 +398,8 @@ export abstract class Term {
 
         if(in_tex){
 
-            if(this.colored){
-                return `{\\color{red} ${val}}`;
+            if(this.colored()){
+                return `{\\color{${this.colorName}} ${val}}`;
             }
 
             if(this.canceled){
@@ -417,9 +433,9 @@ export abstract class Term {
     
     tex() : string {
         const text = this.tex2();
-        if(this.colored){
+        if(this.colored()){
 
-            return `{\\color{red} ${this.putValue(text, true)}}`;
+            return `{\\color{${this.colorName}} ${this.putValue(text, true)}}`;
             return this.htmldata(this.putValue(text, true));
         }
         else{
