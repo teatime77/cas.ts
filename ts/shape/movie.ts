@@ -850,6 +850,25 @@ class Movie extends ViewM {
 
             this.pushHighlights();
         }
+        else if(cmd.fncName == "@splitdiv"){
+            this.clearHighlights();
+            this.pushHighlights();
+
+            const focus = this.getEqTerm(this.current, cmd.args[0]) as App; 
+            yield* this.highlightFocus(focus, "using the commutative law of division");
+
+            const [root_cp, focus_cp] = focus.cloneRoot() as [App, App];
+            const add = splitdivFocus(focus_cp);
+
+            this.current = root_cp;
+            add.colored = true;
+
+            this.addTexDiv();
+            this.current.renderTex(this.texDiv);
+            yield* genSpeak("split divisions");
+
+            this.pushHighlights();
+        }
         else{
 
             throw new MyError();

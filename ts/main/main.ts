@@ -102,7 +102,7 @@ function* gen(texts : string){
                     break;
 
                 case "@splitdiv":
-                    yield* splitdiv(app, alg.root);
+                    splitdivPath(app, alg.root);
                     break;
 
                 case "@splitlim":

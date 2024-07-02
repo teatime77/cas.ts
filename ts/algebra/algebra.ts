@@ -869,16 +869,11 @@ export function* addpm(cmd : App, root : App){
     add.insArg(trm2, idx + 1);
 }
 
-/**
- * 
- * @param cmd コマンド
- * @param root ルート
- * @description 除算を指定した位置で２つに分割する。
- */
-export function* splitdiv(cmd : App, root : App){
+export function splitdivPath(cmd : App, root : App) : App {
     addHtml("分数を２つに分割する。");
 
     assert(cmd.args.length == 2 && cmd.args[0] instanceof Path&& cmd.args[1] instanceof ConstNum, "move arg");
+
 
     // 分割する除算
     const div = (cmd.args[0] as Path).getTerm(root) as App;
@@ -886,6 +881,32 @@ export function* splitdiv(cmd : App, root : App){
 
     // 分割位置
     const idx = (cmd.args[1] as ConstNum).value.int();
+
+    return splitdiv(div, idx);
+}
+
+export function splitdivFocus(focus : Term) : App {
+    assert(focus.parent != null && focus.parent.isAdd());
+    
+    const add = focus.parent as App;
+    assert(add.parent != null && add.parent.isDiv());
+    
+    const div = add.parent as App;
+    assert(div.args[0] == add);
+
+    const idx = add.args.indexOf(focus);
+    assert(idx != -1);
+
+    return splitdiv(div, idx);
+}
+
+/**
+ * 
+ * @param cmd コマンド
+ * @param root ルート
+ * @description 除算を指定した位置で２つに分割する。
+ */
+export function splitdiv(div : App, idx : number) : App {
 
     // 分子の加算
     const add = div.args[0] as App;
@@ -915,6 +936,8 @@ export function* splitdiv(cmd : App, root : App){
     // 新しい加算に2つの除算を追加する。
     add3.addArg(div);
     add3.addArg(div2);
+
+    return add3;
 }
 
 export function* factor_out_div(cmd : App, root : App){
