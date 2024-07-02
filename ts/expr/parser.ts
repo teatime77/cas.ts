@@ -746,6 +746,40 @@ export class ConstNum extends Term{
     }
 }
 
+
+export class Str extends Term{
+    text : string;
+
+    constructor(text : string){
+        super();
+        this.text = text;
+    }
+
+    equal(trm : Term) : boolean {
+        return trm instanceof Str && trm.text == this.text;
+    }
+
+    strid() : string{
+        return `"${this.text}"`;
+    }
+
+    clone() : Str {
+        return new Str(this.text);
+    }
+
+    str2() : string {
+        return this.strid();        
+    }
+
+    strX() : string {
+        return this.strid();        
+    }
+
+    tex2() : string {
+        return this.strid();
+    }
+}
+
 export class App extends Term{
     fnc : Term;
     args: Term[];
@@ -1160,6 +1194,10 @@ export class Parser {
             }
 
             trm = new ConstNum(n);
+            this.next();
+        }
+        else if(this.token.typeTkn == TokenType.String){
+            trm = new Str(this.token.text);
             this.next();
         }
         else if(this.token.typeTkn == TokenType.path){

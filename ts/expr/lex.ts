@@ -244,6 +244,12 @@ export function lexicalAnalysis(text : string) : Token[] {
 
             for (pos++; pos < text.length && (isDigit(text[pos]) || text[pos] == '-' || text[pos] == pathSep); pos++);
         }
+        else if(ch1 == '"'){
+            token_type = TokenType.String;
+            pos = text.indexOf('"', pos + 1);
+            assert(pos != -1);
+            pos++;
+        }
         else if (SymbolTable.indexOf("" + ch1 + ch2) != -1) {
             // 2文字の記号の表にある場合
 
@@ -265,7 +271,13 @@ export function lexicalAnalysis(text : string) : Token[] {
         }
 
         // 字句の文字列を得ます。
-        var word : string = text.substring(start_pos, pos);
+        var word : string;
+        if(token_type == TokenType.String){
+            word = text.substring(start_pos + 1, pos - 1);
+        }
+        else{
+            word = text.substring(start_pos, pos);
+        }
 
         const token = new Token(token_type, sub_type, word, start_pos);
 

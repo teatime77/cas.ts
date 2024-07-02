@@ -71,6 +71,13 @@ export class Speech {
         }
     }
 
+    * genSpeak(text : string){
+        this.speak(text);
+        while(this.speaking){
+            yield;
+        }
+    }
+
     onBoundary(ev: SpeechSynthesisEvent) : void {
         const text = ev.utterance.text.substring(this.prevCharIndex, ev.charIndex).trim();
         if(ev.charIndex == 0){
@@ -102,15 +109,6 @@ export class Speech {
     
     onMark(ev: SpeechSynthesisEvent) : void {
 
-    }
-}
-
-export function* genSpeak(text : string){
-    let speech = new Speech(undefined);
-    speech.speak(text);
-
-    while(speech != null && speech.speaking){
-        yield;
     }
 }
 

@@ -626,11 +626,8 @@ class Movie extends ViewM {
     *highlightFocus(focus: Term, text : string){
         focus.colored = true;
         this.current!.renderTex(this.texDiv);
-        yield* genSpeak(text);
+        yield* this.speech.genSpeak(text);
     }
-
-
-
     
     async saveMovie(){
         const lines : string[] = [
@@ -668,7 +665,7 @@ class Movie extends ViewM {
         return line;
     }
 
-    speakM(text : string){
+    * speakM(text : string){
         this.marks = [];
         const mark_stack : Mark[] = [];
         let speech_text : string = "";
@@ -704,6 +701,10 @@ class Movie extends ViewM {
         
         this.speech.speak(speech_text);
         // speak(text.substring(6));
+
+        while(this.speech.speaking){
+            yield;
+        }
     }
 
     onBoundary(idx:number) : void {
@@ -827,7 +828,7 @@ class Movie extends ViewM {
             simplifyNestedAdd(focus_cp);
             this.addTexDiv();
             this.current.renderTex(this.texDiv);
-            yield* genSpeak("expand the brackets");
+            yield* this.speech.genSpeak("expand the brackets");
 
             this.pushHighlights();
         }
@@ -846,7 +847,7 @@ class Movie extends ViewM {
 
             this.addTexDiv();
             this.current.renderTex(this.texDiv);
-            yield* genSpeak("change the order");
+            yield* this.speech.genSpeak("change the order");
 
             this.pushHighlights();
         }
@@ -865,7 +866,7 @@ class Movie extends ViewM {
 
             this.addTexDiv();
             this.current.renderTex(this.texDiv);
-            yield* genSpeak("split divisions");
+            yield* this.speech.genSpeak("split divisions");
 
             this.pushHighlights();
         }
@@ -886,7 +887,30 @@ class Movie extends ViewM {
 
             this.addTexDiv();
             this.current.renderTex(this.texDiv);
-            yield* genSpeak("split linear function");
+            yield* this.speech.genSpeak("split linear function");
+
+            this.pushHighlights();
+        }
+        else if(cmd.fncName == "@subst"){
+            this.clearHighlights();
+            this.pushHighlights();
+
+            const focus = this.getEqTerm(this.current, cmd.args[0]); 
+            const term  = cmd.args[1];
+            let text1 = (cmd.args[2] as Str).text;
+            let text2 = (cmd.args[3] as Str).text;
+
+            yield* this.highlightFocus(focus, text1);
+
+            const [root_cp, focus_cp] = focus.cloneRoot() as [App, App];
+            focus_cp.replaceTerm(term);
+            term.colored = true;
+
+            this.current = root_cp;            
+
+            this.addTexDiv();
+            this.current.renderTex(this.texDiv);
+            yield* this.speech.genSpeak(text2);
 
             this.pushHighlights();
         }
@@ -1002,10 +1026,7 @@ class Movie extends ViewM {
             else if(line.startsWith("# ")){
                 yield* this.stepRanges();
 
-                movie.speakM(line.substring(2));
-                while(movie.speech.speaking){
-                    yield;
-                }
+                yield* movie.speakM(line.substring(2));
                 this.lineIdx++;
                 continue;
             }
