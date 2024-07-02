@@ -500,7 +500,14 @@ export function makeFlow(trm : TexNode | Term | string) : TexNode {
                 break
 
             default:
-                node = join(app.args, app.fncName);
+                if(app.args.length == 1){
+
+                    node = seq(app.fncName, app.args[0]);
+                }
+                else{
+
+                    node = join(app.args, app.fncName);
+                }
                 break
             }
         }

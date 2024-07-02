@@ -38,8 +38,8 @@ export function actionRef(name : string) : RefVar {
 }
 
 export function parseMath(text: string) : Term {
-    let parser = new Parser(text);
-    let trm = parser.LogicalExpression();
+    const parser = new Parser(text);
+    const trm = parser.RootExpression();
     if(parser.token.typeTkn != TokenType.eot){
         throw new MyError();
     }
@@ -984,7 +984,12 @@ export class App extends Term{
                 break
 
             default:
-                text = args.join(` ${texName(this.fncName)} `);
+                if(args.length == 1){
+                    text = `${texName(this.fncName)} ${args[0]}`;
+                }
+                else{
+                    text = args.join(` ${texName(this.fncName)} `);
+                }
                 break
             }
         }
@@ -1417,6 +1422,23 @@ export class Parser {
 
         let trm2 = this.AndExpression();
         return new App(operator("=>"), [trm1, trm2]);
+    }
+
+    RootExpression(){
+        if([ "==", "=", "!=", "<", "<=", "in" ].includes(this.token.text)){
+            let app = new App(operator(this.token.text), []);
+            this.next();
+
+            let trm = this.ArithmeticExpression();
+            app.args.push(trm);
+
+            return app;
+        }
+        else{
+    
+            return this.LogicalExpression();
+        }
+    
     }
 }
 
