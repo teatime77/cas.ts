@@ -392,13 +392,7 @@ export class ChangeOrder extends Transformation {
     }
 
     result() : App {
-        const [root_cp, focus_cp] = this.focus.cloneRoot() as [App, App];
-
-        const idx = focus_cp.index();
-        focus_cp.parent!.args.splice(idx, 1);
-        const new_idx = idx + this.shift + (this.shift < 0 ? 0: -1);
-        focus_cp.parent!.args.splice(new_idx, 0, focus_cp);
-
+        const [root_cp, focus_cp] = changeOrder(this.focus, this.shift);
         return root_cp;
     }
 

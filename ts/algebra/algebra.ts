@@ -647,6 +647,23 @@ export function simplifyNestedAdd(add_child : App){
 }
 
 /**
+ * @param focus 移動する項
+ * @param shift 移動量
+ * @description 加算や乗算の中の項を、指定した量だけ移動する。
+ */
+export function changeOrder(focus : Term, shift : number) : [App, App] {
+    const [root_cp, focus_cp] = focus.cloneRoot() as [App, App];
+    assert(focus_cp.parent != null && (focus_cp.parent.isAdd() || focus_cp.parent.isMul()));
+
+    const idx = focus_cp.index();
+    focus_cp.parent!.args.splice(idx, 1);
+    const new_idx = idx + shift + (shift < 0 ? 0: -1);
+    focus_cp.parent!.args.splice(new_idx, 0, focus_cp);
+
+    return [root_cp, focus_cp];
+}
+
+/**
  * 
  * @param root ルート
  * @description 加算の中の加算を、親の加算にまとめる。

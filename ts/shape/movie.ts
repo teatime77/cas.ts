@@ -599,6 +599,7 @@ class Movie extends ViewM {
     marks : Mark[] = [];
     current : App | undefined;
     texDiv! : HTMLDivElement;
+    highlights : ([App, HTMLDivElement])[] = [];
 
     constructor(){
         super();
@@ -609,6 +610,27 @@ class Movie extends ViewM {
         assert(params.length == 6);
         this.initView(...params);
     }
+
+    pushHighlights(){
+        this.highlights.push([this.current!, this.texDiv]);
+    }
+
+    clearHighlights(){
+        while(this.highlights.length != 0){
+            const [root, div] = this.highlights.pop()!;
+            allTerms(root).forEach(x => x.colored = false);
+            root.renderTex(div);
+        }
+    }
+
+    *highlightFocus(focus: Term, text : string){
+        focus.colored = true;
+        this.current!.renderTex(this.texDiv);
+        yield* genSpeak(text);
+    }
+
+
+
     
     async saveMovie(){
         const lines : string[] = [
@@ -788,12 +810,14 @@ class Movie extends ViewM {
                     return;
                 }
             }
+            throw new MyError();
         }
         else if(cmd.fncName == "@resolveAddMul"){
+            this.clearHighlights();
+            this.pushHighlights();
+
             const focus = this.getEqTerm(this.current, cmd.args[0]) as App; 
-            focus.colored = true;
-            this.current.renderTex(this.texDiv);
-            yield* genSpeak("using the associative law of addition");
+            yield* this.highlightFocus(focus, "using the associative law of addition");
 
             const [root_cp, focus_cp] = focus.cloneRoot() as [App, App];
             this.current = root_cp;
@@ -805,10 +829,31 @@ class Movie extends ViewM {
             this.current.renderTex(this.texDiv);
             yield* genSpeak("expand the brackets");
 
-            return;
+            this.pushHighlights();
         }
+        else if(cmd.fncName == "@changeOrder"){
+            this.clearHighlights();
+            this.pushHighlights();
 
-        throw new MyError();
+            const focus = this.getEqTerm(this.current, cmd.args[0]) as App; 
+            yield* this.highlightFocus(focus, "using the commutative law of addition");
+
+            const shift = cmd.args[1] as ConstNum;
+            assert(shift instanceof ConstNum);
+            const [root_cp, focus_cp] = changeOrder(focus, shift.value.int());
+            this.current = root_cp;
+            focus_cp.colored = true;
+
+            this.addTexDiv();
+            this.current.renderTex(this.texDiv);
+            yield* genSpeak("change the order");
+
+            this.pushHighlights();
+        }
+        else{
+
+            throw new MyError();
+        }
     }
 
     drawShape(app:App){
