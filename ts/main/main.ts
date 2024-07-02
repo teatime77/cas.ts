@@ -106,7 +106,7 @@ function* gen(texts : string){
                     break;
 
                 case "@splitlim":
-                    yield* splitLim(app, alg.root);
+                    splitLinearFncPath(app, alg.root);
                     break;
 
                 case "@show":

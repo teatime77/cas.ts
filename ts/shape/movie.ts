@@ -869,6 +869,27 @@ class Movie extends ViewM {
 
             this.pushHighlights();
         }
+        else if(cmd.fncName == "@splitLinear"){
+            this.clearHighlights();
+            this.pushHighlights();
+
+            const focus = this.getEqTerm(this.current, cmd.args[0]) as App; 
+            const arg_idx = cmd.args[1] as ConstNum;
+
+            yield* this.highlightFocus(focus, "using the commutative law of linear function");
+
+            const [root_cp, focus_cp] = focus.cloneRoot() as [App, App];
+            const add = splitLinearFncFocus(focus_cp, arg_idx.value.int());
+
+            this.current = root_cp;
+            add.colored = true;
+
+            this.addTexDiv();
+            this.current.renderTex(this.texDiv);
+            yield* genSpeak("split linear function");
+
+            this.pushHighlights();
+        }
         else{
 
             throw new MyError();
@@ -971,6 +992,12 @@ class Movie extends ViewM {
             if(line.length == 0){
                 this.lineIdx++;
                 continue
+            }
+            else if(line == "@str"){
+                msg("@str --------------------------------------------------")
+                msg(`${this.current!.str()}`);
+                this.lineIdx++;
+                continue;
             }
             else if(line.startsWith("# ")){
                 yield* this.stepRanges();
