@@ -231,20 +231,13 @@ export class SimplifyNestedAddMul extends Transformation {
 
     constructor(focus : Term){
         super("@resolveAddMul", focus);
+        assert(focus.isAdd());
     }
 
     result() : App {
         const [root_cp, focus_cp] = this.focus.cloneRoot() as [App, App];
 
-        if(focus_cp.isAdd()){
-
-            simplifyNestedAdd(focus_cp.parent as App, focus_cp);
-            focus_cp.args.forEach(x => x.colored = true);
-        }
-        else{
-
-            assert(false);
-        }
+        simplifyNestedAdd(focus_cp);
 
         return root_cp;
     }

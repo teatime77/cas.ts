@@ -52,10 +52,6 @@ function isDigit(str : string) {
     return /^\d+$/.test(str);
 }
 
-function isLetterOrDigit(str : string){
-    return isLetter(str) || isDigit(str);
-}
-
 function pronunciationF(tex_node : TexNode, word : string) : PhraseF | undefined {
     if(word.endsWith("{")){
         word = word.substring(0, word.length - 1);
@@ -120,10 +116,33 @@ export class PhraseF {
     }
 }
 
+export function makeTextFromPhrases(phrases : PhraseF[]) : string {
+    let text = "";
+    for(const phrase of phrases){
+        phrase.start = text.length;
+        for(const word of phrase.words){
+            if(word != ""){
+                if(text != ""){
+                    text += " ";
+                }
+                text += word;
+            }
+        }
+        phrase.end = text.length;
+    }
+
+    return text;
+}
+
 abstract class TexNode {
     diction : string | undefined;
+    termTex : App | undefined;
 
     abstract makeSpeech(phrases : PhraseF[]) : void;
+
+    term() : Term | undefined {
+        return this.termTex;
+    }
 
     initString() : string {
         return "";
@@ -136,6 +155,23 @@ abstract class TexNode {
     say(text : string) : TexNode {
         this.diction = text;
         return this;
+    }
+
+    dmpNode(nest : string){
+        const term = this.term();
+        const id = (term == undefined ? "" : `${term.id}`);
+        if(this instanceof TexLeaf){
+
+            msg(`${nest}${id}:${this.texText()}`);
+        }
+        else if(this instanceof TexBlock){
+
+            msg(`${nest}${id}`);
+            this.nodes.forEach(x => x.dmpNode(nest + "\t"));
+        }
+        else{
+            throw new MyError();
+        }
     }
 }
 
@@ -222,6 +258,10 @@ class TexNum extends TexLeaf {
         this.num = num;
     }
 
+    term() : Term | undefined {
+        return this.num;
+    }
+
     texText() : string {
         return this.num.value.str();
     }
@@ -229,9 +269,14 @@ class TexNum extends TexLeaf {
 
 class TexRef extends TexLeaf {
     ref : RefVar;
+
     constructor(ref : RefVar){
         super();
         this.ref = ref;
+    }
+
+    term() : Term | undefined {
+        return this.ref;
     }
 
     texText() : string {
@@ -322,71 +367,6 @@ function join(trms:Term[], delimiter : string) : TexNode {
     }
 }
 
-let termDicF : { [id : number] : Term } = {};
-
-function htmldataF(trm : Term, text : string) : string {
-    termDicF[trm.id] = trm;
-    return `\\htmlData{id=${trm.id}, tabidx=${trm.tabIdx}}{${text}}`;
-}
-
-function     putValueF(trm : Term, text : string) : string {
-    let val : string;
-
-    if(trm instanceof ConstNum){
-
-        val = text;
-    }
-    else{
-
-        assert(trm.value instanceof Rational);
-        if(trm.value.fval() == 1){
-            val = text;
-        }
-        else if(trm.value.fval() == -1){
-            // val = "-" + tex2;
-            val = `- ${text}`;
-        }
-        else if(trm.value.denominator == 1){
-
-            val = `${trm.value.numerator} * ${text}`
-        }
-        else{
-            throw new MyError();
-        }
-    }
-
-    if(trm.parent != null && trm != trm.parent.fnc && trm.parent.isAdd()){
-        const idx = trm.parent.args.indexOf(trm);
-        assert(idx != -1, "tex");
-
-        if(idx != 0){
-
-            if(0 <= trm.value.fval()){
-
-                val = "+ " + val;
-            }
-        }
-    }
-
-    if(trm.colored){
-        return `{\\color{red} ${val}}`;
-    }
-
-    if(trm.canceled){
-        return `\\cancel{${val}}`
-    }
-    else{
-        return val;
-    }
-}
-
-// function* makeFlow(trm : Term){
-//     const text = makeFlow2(trm);
-//     return htmldataF(trm, putValueF(trm, text));
-
-// }
-
-
 export function makeFlow(trm : TexNode | Term | string) : TexNode {
     if(trm instanceof TexNode){
         return trm;
@@ -405,7 +385,7 @@ export function makeFlow(trm : TexNode | Term | string) : TexNode {
     else if(trm instanceof App){
         const app = trm;
 
-        let node : TexNode;    // | (Term | TexNode | string)[] | TexNode[][];
+        let node : TexNode;
 
         if(app.fnc instanceof App){
 
@@ -448,7 +428,7 @@ export function makeFlow(trm : TexNode | Term | string) : TexNode {
             else if(app.fncName == "sqrt"){
 
                 assert(app.args.length == 1);
-                return seq("\\sqrt{", app.args[0], "}");
+                node = seq("\\sqrt{", app.args[0], "}");
             }
             else{
 
@@ -550,12 +530,30 @@ export function makeFlow(trm : TexNode | Term | string) : TexNode {
             node = seq(app.value.numerator.toFixed(), node);
         }
 
+        node.termTex = app;
         return node;
     }
     else{
 
         throw new MyError();
     }
+}
+
+
+
+function getAllTexNodes(node : TexNode, nodes: TexNode[]){
+    nodes.push(node);
+
+    if(node instanceof TexBlock){
+        node.nodes.forEach(x => getAllTexNodes(x, nodes));
+    }
+}
+
+export function allTexNodes(node : TexNode) : TexNode[] {
+    const terms : TexNode[] = [];
+    getAllTexNodes(node, terms);
+
+    return terms;
 }
 
 }

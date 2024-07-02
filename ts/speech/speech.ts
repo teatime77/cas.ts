@@ -105,13 +105,22 @@ export class Speech {
     }
 }
 
+export function* genSpeak(text : string){
+    let speech = new Speech(undefined);
+    speech.speak(text);
+
+    while(speech != null && speech.speaking){
+        yield;
+    }
+}
+
 export function showSpeech(){
     $dlg("speech-dlg").showModal();
 }
 
 export function speakTest(){
     const text_area = $("text-data") as HTMLTextAreaElement;
-    speak(text_area.value.trim());
+    startSpeak(text_area.value.trim());
 }
 
 export function pronunciation(word: string) : string[]{
@@ -246,7 +255,7 @@ export function setVoice(lang: string, voice_name : string){
 
 }
 
-export function speak(text : string){
+export function startSpeak(text : string){
     assert(uttrVoice != null);
     msg(`speak ${text}`);
 
@@ -281,7 +290,7 @@ export function speakNode(phrases : Phrase[]){
     phraseIdx = 0;
     wordIdx   = 0;
 
-    speak(text);
+    startSpeak(text);
 }
 
 function onSpeechBoundary(ev: SpeechSynthesisEvent){

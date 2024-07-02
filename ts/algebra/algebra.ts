@@ -628,9 +628,13 @@ function simplifyOneArgApp(app : App) {
  * @param add_child 子の加算
  * @description 加算の中の加算を、親の加算にまとめる。
  */
-export function simplifyNestedAdd(add : App, add_child : App){
+export function simplifyNestedAdd(add_child : App){
+    const add : App = add_child.parent as App;
+    assert(add != null && add.isAdd());
+
     // 引数の中の加算の位置
     const idx = add.args.indexOf(add_child);
+    assert(idx != -1);
 
     // 引数の中の加算を削除する。
     add_child.remArg();
@@ -668,7 +672,7 @@ export function* simplifyNestedAddAll(root : Term){
             }
 
             // 加算の中の加算を、親の加算にまとめる。
-            simplifyNestedAdd(add, add_child);
+            simplifyNestedAdd(add_child);
 
             yield* showRoot(root);
             yield;

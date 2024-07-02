@@ -544,6 +544,24 @@ export abstract class Term {
         assert(this instanceof ConstNum);
         this.value.set(cns.value.numerator, cns.value.denominator);
     }
+
+    dmpTerm(nest : string){
+        if(this instanceof App){
+
+            msg(`${nest}${this.id}`);
+            this.fnc.dmpTerm(nest + "\t");
+            this.args.forEach(x => x.dmpTerm(nest + "\t"));
+        }
+        else{
+
+            msg(`${nest}${this.id}:${this.str()}`);
+        }
+    }
+
+    renderTex(div : HTMLDivElement){
+        const tex = this.tex();
+        renderKatexSub(div, tex);    
+    }
 }
 
 export class Path extends Term {

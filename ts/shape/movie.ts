@@ -772,7 +772,7 @@ class Movie extends ViewM {
         throw new MyError();
     }
 
-    doAction(cmd : App){
+    *doAction(cmd : App){
         if(this.current == undefined){
             throw new MyError();
         }
@@ -790,11 +790,21 @@ class Movie extends ViewM {
             }
         }
         else if(cmd.fncName == "@resolveAddMul"){
-            const focus = this.getEqTerm(this.current, cmd.args[0]);            
+            const focus = this.getEqTerm(this.current, cmd.args[0]) as App; 
             focus.colored = true;
-            this.current = SimplifyNestedAddMul.fromCommand(focus as App);
-            const tex = this.current.tex();
-            renderKatexSub(this.texDiv, tex);
+            this.current.renderTex(this.texDiv);
+            yield* genSpeak("using the associative law of addition");
+
+            const [root_cp, focus_cp] = focus.cloneRoot() as [App, App];
+            this.current = root_cp;
+            focus_cp.colored = false;
+            focus_cp.args.forEach(x => x.colored = true);
+
+            simplifyNestedAdd(focus_cp);
+            this.addTexDiv();
+            this.current.renderTex(this.texDiv);
+            yield* genSpeak("expand the brackets");
+
             return;
         }
 
@@ -864,7 +874,7 @@ class Movie extends ViewM {
             }
         }
     }
-
+    
     *showFlow(root : App){
         this.current = root;
         root.setParent(null);
@@ -873,20 +883,8 @@ class Movie extends ViewM {
         const node = makeFlow(root);
         const phrases : PhraseF[] = [];
         node.makeSpeech(phrases);
-    
-        let text = "";
-        for(const phrase of phrases){
-            phrase.start = text.length;
-            for(const word of phrase.words){
-                if(word != ""){
-                    if(text != ""){
-                        text += " ";
-                    }
-                    text += word;
-                }
-            }
-            phrase.end = text.length;
-        }
+
+        const text = makeTextFromPhrases(phrases);
     
         let speech = new Speech(undefined);
         speech.speak(text);
@@ -927,7 +925,7 @@ class Movie extends ViewM {
                 if(isAction(app)){
                     // コマンドの場合
 
-                    this.doAction(app);
+                    yield* this.doAction(app);
                 }
                 else if(isDrawing(app)){
                     // 図形描画の場合
@@ -1121,4 +1119,40 @@ export async function bodyOnLoadMovie(){
     $("start-play").addEventListener("click", startPlay);
     $("save-movie").addEventListener("click", movie.saveMovie.bind(movie));
 }   
+
+function *showPartial(tex_div: HTMLDivElement, root : Term, focus : Term){
+    assert(root != null, "show root");
+    root.setParent(null);
+    root.setTabIdx();
+
+    allTerms(root).forEach(x => x.colored = false);
+
+    const node = makeFlow(root);
+
+    const foucs_node = allTexNodes(node).find(x => x.term() == focus);
+    if(foucs_node == undefined){
+        throw new MyError();
+    }
+
+    const phrases : PhraseF[] = [];
+    foucs_node.makeSpeech(phrases);
+
+    const text = makeTextFromPhrases(phrases);
+
+    const speech = new Speech(undefined);
+    speech.speak(text);
+
+    let prev_char_index = 0;
+    while(speech != null && speech.speaking){
+        if(prev_char_index != speech.prevCharIndex){
+            prev_char_index = speech.prevCharIndex;
+            phrases.filter(x => x.start <= prev_char_index && x.texNode.term() != undefined)
+                .forEach(x => x.texNode.term()!.colored = true);
+
+            const tex = root.tex();
+            renderKatexSub(tex_div, tex);
+        }
+        yield;
+    }
+}
 }
