@@ -904,6 +904,25 @@ class Movie extends ViewM {
 
             this.pushHighlights();
         }
+        else if(cmd.fncName == "@distribute"){
+            this.clearHighlights();
+            this.pushHighlights();
+
+            const mul = this.getEqTerm(this.current, cmd.args[0]) as App; 
+
+            const [root_cp, mul_cp] = mul.cloneRoot() as [App, App];
+            root_cp.setParent(null);
+        
+            const div1 = this.texDiv;
+            this.addTexDiv();
+
+            yield* distributeTwo(this.speech, this.current, mul, root_cp, mul_cp, div1, this.texDiv);
+
+            this.current = root_cp;            
+
+
+            this.pushHighlights();
+        }
         else{
 
             throw new MyError();
@@ -1222,30 +1241,25 @@ export async function bodyOnLoadMovie(){
     $("save-movie").addEventListener("click", movie.saveMovie.bind(movie));
 }   
 
-function *showPartial(tex_div: HTMLDivElement, root : Term, focus : Term){
+function *showPartial(speech : Speech, tex_div: HTMLDivElement, focus : Term){
+    const root = focus.getRoot();
     assert(root != null, "show root");
     root.setParent(null);
     root.setTabIdx();
 
     allTerms(root).forEach(x => x.uncolor());
 
-    const node = makeFlow(root);
-
-    const foucs_node = allTexNodes(node).find(x => x.term() == focus);
-    if(foucs_node == undefined){
-        throw new MyError();
-    }
+    const node = makeFlow(focus);
 
     const phrases : PhraseF[] = [];
-    foucs_node.makeSpeech(phrases);
+    node.makeSpeech(phrases);
 
     const text = makeTextFromPhrases(phrases);
 
-    const speech = new Speech(undefined);
     speech.speak(text);
 
     let prev_char_index = 0;
-    while(speech != null && speech.speaking){
+    while(speech.speaking){
         if(prev_char_index != speech.prevCharIndex){
             prev_char_index = speech.prevCharIndex;
             phrases.filter(x => x.start <= prev_char_index && x.texNode.term() != undefined)

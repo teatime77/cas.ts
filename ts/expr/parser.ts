@@ -198,6 +198,7 @@ export abstract class Term {
     tabIdx : number = 0;
     parent : App | null = null;
     strval : string = "";
+    partialTex : string | undefined;
 
     // 係数
     value : Rational = new Rational(1);
@@ -432,6 +433,15 @@ export abstract class Term {
     }
     
     tex() : string {
+        if(this.partialTex != undefined){
+            if(this.colored()){
+                return `{\\color{${this.colorName}} ${this.partialTex}}`;
+            }
+            else{
+                return this.partialTex;
+            }
+        }
+
         const text = this.tex2();
         if(this.colored()){
 

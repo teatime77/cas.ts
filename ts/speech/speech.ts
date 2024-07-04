@@ -52,6 +52,7 @@ export class Speech {
 
     speak(text : string){
         msg(`Speak ${text}`);
+        this.prevCharIndex = 0;
     
         const uttr = new SpeechSynthesisUtterance(text);
     

@@ -1118,6 +1118,72 @@ export function* distribute(cmd : App, root : App){
     }
 }
 
+
+export function* distributeTwo(speech : Speech, root : App, mul : App, root_cp : App, mul_cp : App, div1 : HTMLDivElement, div2 : HTMLDivElement){
+    mul.red();
+    root.renderTex(div1);
+    yield* speech.genSpeak("We will expand this product of additions.");
+    mul.uncolor();
+    root.renderTex(div1);
+
+    assert(mul.args.length == 2, "dist fnc");
+    assert(mul.args[0].isAdd() && mul.args[1].isAdd(), "dist fnc 2");
+
+    const add1 = mul.args[0] as App;
+    const add2 = mul.args[1] as App;
+    
+    const add3 = new App(operator("+"), []);
+    mul_cp.replaceTerm(add3);
+
+    for(const [i, trm1] of add1.args.entries()){
+        for(const [j, trm2] of add2.args.entries()){
+
+            const product = multiply(trm1, trm2);            
+            add3.addArg(product);
+
+            if((i != 0 || j != 0) && 0 <= product.value.sign()){
+                yield* speech.genSpeak("plus");
+            }
+
+            trm1.red();
+            trm2.red();
+            root.renderTex(div1);
+
+            yield* showSpeakPartial(speech, product, div2);
+
+            trm1.uncolor();
+            trm2.uncolor();
+        }
+    
+    }   
+}
+
+function* showSpeakPartial(speech : Speech, focus : Term, div : HTMLDivElement){
+    const root = focus.getRoot();
+    const node = makeFlow(focus);
+    const phrases : PhraseF[] = [];
+    node.makeSpeech(phrases);
+
+    const text = makeTextFromPhrases(phrases);
+
+    speech.speak(text);
+
+    for(const s of node.genTex(speech)){
+        const sign = (0 <= focus.value.sign() ? " + " : "" );
+        focus.partialTex = sign + s;
+        focus.red();
+        root.renderTex(div);
+        focus.uncolor();
+        focus.partialTex = undefined;
+        yield;
+    }
+
+    while(speech != null && speech.speaking){
+        yield;
+    }
+}
+
+
 export function* greatestCommonFactor(cmd : App, root : App){
     addHtml(`共通因子をくくり出す。`);
 
@@ -1381,6 +1447,5 @@ export function* verify(cmd : App, root : App){
         assert(false);
     }
 }
-
 
 }
