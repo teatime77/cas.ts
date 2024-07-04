@@ -21,7 +21,7 @@ let prevCharIndex = 0;
 let Phrases : Phrase[] = [];
 let phraseIdx : number = 0;
 let wordIdx : number = 0;
-let speechRrate : HTMLInputElement;
+let speechRate : HTMLInputElement;
 
 export class Phrase {
     words   : string[];
@@ -52,20 +52,24 @@ export class Speech {
 
     speak(text : string){
         msg(`Speak ${text}`);
-        this.prevCharIndex = 0;
-    
-        const uttr = new SpeechSynthesisUtterance(text);
-    
-        uttr.voice = uttrVoice!;
+        const speech_rate = parseFloat(speechRate.value);
+        if(speech_rate < 100){
 
-        uttr.addEventListener("end", this.onEnd.bind(this));
-        uttr.addEventListener("boundary", this.onBoundary.bind(this));
-        uttr.addEventListener("mark", this.onMark.bind(this));
-    
-        uttr.rate = parseFloat(speechRrate.value);
-            
-        speechSynthesis.speak(uttr);
-        this.speaking = true;
+            this.prevCharIndex = 0;
+        
+            const uttr = new SpeechSynthesisUtterance(text);
+        
+            uttr.voice = uttrVoice!;
+
+            uttr.addEventListener("end", this.onEnd.bind(this));
+            uttr.addEventListener("boundary", this.onBoundary.bind(this));
+            uttr.addEventListener("mark", this.onMark.bind(this));
+        
+            uttr.rate = speech_rate;
+                
+            speechSynthesis.speak(uttr);
+            this.speaking = true;
+        }
 
         if(this.subtitle != undefined){
             this.subtitle.textContent = text;
@@ -217,7 +221,7 @@ function setVoiceList(){
 }
 
 function initSpeechSub(){
-    speechRrate = $("speech-rate") as HTMLInputElement;
+    speechRate = $("speech-rate") as HTMLInputElement;
 
     if ('speechSynthesis' in window) {
         msg("このブラウザは音声合成に対応しています。🎉");
@@ -258,6 +262,8 @@ export function startSpeak(text : string){
     assert(uttrVoice != null);
     msg(`speak ${text}`);
 
+    const speech_rate = parseFloat(speechRate.value);
+
     const uttr = new SpeechSynthesisUtterance(text);
 
     uttr.voice = uttrVoice!;
@@ -270,7 +276,7 @@ export function startSpeak(text : string){
 
     uttr.onmark = onMark;
 
-    uttr.rate = parseFloat(speechRrate.value);
+    uttr.rate = speech_rate;
         
     speechSynthesis.speak(uttr);
 }

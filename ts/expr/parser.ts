@@ -810,6 +810,7 @@ export class App extends Term{
     fnc : Term;
     args: Term[];
     entity : Entity | undefined;
+    remParentheses : boolean = false;
 
     static startEnd : { [start : string] : string } = {
         "(" : ")",
@@ -1056,7 +1057,10 @@ export class App extends Term{
 
         if(this.parent != null){
 
-            if((this.isAdd() || this.isMul()) && this.parent.fncName == "lim"){
+            if(this.remParentheses){
+                return `\\textbf{ {\\color{red} (} } ${text} \\textbf{ {\\color{red} )} }`;
+            }
+            else if((this.isAdd() || this.isMul()) && this.parent.fncName == "lim"){
 
                 return `(${text})`;
             }
