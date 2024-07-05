@@ -947,6 +947,15 @@ class Movie extends ViewM {
 
             this.pushHighlights();
         }
+        else if(cmd.fncName == "@cancel"){
+            this.clearHighlights();
+            this.pushHighlights();
+
+            const focus = this.getEqTerm(this.current, cmd.args[0]) as App; 
+            yield* cancel(this.speech, focus, this.texDiv);
+
+            this.pushHighlights();
+        }
         else{
 
             throw new MyError();

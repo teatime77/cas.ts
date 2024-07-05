@@ -409,6 +409,38 @@ function getMultipliersDivisors(mul : App) : [Term[], Term[]]{
     return [multipliers, divisors];
 }
 
+export function* cancel(speech : Speech, focus : Term, div: HTMLDivElement){
+    if(focus.parent == null || ! focus.parent.isAdd()){
+        throw new MyError();
+    }
+
+    const add = focus.parent;
+    const trm = add.args.find(x => x != focus && x.str2() == focus.str2() && x.value.fval() == - focus.value.fval());
+    if(trm == undefined){
+        throw new MyError();
+    }
+
+    const root = focus.getRoot();
+    focus.canceled = true;
+    trm.canceled = true;
+
+    root.renderTex(div);
+
+    yield* speech.genSpeak("Cancel out these two terms.");
+
+    focus.remArg();
+    trm.remArg();
+
+    if(add.args.length == 0){
+        add.remArg();
+    }
+    else if(add.args.length == 1){
+        add.replaceTerm(add.args[0]);
+    }
+
+    root.renderTex(div);
+}
+
 /**
  * 
  * @param root ルート
