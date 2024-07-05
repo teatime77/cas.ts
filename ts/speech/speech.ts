@@ -1,4 +1,6 @@
 namespace casts{
+export let speechOn = true;
+
 let uttrVoice : SpeechSynthesisVoice |  undefined;
 // const voiceLang = "ja-JP";
 let voiceLang = "en-US"
@@ -52,8 +54,7 @@ export class Speech {
 
     speak(text : string){
         msg(`Speak ${text}`);
-        const speech_rate = parseFloat(speechRate.value);
-        if(speech_rate < 100){
+        if(speechOn){
 
             this.prevCharIndex = 0;
         
@@ -65,7 +66,7 @@ export class Speech {
             uttr.addEventListener("boundary", this.onBoundary.bind(this));
             uttr.addEventListener("mark", this.onMark.bind(this));
         
-            uttr.rate = speech_rate;
+            uttr.rate = parseFloat(speechRate.value);
                 
             speechSynthesis.speak(uttr);
             this.speaking = true;
@@ -255,14 +256,11 @@ export async function asyncInitSpeech() : Promise<void> {
 export function setVoice(lang: string, voice_name : string){
     uttrVoice = voices[lang].find(voice => voice.name == voice_name);
     assert(uttrVoice != undefined);
-
 }
 
 export function startSpeak(text : string){
     assert(uttrVoice != null);
     msg(`speak ${text}`);
-
-    const speech_rate = parseFloat(speechRate.value);
 
     const uttr = new SpeechSynthesisUtterance(text);
 
@@ -276,7 +274,7 @@ export function startSpeak(text : string){
 
     uttr.onmark = onMark;
 
-    uttr.rate = speech_rate;
+    uttr.rate = parseFloat(speechRate.value);
         
     speechSynthesis.speak(uttr);
 }

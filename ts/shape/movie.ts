@@ -804,6 +804,16 @@ class Movie extends ViewM {
     }
 
     *doAction(cmd : App){
+        if(cmd.fncName == "@speech" && cmd.args[0] instanceof RefVar){
+            const ref = cmd.args[0];
+            switch(ref.name){
+                case "on" : speechOn = true; break;
+                case "off": speechOn = false; break;
+                default: throw new MyError();
+            }
+            return;
+        }
+
         if(this.current == undefined){
             throw new MyError();
         }
