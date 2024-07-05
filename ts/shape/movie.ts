@@ -923,6 +923,20 @@ class Movie extends ViewM {
 
             this.pushHighlights();
         }
+        else if(cmd.fncName == "@remParentheses"){
+            this.clearHighlights();
+            this.pushHighlights();
+
+            const focus = this.getEqTerm(this.current, cmd.args[0]) as App; 
+            focus.remParentheses = true;
+            this.current.renderTex(this.texDiv);
+            yield* this.speech.genSpeak("remove parentheses");
+
+            simplifyNestedAdd(focus);
+            this.current.renderTex(this.texDiv);
+
+            this.pushHighlights();
+        }
         else{
 
             throw new MyError();
