@@ -490,6 +490,10 @@ export abstract class Term {
         return this instanceof App && this.fncName == "/";
     }
 
+    isDot() : boolean {
+        return this instanceof App && this.fncName == ".";
+    }
+
     isSqrt() : boolean {
         return this instanceof App && this.fncName == "sqrt";
     }
@@ -516,6 +520,10 @@ export abstract class Term {
 
     isDiff() : boolean {
         return this instanceof App && (this.fncName == "diff" || this.fncName == "pdiff");
+    }
+
+    isLim() : boolean {
+        return this instanceof App && this.fncName == "lim";
     }
 
     depend(dvar : RefVar) : boolean {
@@ -1209,6 +1217,20 @@ export class Parser {
 
                 let app = new App(refVar, []);
                 this.readArgs("(", ")", app);
+
+                return app;
+            }
+            else if(this.token.text == "."){
+                let app = new App(operator("."), [refVar]);
+
+                do {
+                    this.nextToken(".");
+                    
+                    assert(this.token.typeTkn == TokenType.identifier);
+                    app.addArg(new RefVar(this.token.text));
+                    this.next();
+                
+                } while(this.token.text == ".");
 
                 return app;
             }

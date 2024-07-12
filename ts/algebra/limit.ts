@@ -15,6 +15,12 @@ export function splitLinearFncFocus(focus : Term, arg_idx : number){
     return splitLinearFnc(fnc, arg_idx, idx);
 }
 
+/**
+ * 
+ * @param cmd コマンド
+ * @param root ルート
+ * @description パスを指定して線形関数の中の加算を分割する。
+ */
 export function splitLinearFncPath(cmd : App, root : App) : App {
     addHtml("線形関数を２つに分割する。");
     
@@ -32,9 +38,10 @@ export function splitLinearFncPath(cmd : App, root : App) : App {
 
 /**
  * 
- * @param cmd コマンド
- * @param root ルート
- * @description 線形関数の中の加算を分割する。
+ * @param fnc 線形関数
+ * @param arg_idx 加算の位置
+ * @param idx 分割位置
+ * @description 分割位置を指定して線形関数の中の引数を分割する。
  */
 export function splitLinearFnc(fnc : App, arg_idx : number, idx : number) : App {
     // 加算
@@ -78,6 +85,40 @@ export function splitLinearFnc(fnc : App, arg_idx : number, idx : number) : App 
     }
     
     return add3;
+}
+
+
+/**
+ * 
+ * @param fnc 関数
+ * @param arg_idx 展開する引数の位置
+ * @description f(a * b * c) => f(a) * f(b) * f(c)
+ */
+export function expandFncAll(fnc : App, arg_idx : number) : App {
+    // 加算or乗算
+    const add_mul = fnc.args[arg_idx] as App;
+    assert(add_mul instanceof App && (add_mul.fncName == "+" || add_mul.fncName == "*"));
+
+    // 係数が1の場合のみ対応
+    assert(add_mul.value.is(1));
+
+    // 新しい加算or乗算
+    const add_mul2 = new App(operator(add_mul.fncName), []);
+
+    // 加算or乗算の引数に対して
+    for(const trm of add_mul.args){
+        const trm_cp = trm.clone();
+        const fnc_cp = fnc.clone();
+        fnc_cp.setArg(trm_cp, arg_idx);
+
+        // 引数に関数を適用してから、新しい加算or乗算に追加する。
+        add_mul2.addArg(fnc_cp);
+    }
+
+    // 元の関数を新しい加算or乗算で置き換える。
+    fnc.replaceTerm(add_mul2);
+    
+    return add_mul2;
 }
 
 }

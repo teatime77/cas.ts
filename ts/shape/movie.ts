@@ -56,6 +56,77 @@ function isAction(trm : Term) : boolean {
     return trm instanceof App && trm.fncName[0] == '@';
 }
 
+function getEqTerms(root : App, trm : Term) : Term[] {
+    const str = trm.strid();
+    msg(`[${str}]---`)
+    allTerms(root).forEach(x => msg(`[${x.strid()}]`));
+    const trms = allTerms(root).filter(x => x.strid() == str);
+
+    return trms
+}
+
+function getEqTerm(root : App, trm : Term) : Term {
+    const trms = getEqTerms(root, trm);
+    if(trms.length == 1){
+        return trms[0];
+    }
+    throw new MyError();
+}
+
+function getAt(root : App, at : App) : Term {
+    if(at.args.length == 1){
+        return getEqTerm(root, at.args[0])
+    }
+    else{
+        const trms = getEqTerms(root, at.args[0]);
+
+        if(at.args[1] instanceof ConstNum){
+            const idx = at.args[1].value.int() - 1;
+            if(0 <= idx && idx < trms.length){
+                return trms[idx];
+            }            
+        }
+    }
+
+    throw new MyError();
+}
+
+function selectTerm(root : App, sel : Term){
+    if(sel instanceof App && sel.fncName == "@sel"){
+        const trms = getEqTerms(root, sel.args[0]);
+        if(sel.args[1] instanceof ConstNum){
+            const idx  = sel.args[1].value.int();
+            assert(idx < trms.length);
+            return trms[idx];
+        }
+        else{
+            const dots = sel.args[1] as App;
+            assert(dots.isDot() && dots.args.every(x => x instanceof RefVar));
+            const names = dots.args.map(x => (x as RefVar).name);
+            const dots_str = names.join(".");
+
+            if(dots_str == "parent.isDiv"){
+                const trm = trms.find(x => x.parent!.isDiv());
+                if(trm != undefined){
+                    return trm.parent!;
+                }
+            }
+            // else if(dots_str == "parent.isLim"){
+            //     const trm = trms.find(x => x.parent!.isLim());
+            //     if(trm != undefined){
+            //         return trm.parent!;
+            //     }
+            // }
+
+            throw new MyError();
+        }
+    }
+    else{
+        return getEqTerm(root, sel);
+    }
+}
+
+
 export class PointM extends ShapeM {
     x : Term;
     y : Term;
@@ -768,41 +839,6 @@ class Movie extends ViewM {
         $div("katex-div").appendChild(this.texDiv);
     }
 
-    getEqTerms(root : App, trm : Term) : Term[] {
-        const str = trm.strid();
-        msg(`[${str}]---`)
-        allTerms(root).forEach(x => msg(`[${x.strid()}]`));
-        const trms = allTerms(root).filter(x => x.strid() == str);
-
-        return trms
-    }
-
-    getEqTerm(root : App, trm : Term) : Term {
-        const trms = this.getEqTerms(root, trm);
-        if(trms.length == 1){
-            return trms[0];
-        }
-        throw new MyError();
-    }
-
-    getAt(root : App, at : App) : Term {
-        if(at.args.length == 1){
-            return this.getEqTerm(root, at.args[0])
-        }
-        else{
-            const trms = this.getEqTerms(root, at.args[0]);
-
-            if(at.args[1] instanceof ConstNum){
-                const idx = at.args[1].value.int() - 1;
-                if(0 <= idx && idx < trms.length){
-                    return trms[idx];
-                }            
-            }
-        }
-
-        throw new MyError();
-    }
-
     *doAction(cmd : App){
         if(cmd.fncName == "@speech" && cmd.args[0] instanceof RefVar){
             const ref = cmd.args[0];
@@ -822,7 +858,7 @@ class Movie extends ViewM {
             if(cmd.args.length == 1 && cmd.args[0] instanceof App && cmd.args[0].fncName == "@at"){
                 if(this.current != undefined){
 
-                    const trm = this.getAt(this.current, cmd.args[0]);
+                    const trm = getAt(this.current, cmd.args[0]);
                     trm.red();
                     const tex = this.current.tex();
                     renderKatexSub(this.texDiv, tex);
@@ -835,7 +871,7 @@ class Movie extends ViewM {
             this.clearHighlights();
             this.pushHighlights();
 
-            const focus = this.getEqTerm(this.current, cmd.args[0]) as App; 
+            const focus = getEqTerm(this.current, cmd.args[0]) as App; 
             yield* this.highlightFocus(focus, "using the associative law of addition");
 
             const [root_cp, focus_cp] = focus.cloneRoot() as [App, App];
@@ -854,7 +890,7 @@ class Movie extends ViewM {
             this.clearHighlights();
             this.pushHighlights();
 
-            const focus = this.getEqTerm(this.current, cmd.args[0]) as App; 
+            const focus = getEqTerm(this.current, cmd.args[0]) as App; 
             yield* this.highlightFocus(focus, "using the commutative law of addition");
 
             const shift = cmd.args[1] as ConstNum;
@@ -873,7 +909,7 @@ class Movie extends ViewM {
             this.clearHighlights();
             this.pushHighlights();
 
-            const focus = this.getEqTerm(this.current, cmd.args[0]) as App; 
+            const focus = getEqTerm(this.current, cmd.args[0]) as App; 
             const arg_idx = cmd.args[1] as ConstNum;
 
             yield* this.highlightSplit(focus, "using the commutative law of linear function");
@@ -895,7 +931,7 @@ class Movie extends ViewM {
             this.clearHighlights();
             this.pushHighlights();
 
-            const focus = this.getEqTerm(this.current, cmd.args[0]); 
+            const focus = getEqTerm(this.current, cmd.args[0]); 
             const term  = cmd.args[1];
             let text1 = (cmd.args[2] as Str).text;
             let text2 = (cmd.args[3] as Str).text;
@@ -918,7 +954,7 @@ class Movie extends ViewM {
             this.clearHighlights();
             this.pushHighlights();
 
-            const mul = this.getEqTerm(this.current, cmd.args[0]) as App; 
+            const mul = getEqTerm(this.current, cmd.args[0]) as App; 
 
             const [root_cp, mul_cp] = mul.cloneRoot() as [App, App];
             root_cp.setParent(null);
@@ -937,7 +973,7 @@ class Movie extends ViewM {
             this.clearHighlights();
             this.pushHighlights();
 
-            const focus = this.getEqTerm(this.current, cmd.args[0]) as App; 
+            const focus = getEqTerm(this.current, cmd.args[0]) as App; 
             focus.remParentheses = true;
             this.current.renderTex(this.texDiv);
             yield* this.speech.genSpeak("remove parentheses");
@@ -951,9 +987,29 @@ class Movie extends ViewM {
             this.clearHighlights();
             this.pushHighlights();
 
-            const focus = this.getEqTerm(this.current, cmd.args[0]) as App; 
+            const focus = getEqTerm(this.current, cmd.args[0]) as App; 
             yield* cancel(this.speech, focus, this.texDiv);
 
+            this.pushHighlights();
+        }
+        else if(cmd.fncName == "@expandAll"){
+            this.clearHighlights();
+            this.pushHighlights();
+
+            const fnc = selectTerm(this.current, cmd.args[0]) as App; 
+            assert(fnc.isDiv());
+
+            const [root_cp, fnc_cp] = fnc.cloneRoot() as [App, App];
+            this.current = root_cp;
+        
+            const div1 = this.texDiv;
+            this.addTexDiv();
+
+            const add_mul2 = expandFncAll(fnc_cp, 0);
+
+            this.current.renderTex(this.texDiv);
+            yield* this.speech.genSpeak("");
+                        
             this.pushHighlights();
         }
         else{
