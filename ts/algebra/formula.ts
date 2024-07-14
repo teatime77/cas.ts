@@ -538,6 +538,9 @@ export abstract class LinearTransformation extends Transformation {
     }
 }
 
+/**
+ * f(a + b) = f(a) + f(b)
+ */
 class LinearSplit extends LinearTransformation {
     constructor(focus : Term){
         super("@linear_split", focus);
@@ -573,6 +576,7 @@ class LinearJoin extends LinearTransformation {
     }    
 
     result() : App {
+        assert(false);
         const [root_cp, focus_cp] = this.focus.cloneRoot() as [App, App];
         assert(focus_cp.isAdd());
 

@@ -41,7 +41,7 @@ export function addDiv(html : string){
 }
 
 
-export function mulR(... rs : Rational[]) : Rational {
+export function mulRational(... rs : Rational[]) : Rational {
     const numerator   = rs.reduce((acc, cur) => acc * cur.numerator,   1);
     const denominator = rs.reduce((acc, cur) => acc * cur.denominator, 1);
 
@@ -57,12 +57,39 @@ export function show(app : App, root : App){
     // addHtml(`$ ${trm.tex()} $`)
 }
 
+export function putOutMultiplier(multiplier : Term){
+    assert(multiplier.parent!.isMul());
+    const mul = multiplier.parent as App;
+    multiplier.remArg();
+
+    multiplier.value.setmul(mul.value);
+    mul.value.set(1);
+
+    const fnc = mul.parent!;
+
+    if(mul.args.length == 1){
+        mul.replaceTerm(mul.args[0]);
+    }
+
+    if(fnc.parent!.isMul()){
+        const idx = fnc.index();
+        
+        fnc.parent!.insArg(multiplier, idx);
+    }
+    else{
+
+        const mul2 = new App(operator("*"), []);
+        fnc.replaceTerm(mul2);
+        mul2.addArgs([ multiplier, fnc ]);
+    }
+}
+
 /**
  * 
  * @param mul 乗算
  * @description 乗算の引数の係数をすべて1にする。
  */
-function normalizeMul(mul : App){
+function normalizeMulFactors(mul : App){
     assert(mul.isMul());
     for(const trm of mul.args){
         mul.value.setmul(trm.value);
@@ -90,7 +117,7 @@ export function multiply(multiplier : Term, multiplicand : Term) : Term {
     const multiplicand_cp = multiplicand.clone();
     
     // 乗算の係数 = 乗数の係数 * 被乗数の係数
-    mul.value = mulR(multiplier_cp.value, multiplicand_cp.value);
+    mul.value = mulRational(multiplier_cp.value, multiplicand_cp.value);
     multiplier_cp.value.set(1);
     multiplicand_cp.value.set(1);
 
@@ -118,7 +145,7 @@ export function multiply(multiplier : Term, multiplicand : Term) : Term {
  * @param args 引数リスト
  * @description 引数リストから乗算を作る。
  */
-function multiplyArgs(args: Term[]) : Term {
+function makeMulFromArgs(args: Term[]) : Term {
     if(args.length == 0){
         return new ConstNum(1);
     }
@@ -221,7 +248,7 @@ export function* subst(app: App, root : Term){
  * 
  * @description 加算の中の各項に対し、乗数をかける。
  */
-function* mulAdd(root : Term, add : App, multiplier : Term) : Generator<Term> {
+function* multiplyAdd(root : Term, add : App, multiplier : Term) : Generator<Term> {
     assert(add.isAdd(), "muleq add");
 
     for(const [idx, arg] of add.args.entries()){
@@ -240,7 +267,7 @@ function* mulAdd(root : Term, add : App, multiplier : Term) : Generator<Term> {
  * @param multiplier 乗数
  * @description 等式内のすべての辺に乗数をかける。
  */
-export function* mulEq(multiplier : Term, root : App) : Generator<Term> {
+export function* multiplyEq(multiplier : Term, root : App) : Generator<Term> {
     assert(root.isEq(), "mul eq");
 
     for(const [idx, trm] of root.args.entries()){
@@ -250,7 +277,7 @@ export function* mulEq(multiplier : Term, root : App) : Generator<Term> {
             // 辺が加算の場合
 
             // 加算の中の各項に対し、乗数をかける。
-            yield* mulAdd(root, trm as App, multiplier);
+            yield* multiplyAdd(root, trm as App, multiplier);
         }
         else{
             // 辺が加算でない場合
@@ -295,13 +322,13 @@ export class Algebra {
         if(this.root!.isEq()){
             // ルートが等式の場合
 
-            yield* mulEq(multiplier, this.root!);
+            yield* multiplyEq(multiplier, this.root!);
         }
         else if(this.root instanceof App && this.root.fncName == "+"){
             // ルートが加算の場合
 
             // 加算の中の各項に対し、乗数をかける。
-            yield* mulAdd(this.root, this.root, multiplier);
+            yield* multiplyAdd(this.root, this.root, multiplier);
         }
         else{
             // ルートが等式や加算でない場合
@@ -811,7 +838,7 @@ export function* trimMul(root : App){
                 const nums = mul.args.filter(x => x instanceof ConstNum);
 
                 // 乗算の係数に、引数内の定数の積をかける。
-                mul.value.setmul( nums.reduce((acc,cur) => mulR(acc, cur.value), new Rational(1)) );
+                mul.value.setmul( nums.reduce((acc,cur) => mulRational(acc, cur.value), new Rational(1)) );
 
                 // 引数内の定数を取り除く。
                 nums.forEach(x => x.remArg());
@@ -914,16 +941,16 @@ export function splitdivPath(cmd : App, root : App) : App {
     // 分割位置
     const idx = (cmd.args[1] as ConstNum).value.int();
 
-    return splitdiv(div, idx);
+    return splitDiv(div, idx);
 }
 
 /**
  * 
  * @param cmd コマンド
  * @param root ルート
- * @description 除算を指定した位置で２つに分割する。
+ * @description (a + b + c)/d = a/d + (b + c)/d
  */
-export function splitdiv(div : App, idx : number) : App {
+export function splitDiv(div : App, idx : number) : App {
 
     // 分子の加算
     const add = div.args[0] as App;
@@ -1104,7 +1131,7 @@ export function* transpose(cmd : App, root : Term){
  * 
  * @param cmd 
  * @param root
- * @description 分配法則を適用する。 
+ * @description a * (b + c) = a*b + a*c
  */
 export function* distribute(cmd : App, root : App){
     assert(cmd.args.length == 1 && cmd.args[0] instanceof Path, "dist fnc");
@@ -1151,6 +1178,10 @@ export function* distribute(cmd : App, root : App){
 }
 
 
+/**
+ * 
+ * @description (a + b) * (c * d) = a*c + a*d + b*c + b*d
+ */
 export function* distributeTwo(speech : Speech, root : App, mul : App, root_cp : App, mul_cp : App, div1 : HTMLDivElement, div2 : HTMLDivElement){
     mul.red();
     root.renderTex(div1);
@@ -1338,7 +1369,7 @@ export function* greatestCommonFactor2(cmd : App, root : App){
         }
     }
     assert(args.length != 0 && args.every(x => x.isMul()), "gcf 4");
-    args.forEach(x => normalizeMul(x));
+    args.forEach(x => normalizeMulFactors(x));
 
     // 共通化する項の中のすべての乗数
     const all_multipliers : Term[] = [];
@@ -1391,10 +1422,10 @@ export function* greatestCommonFactor2(cmd : App, root : App){
         // 共通の除数がある場合
 
         // 分子
-        const numerator   = multiplyArgs(common_multipliers!);
+        const numerator   = makeMulFromArgs(common_multipliers!);
 
         // 分母
-        const denominator = multiplyArgs(common_divisors!);
+        const denominator = makeMulFromArgs(common_divisors!);
 
         // 除算で共通因子を作る。
         common_factor = new App(operator("/"), [ numerator, denominator ]);
@@ -1403,7 +1434,7 @@ export function* greatestCommonFactor2(cmd : App, root : App){
         // 共通の除数がない場合
 
         // 乗算で共通因子を作る。
-        common_factor = multiplyArgs(common_multipliers!);
+        common_factor = makeMulFromArgs(common_multipliers!);
     }
 
     // 共通乗数に含まれる乗数はキャンセルする。

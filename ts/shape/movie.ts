@@ -91,35 +91,57 @@ function getAt(root : App, at : App) : Term {
     throw new MyError();
 }
 
+function dotsStr(dots : Term) : string {
+    if(dots instanceof RefVar){
+        return dots.name;
+    }
+    else if(dots instanceof App){
+
+        assert(dots.isDot() && dots.args.every(x => x instanceof RefVar));
+        const names = dots.args.map(x => (x as RefVar).name);
+        return names.join(".");
+    }
+    throw new MyError();
+}
+
 function selectTerm(root : App, sel : Term){
     if(sel instanceof App && sel.fncName == "@sel"){
-        const trms = getEqTerms(root, sel.args[0]);
-        if(sel.args[1] instanceof ConstNum){
-            const idx  = sel.args[1].value.int();
-            assert(idx < trms.length);
-            return trms[idx];
-        }
-        else{
-            const dots = sel.args[1] as App;
-            assert(dots.isDot() && dots.args.every(x => x instanceof RefVar));
-            const names = dots.args.map(x => (x as RefVar).name);
-            const dots_str = names.join(".");
-
-            if(dots_str == "parent.isDiv"){
-                const trm = trms.find(x => x.parent!.isDiv());
-                if(trm != undefined){
-                    return trm.parent!;
+        if(sel.args.length == 1){
+            const dots_str = dotsStr(sel.args[0]);
+            if(dots_str == "isLim"){
+                const lim = allTerms(root).find(x => x.isLim());
+                if(lim != undefined){
+                    return lim;
                 }
             }
-            // else if(dots_str == "parent.isLim"){
-            //     const trm = trms.find(x => x.parent!.isLim());
-            //     if(trm != undefined){
-            //         return trm.parent!;
-            //     }
-            // }
-
-            throw new MyError();
         }
+        else{
+
+            const trms = getEqTerms(root, sel.args[0]);
+            if(sel.args[1] instanceof ConstNum){
+                const idx  = sel.args[1].value.int();
+                assert(idx < trms.length);
+                return trms[idx];
+            }
+            else{
+                const dots_str = dotsStr(sel.args[1]);
+
+                if(dots_str == "parent.isDiv"){
+                    const trm = trms.find(x => x.parent!.isDiv());
+                    if(trm != undefined){
+                        return trm.parent!;
+                    }
+                }
+                // else if(dots_str == "parent.isLim"){
+                //     const trm = trms.find(x => x.parent!.isLim());
+                //     if(trm != undefined){
+                //         return trm.parent!;
+                //     }
+                // }
+            }
+        }
+
+        throw new MyError();
     }
     else{
         return getEqTerm(root, sel);
@@ -997,7 +1019,7 @@ class Movie extends ViewM {
             this.pushHighlights();
 
             const fnc = selectTerm(this.current, cmd.args[0]) as App; 
-            assert(fnc.isDiv());
+            assert(fnc.isDiv() || fnc.isLim());
 
             const [root_cp, fnc_cp] = fnc.cloneRoot() as [App, App];
             this.current = root_cp;
@@ -1006,6 +1028,24 @@ class Movie extends ViewM {
             this.addTexDiv();
 
             const add_mul2 = expandFncAll(fnc_cp, 0);
+
+            this.current.renderTex(this.texDiv);
+            yield* this.speech.genSpeak("");
+                        
+            this.pushHighlights();
+        }
+        else if(cmd.fncName == "@putOutMul"){
+            this.clearHighlights();
+            this.pushHighlights();
+
+            const focus = selectTerm(this.current, cmd.args[0]) as App; 
+
+            const [root_cp, focus_cp] = focus.cloneRoot() as [App, App];
+            this.current = root_cp;
+        
+            this.addTexDiv();
+
+            putOutMultiplier(focus_cp);
 
             this.current.renderTex(this.texDiv);
             yield* this.speech.genSpeak("");

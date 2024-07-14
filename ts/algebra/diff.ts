@@ -167,7 +167,7 @@ export function* calc_diff(cmd : App, root : App){
 
 function square(trm : Term) : Term {
     if(trm instanceof ConstNum){
-        return ConstNum.fromRational(mulR(trm.value, trm.value));
+        return ConstNum.fromRational(mulRational(trm.value, trm.value));
     }
     else if(trm.isI()){
         return new ConstNum(-1);
