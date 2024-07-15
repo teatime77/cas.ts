@@ -91,57 +91,59 @@ function getAt(root : App, at : App) : Term {
     throw new MyError();
 }
 
+function isDotsStr(trm : Term) : boolean {
+    return trm instanceof RefVar && trm.name == "isLim" || trm.isDot();
+}
+
 function dotsStr(dots : Term) : string {
     if(dots instanceof RefVar){
         return dots.name;
     }
-    else if(dots instanceof App){
+    else if(dots instanceof App && dots.isDot()){
 
-        assert(dots.isDot() && dots.args.every(x => x instanceof RefVar));
+        assert(dots.args.every(x => x instanceof RefVar));
         const names = dots.args.map(x => (x as RefVar).name);
         return names.join(".");
     }
+
     throw new MyError();
 }
 
 function selectTerm(root : App, sel : Term){
     if(sel instanceof App && sel.fncName == "@sel"){
-        if(sel.args.length == 1){
-            const dots_str = dotsStr(sel.args[0]);
-            if(dots_str == "isLim"){
-                const lim = allTerms(root).find(x => x.isLim());
-                if(lim != undefined){
-                    return lim;
-                }
-            }
-        }
-        else{
+        const sel_args = sel.args.slice();
 
-            const trms = getEqTerms(root, sel.args[0]);
-            if(sel.args[1] instanceof ConstNum){
-                const idx  = sel.args[1].value.int();
-                assert(idx < trms.length);
-                return trms[idx];
+        let trms = allTerms(root);
+
+        while(sel_args.length != 0){
+            const sel = sel_args.shift()!
+            if(sel instanceof ConstNum){
+                const i = sel.value.int();
+                assert(sel_args.length == 0 && i < trms.length);
+                return trms[i];
+            }
+            else if(isDotsStr(sel)){
+
+                const dots_str = dotsStr(sel);
+                if(dots_str == "isLim"){
+                    trms = trms.filter(x => x.isLim());
+                }
+                else if(dots_str == "parent.isDiv"){
+                    trms = trms.filter(x => x.parent!.isDiv()).map(x => x.parent!);
+                }
+                else{
+                    throw new MyError();
+                }    
             }
             else{
-                const dots_str = dotsStr(sel.args[1]);
 
-                if(dots_str == "parent.isDiv"){
-                    const trm = trms.find(x => x.parent!.isDiv());
-                    if(trm != undefined){
-                        return trm.parent!;
-                    }
-                }
-                // else if(dots_str == "parent.isLim"){
-                //     const trm = trms.find(x => x.parent!.isLim());
-                //     if(trm != undefined){
-                //         return trm.parent!;
-                //     }
-                // }
+                trms = getEqTerms(root, sel);
             }
         }
 
-        throw new MyError();
+        assert(trms.length == 1);
+
+        return trms[0];
     }
     else{
         return getEqTerm(root, sel);
@@ -889,172 +891,167 @@ class Movie extends ViewM {
             }
             throw new MyError();
         }
-        else if(cmd.fncName == "@resolveAddMul"){
-            this.clearHighlights();
-            this.pushHighlights();
-
-            const focus = getEqTerm(this.current, cmd.args[0]) as App; 
-            yield* this.highlightFocus(focus, "using the associative law of addition");
-
-            const [root_cp, focus_cp] = focus.cloneRoot() as [App, App];
-            this.current = root_cp;
-            focus_cp.uncolor();
-            focus_cp.args.forEach(x => x.red());
-
-            simplifyNestedAdd(focus_cp);
-            this.addTexDiv();
-            this.current.renderTex(this.texDiv);
-            yield* this.speech.genSpeak("expand the brackets");
-
-            this.pushHighlights();
-        }
-        else if(cmd.fncName == "@changeOrder"){
-            this.clearHighlights();
-            this.pushHighlights();
-
-            const focus = getEqTerm(this.current, cmd.args[0]) as App; 
-            yield* this.highlightFocus(focus, "using the commutative law of addition");
-
-            const shift = cmd.args[1] as ConstNum;
-            assert(shift instanceof ConstNum);
-            const [root_cp, focus_cp] = changeOrder(focus, shift.value.int());
-            this.current = root_cp;
-            focus_cp.red();
-
-            this.addTexDiv();
-            this.current.renderTex(this.texDiv);
-            yield* this.speech.genSpeak("change the order");
-
-            this.pushHighlights();
-        }
-        else if(cmd.fncName == "@splitLinear"){
-            this.clearHighlights();
-            this.pushHighlights();
-
-            const focus = getEqTerm(this.current, cmd.args[0]) as App; 
-            const arg_idx = cmd.args[1] as ConstNum;
-
-            yield* this.highlightSplit(focus, "using the commutative law of linear function");
-
-            const [root_cp, focus_cp] = focus.cloneRoot() as [App, App];
-            const add = splitLinearFncFocus(focus_cp, arg_idx.value.int());
-
-            this.current = root_cp;
-            add.args[0].blue();
-            add.args[1].red();
-
-            this.addTexDiv();
-            this.current.renderTex(this.texDiv);
-            yield* this.speech.genSpeak("split linear function");
-
-            this.pushHighlights();
-        }
-        else if(cmd.fncName == "@subst"){
-            this.clearHighlights();
-            this.pushHighlights();
-
-            const focus = getEqTerm(this.current, cmd.args[0]); 
-            const term  = cmd.args[1];
-            let text1 = (cmd.args[2] as Str).text;
-            let text2 = (cmd.args[3] as Str).text;
-
-            yield* this.highlightFocus(focus, text1);
-
-            const [root_cp, focus_cp] = focus.cloneRoot() as [App, App];
-            focus_cp.replaceTerm(term);
-            term.red();
-
-            this.current = root_cp;            
-
-            this.addTexDiv();
-            this.current.renderTex(this.texDiv);
-            yield* this.speech.genSpeak(text2);
-
-            this.pushHighlights();
-        }
-        else if(cmd.fncName == "@distribute"){
-            this.clearHighlights();
-            this.pushHighlights();
-
-            const mul = getEqTerm(this.current, cmd.args[0]) as App; 
-
-            const [root_cp, mul_cp] = mul.cloneRoot() as [App, App];
-            root_cp.setParent(null);
-        
-            const div1 = this.texDiv;
-            this.addTexDiv();
-
-            yield* distributeTwo(this.speech, this.current, mul, root_cp, mul_cp, div1, this.texDiv);
-
-            this.current = root_cp;            
-
-
-            this.pushHighlights();
-        }
-        else if(cmd.fncName == "@remParentheses"){
-            this.clearHighlights();
-            this.pushHighlights();
-
-            const focus = getEqTerm(this.current, cmd.args[0]) as App; 
-            focus.remParentheses = true;
-            this.current.renderTex(this.texDiv);
-            yield* this.speech.genSpeak("remove parentheses");
-
-            simplifyNestedAdd(focus);
-            this.current.renderTex(this.texDiv);
-
-            this.pushHighlights();
-        }
-        else if(cmd.fncName == "@cancel"){
-            this.clearHighlights();
-            this.pushHighlights();
-
-            const focus = getEqTerm(this.current, cmd.args[0]) as App; 
-            yield* cancel(this.speech, focus, this.texDiv);
-
-            this.pushHighlights();
-        }
-        else if(cmd.fncName == "@expandAll"){
-            this.clearHighlights();
-            this.pushHighlights();
-
-            const fnc = selectTerm(this.current, cmd.args[0]) as App; 
-            assert(fnc.isDiv() || fnc.isLim());
-
-            const [root_cp, fnc_cp] = fnc.cloneRoot() as [App, App];
-            this.current = root_cp;
-        
-            const div1 = this.texDiv;
-            this.addTexDiv();
-
-            const add_mul2 = expandFncAll(fnc_cp, 0);
-
-            this.current.renderTex(this.texDiv);
-            yield* this.speech.genSpeak("");
-                        
-            this.pushHighlights();
-        }
-        else if(cmd.fncName == "@putOutMul"){
-            this.clearHighlights();
-            this.pushHighlights();
-
-            const focus = selectTerm(this.current, cmd.args[0]) as App; 
-
-            const [root_cp, focus_cp] = focus.cloneRoot() as [App, App];
-            this.current = root_cp;
-        
-            this.addTexDiv();
-
-            putOutMultiplier(focus_cp);
-
-            this.current.renderTex(this.texDiv);
-            yield* this.speech.genSpeak("");
-                        
-            this.pushHighlights();
-        }
         else{
+            this.clearHighlights();
+            this.pushHighlights();
 
-            throw new MyError();
+            const focus = selectTerm(this.current, cmd.args[0]); 
+
+            if(cmd.fncName == "@resolveAddMul"){
+                
+                yield* this.highlightFocus(focus, "using the associative law of addition");
+
+                const [root_cp, focus_cp] = focus.cloneRoot() as [App, App];
+                this.current = root_cp;
+                focus_cp.uncolor();
+                focus_cp.args.forEach(x => x.red());
+
+                simplifyNestedAdd(focus_cp);
+                this.addTexDiv();
+                this.current.renderTex(this.texDiv);
+                yield* this.speech.genSpeak("expand the brackets");
+            }
+            else if(cmd.fncName == "@changeOrder"){
+                
+                yield* this.highlightFocus(focus, "using the commutative law of addition");
+
+                const shift = cmd.args[1] as ConstNum;
+                assert(shift instanceof ConstNum);
+                const [root_cp, focus_cp] = changeOrder(focus, shift.value.int());
+                this.current = root_cp;
+                focus_cp.red();
+
+                this.addTexDiv();
+                this.current.renderTex(this.texDiv);
+                yield* this.speech.genSpeak("change the order");
+            }
+            else if(cmd.fncName == "@splitLinear"){
+                
+                const arg_idx = cmd.args[1] as ConstNum;
+
+                yield* this.highlightSplit(focus, "using the commutative law of linear function");
+
+                const [root_cp, focus_cp] = focus.cloneRoot() as [App, App];
+                const add = splitLinearFncFocus(focus_cp, arg_idx.value.int());
+
+                this.current = root_cp;
+                add.args[0].blue();
+                add.args[1].red();
+
+                this.addTexDiv();
+                this.current.renderTex(this.texDiv);
+                yield* this.speech.genSpeak("split linear function");
+            }
+            else if(cmd.fncName == "@subst"){
+                
+                const term  = cmd.args[1];
+                let text1 = (cmd.args[2] as Str).text;
+                let text2 = (cmd.args[3] as Str).text;
+
+                yield* this.highlightFocus(focus, text1);
+
+                const [root_cp, focus_cp] = focus.cloneRoot() as [App, App];
+                focus_cp.replaceTerm(term);
+                term.red();
+
+                this.current = root_cp;            
+
+                this.addTexDiv();
+                this.current.renderTex(this.texDiv);
+                yield* this.speech.genSpeak(text2);
+            }
+            else if(cmd.fncName == "@cancel"){
+               
+                yield* cancel(this.speech, focus, this.texDiv);
+            }
+            else if(cmd.fncName == "@expandAll"){
+                
+                assert(focus.isDiv() || focus.isLim());
+
+                const [root_cp, fnc_cp] = focus.cloneRoot() as [App, App];
+                this.current = root_cp;
+            
+                const div1 = this.texDiv;
+                this.addTexDiv();
+
+                const add_mul2 = expandFncAll(fnc_cp, 0);
+
+                this.current.renderTex(this.texDiv);
+                yield* this.speech.genSpeak("");
+            }
+            else if(cmd.fncName == "@putOutMul"){
+
+                const [root_cp, focus_cp] = focus.cloneRoot() as [App, App];
+                this.current = root_cp;
+            
+                this.addTexDiv();
+
+                putOutMultiplier(focus_cp);
+
+                this.current.renderTex(this.texDiv);
+                yield* this.speech.genSpeak("");
+            }
+            else{
+                if(focus instanceof App){
+                    if(cmd.fncName == "@remParentheses"){
+
+                        focus.remParentheses = true;
+                        this.current.renderTex(this.texDiv);
+                        yield* this.speech.genSpeak("remove parentheses");
+    
+                        simplifyNestedAdd(focus);
+                        this.current.renderTex(this.texDiv);
+                    }
+                    else if(cmd.fncName == "@distribute"){
+
+                        const [root_cp, mul_cp] = focus.cloneRoot() as [App, App];
+                        root_cp.setParent(null);
+                    
+                        const div1 = this.texDiv;
+                        this.addTexDiv();
+        
+                        yield* distributeTwo(this.speech, this.current, focus, root_cp, mul_cp, div1, this.texDiv);
+        
+                        this.current = root_cp;            
+                    }
+
+                    else if(cmd.fncName == "@formula"){
+                        assert(cmd.args.length == 3 && cmd.args[1] instanceof ConstNum && cmd.args[2] instanceof ConstNum);
+
+                        const index_id = cmd.args[1].value.int();
+                        const side_idx = cmd.args[2].value.int();
+
+                        const [trans, formula_root_cp, side_cp] = applyFormula(focus, index_id, side_idx);
+
+                        let result : Term;
+                        if(side_idx == 0){
+                            result = formula_root_cp.args[1];
+                        }
+                        else{
+                            result = formula_root_cp.args[0];
+                        }
+
+                        const [root_cp, focus_cp] = focus.cloneRoot() as [App, App];
+                        root_cp.setParent(null);        
+                        this.current = root_cp;            
+
+                        focus_cp.replaceTerm(result);
+                    
+                        this.addTexDiv();
+                        this.current.renderTex(this.texDiv);
+                    }
+                    else{
+
+                        throw new MyError();
+                    }
+                }
+                else{
+
+                    throw new MyError();
+                }
+            }
+                            
+            this.pushHighlights();
         }
     }
 
@@ -1362,6 +1359,8 @@ export async function bodyOnLoadMovie(){
     movie = new Movie();
 
     await asyncInitSpeech();
+
+    await readFormulas();
 
     $dlg("speech-dlg").show();
 

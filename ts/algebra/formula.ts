@@ -4,6 +4,37 @@ let focusTimerId : number = 0;
 class FormulaError extends Error {    
 }
 
+export async function readFormulas(){
+    Indexes = [];
+
+    const text = await fetchText(`../data/formulas.txt`);
+    const lines = text.split('\r\n').map(x => x.trim()).filter(x => x.length != 0);
+    for(const line of lines){
+        const i = line.indexOf(':');
+        const id = parseInt( line.substring(0, i).trim() )!;
+        const assertion_str = line.substring(i + 1).trim();
+
+        const index = new Index(id, null, 0, "", assertion_str);
+        Indexes.push(index);
+    }
+}
+
+export function applyFormula(focus : Term, index_id : number, side_idx : number) : [ApplyFormula, App, App]{
+    const index = Indexes.find(x => x.id == index_id);
+    if(index == undefined){
+        throw new MyError();
+    }
+
+    const form = index.assertion;
+    const side = form.args[side_idx];
+
+    const [trans, formula_root_cp, side_cp] = matchFormulas(focus, index, form, side_idx , side);
+    if(trans == null){
+        throw new MyError();
+    }
+    return [trans, formula_root_cp, side_cp];
+}
+
 export abstract class Transformation {
     commandName : string;
     focus : Term;
@@ -278,39 +309,48 @@ export function substByDic(dic : Map<string, Term>, fdic : Map<string, [App, Ter
     }
 }
 
-function matchFormulas(focus : Term){
+function matchFormulas(focus : Term, index : Index, form : App, side_idx : number , side : Term) : [ApplyFormula, App, App]  | [null, null, null]{
+    if(focus instanceof App && side instanceof App){
+        if(focus.fncName == side.fncName && focus.args.length == side.args.length){
+
+            const [formula_root_cp, side_cp] = side.cloneRoot() as [App, App];
+
+            const dic = new Map<string, Term>();
+            const fdic = new Map<string, [App, Term]>();
+            try{
+                const trans = new ApplyFormula(focus, index.id, formula_root_cp, side_idx, dic);
+                trans.matchTerm(dic, fdic, focus, side_cp);
+
+                substByDic(dic, fdic, formula_root_cp);
+                msg(`form : OK ${focus.str()} F:${formula_root_cp.str()}`);
+
+                return [trans, formula_root_cp, side_cp];
+            }
+            catch(e){
+                if(e instanceof FormulaError){
+
+                    msg(`form : NG ${focus.str()} F:${form.str()}`);
+                }
+                else{
+                    assert(false);
+                }
+            }
+        }
+    }
+
+    return [null, null, null];
+}
+
+function enumFormulaCandidates(focus : Term){
     msg(`run: id:${focus.id} ${focus.constructor.name}`);
 
     for(const index of Indexes.filter(x => x != curIndex)){
         const form = index.assertion;
         assert(2 <= form.args.length);
         for(const [side_idx, side] of form.args.entries()){
-            if(focus instanceof App && side instanceof App){
-                if(focus.fncName == side.fncName && focus.args.length == side.args.length){
-
-                    const [formula_root_cp, side_cp] = side.cloneRoot() as [App, App];
-
-                    const dic = new Map<string, Term>();
-                    const fdic = new Map<string, [App, Term]>();
-                    try{
-                        const trans = new ApplyFormula(focus, index.id, formula_root_cp, side_idx, dic);
-                        trans.matchTerm(dic, fdic, focus, side_cp);
-
-                        substByDic(dic, fdic, formula_root_cp);
-                        msg(`form : OK ${focus.str()} F:${formula_root_cp.str()}`);
-
-                        trans.showCandidate();
-                    }
-                    catch(e){
-                        if(e instanceof FormulaError){
-
-                            msg(`form : NG ${focus.str()} F:${form.str()}`);
-                        }
-                        else{
-                            assert(false);
-                        }
-                    }
-                }
+            const [trans, formula_root_cp, side_cp] = matchFormulas(focus, index, form, side_idx , side);
+            if(trans != null){
+                trans.showCandidate();
             }
         }
     }
@@ -352,7 +392,7 @@ function elementaryAlgebra(focus : Term){
 export function searchCandidate(focus : Term){
     $div("candidate-div").innerHTML = "";
 
-    matchFormulas(focus);
+    enumFormulaCandidates(focus);
     elementaryAlgebra(focus);
 }
 
